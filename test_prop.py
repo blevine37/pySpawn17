@@ -7,11 +7,15 @@ t0 = 0.0
 
 timestep = 0.1
 
-tfinal = 0.3
+tfinal = 1.0
 
 prop = "vv"
 
 ndims = 2
+
+nstates = 2
+
+istate = 1
 
 pos = np.random.normal(0.0,1.0,ndims)
 
@@ -21,7 +25,7 @@ wid = np.ones(ndims)
 
 m = np.ones(ndims)
 
-traj1.init_traj(t0,ndims,pos,mom,wid,m)
+traj1.init_traj(t0,ndims,pos,mom,wid,m,nstates,istate,0,"00")
 
 sim = fms.simulation()
 

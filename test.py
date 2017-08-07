@@ -45,7 +45,7 @@ t2.write_to_file("t2.json")
 
 sim = fms.simulation()
 
-sim.set_spawntraj(t2)
+#sim.set_spawntraj(t2)
 
 sim.write_to_file("sim.json")
 
@@ -78,6 +78,14 @@ sim4 = fms.simulation()
 sim4.read_from_file("sim3.json")
 
 sim4.write_to_file("sim4.json")
+
+print sim4.get_numtasks()
+
+sim4.add_task("abc")
+
+sim4.add_task("def")
+
+print sim4.get_numtasks()
 
 print type(sim4.traj["0"].positions).__module__
 

@@ -3,16 +3,25 @@ import numpy as np
 import sys
 import math
 from fms.fmsobj import fmsobj
+import os
+import shutil
+import h5py
 
 class traj(fmsobj):
     def __init__(self):
         self.time = 0.0
+        self.backproptime = 0.0
+        self.maxtime = -1.0
+        self.mintime = 0.0
         self.numdims = 2
         self.positions = np.zeros(self.numdims)
         self.momenta = np.zeros(self.numdims)
         self.widths = np.zeros(self.numdims)
         self.masses = np.zeros(self.numdims)
         self.istate = 0
+        self.ilabel = 0
+        self.label = "00"
+        self.h5_datasets = dict()
         
         self.timestep = 0.0
         self.propagator = "vv"
@@ -25,8 +34,6 @@ class traj(fmsobj):
         self.prev_wf = np.zeros((self.numstates,self.length_wf))
         self.last_es_positions = np.zeros(self.numdims)
         self.prev_positions = np.zeros(self.numdims)
-        self.output_positions = np.zeros(self.numdims)
-        self.output_momenta = np.zeros(self.numdims)
         self.energies = np.zeros(self.numstates)
         self.prev_energies = np.zeros(self.numstates)
         self.forces = np.zeros((self.numstates,self.numdims))
@@ -34,6 +41,27 @@ class traj(fmsobj):
 
 
     def set_time(self,t):
+        self.time = t
+    
+    def get_time(self):
+        return self.time
+    
+    def set_backproptime(self,t):
+        self.backproptime = t
+    
+    def get_backproptime(self):
+        return self.backproptime
+    
+    def set_maxtime(self,t):
+        self.maxtime = t
+    
+    def get_maxtime(self):
+        return self.maxtime
+    
+    def set_propagator(self,prop):
+        self.propagator = prop
+    
+    def set_mintime(self,t):
         self.time = t
     
     def set_numdims(self,ndims):
@@ -45,12 +73,10 @@ class traj(fmsobj):
         self.last_es_positions = np.zeros(self.numdims)
         self.forces = np.zeros((self.numstates,self.numdims))
         self.prev_positions = np.zeros(self.numdims)
-        self.output_positions = np.zeros(self.numdims)
-        self.output_momenta = np.zeros(self.numdims)
         self.prev_forces = np.zeros((self.numstates,self.numdims))
         
     def set_numstates(self,nstates):
-        self.numstates = numstates
+        self.numstates = nstates
         self.energies = np.zeros(self.numstates)
         self.forces = np.zeros((self.numstates,self.numdims))
         self.prev_energies = np.zeros(self.numstates)
@@ -78,6 +104,9 @@ class traj(fmsobj):
             print "Error in set_positions"
             sys.exit
 
+    def get_positions(self):
+        return self.positions
+            
     def set_momenta(self,mom):
         if mom.shape == self.momenta.shape:
             self.momenta = mom
@@ -85,6 +114,9 @@ class traj(fmsobj):
             print "Error in set_momenta"
             sys.exit
 
+    def get_momenta(self):
+        return self.momenta
+            
     def set_widths(self,wid):
         if wid.shape == self.widths.shape:
             self.widths = wid
@@ -102,36 +134,46 @@ class traj(fmsobj):
     def set_timestep(self,h):
         self.timestep = h
 
-    def init_traj(self,t,ndims,pos,mom,wid,m):
+    def set_ilabel(self,i):
+        self.ilabel = i
+
+    def get_ilabel(self):
+        return self.ilabel
+    
+    def set_label(self,lab):
+        self.label = lab
+
+    def get_label(self):
+        return self.label
+
+    def init_traj(self,t,ndims,pos,mom,wid,m,nstates,istat,ilabel,lab):
         self.set_time(t)
         self.set_numdims(ndims)
         self.set_positions(pos)
         self.set_momenta(mom)
         self.set_widths(wid)
         self.set_masses(m)
+        self.set_ilabel(ilabel)
+        self.set_label(lab)
+        self.set_numstates(nstates)
+        self.set_istate(istat)
 
     def get_forces(self):
-        self.compute_elec_struct()
         return self.forces
 
     def get_energies(self):
-        self.compute_elec_struct()
         return self.energies
 
     def get_wf(self):
-        self.compute_elec_struct()
         return self.wf
 
     def get_prev_forces(self):
-        self.compute_elec_struct()
         return self.prev_forces
 
     def get_prev_energies(self):
-        self.compute_elec_struct()
         return self.prev_energies
 
     def get_prev_wf(self):
-        self.compute_elec_struct()
         return self.prev_wf
 
     def compute_elec_struct(self):
@@ -171,7 +213,7 @@ class traj(fmsobj):
         if dot1 < 0.0:
             self.wf[1,:] = -self.wf[1,:]
 
-    def propagate(self):
+    def propagate_step(self):
         print self.time
         if self.time == 0.0 :
             tmp = "self.prop_" + self.propagator + "_first()"
@@ -182,29 +224,43 @@ class traj(fmsobj):
         
     def prop_vv_first(self):
         x_t = self.positions
+        self.compute_elec_struct()
         f_t = self.get_forces()[self.istate,:]
         v_t = self.momenta / self.masses
         a_t = f_t / self.masses
         dt = self.timestep
 
+        print "t ", self.time
         print "x_t ", x_t
         print "f_t ", f_t
         print "v_t ", v_t
         print "a_t ", a_t
-     
+
+        self.h5_output()
+        
         v_tphdt = v_t + 0.5 * a_t * dt
         x_tpdt = x_t + v_tphdt * dt
-
+        
         self.positions = x_tpdt.copy()
-        self.output_positions = x_tpdt.copy()
 
+        self.compute_elec_struct()
         f_tpdt = self.get_forces()[self.istate,:]
         
         a_tpdt = f_tpdt / self.masses
         v_tpdt = v_tphdt + 0.5 * a_tpdt * dt
 
-        self.output_momenta = v_tpdt * self.masses
+        self.momenta = v_tpdt * self.masses
 
+        self.time += dt
+
+        print "t ", self.time
+        print "x_t ", x_tpdt
+        print "f_t ", f_tpdt
+        print "v_t ", v_tpdt
+        print "a_t ", a_tpdt
+
+        self.h5_output()
+     
         v_tp3hdt = v_tpdt + 0.5 * a_tpdt * dt
 
         self.momenta = v_tp3hdt * self.masses
@@ -212,22 +268,29 @@ class traj(fmsobj):
         x_tp2dt = x_tpdt + v_tp3hdt * dt
 
         self.positions = x_tp2dt.copy()
-
-        self.timestep += dt
         
     def prop_vv(self):
         x_tpdt = self.positions.copy()
         v_tphdt = self.momenta / self.masses
+        self.compute_elec_struct()
         f_tpdt = self.get_forces()[self.istate,:]
         a_tpdt = f_tpdt / self.masses
         dt = self.timestep
 
-        self.output_positions = x_tpdt.copy()
-
         v_tpdt = v_tphdt + 0.5 * a_tpdt * dt
 
-        self.output_momenta = v_tpdt * self.masses
+        self.momenta = v_tpdt * self.masses
 
+        self.time += dt
+
+        print "t ", self.time
+        print "x_t ", x_tpdt
+        print "f_t ", f_tpdt
+        print "v_t ", v_tpdt
+        print "a_t ", a_tpdt
+     
+        self.h5_output()
+        
         v_tp3hdt = v_tpdt + 0.5 * a_tpdt * dt
 
         self.momenta = v_tp3hdt * self.masses
@@ -236,7 +299,62 @@ class traj(fmsobj):
 
         self.positions = x_tp2dt.copy()
         
-        self.timestep += dt
-    
+    def h5_output(self):
+        if len(self.h5_datasets) == 0:
+            init = "self.init_h5_datasets_" + self.get_software() + "_" + self.get_method() + "()"
+            eval(init)
+        extensions = [3,2,1,0]
+        for i in extensions :
+            if i==0:
+                ext = ""
+            else:
+                ext = str(i) + "."
+            filename = "sim." + ext + "hdf5"
+            if os.path.isfile(filename):
+                if (i == extensions[0]):
+                    os.remove(filename)
+                else:
+                    ext = str(i+1) + "."
+                    filename2 = "sim." + ext + "hdf5"
+                    if (i == extensions[-1]):
+                        shutil.copy2(filename, filename2)
+                    else:
+                        shutil.move(filename, filename2)
+        h5f = h5py.File(filename, "a")
+        groupname = "traj_" + self.label
+        if groupname not in h5f.keys():
+            self.create_h5_traj(h5f,groupname)
+        trajgrp = h5f.get(groupname)
+        for key in self.h5_datasets:
+            n = self.h5_datasets[key]
+            print "key", key
+            dset = trajgrp.get(key)
+            l = dset.len()
+            dset.resize(l+1,axis=0)
+            getcom = "self.get_" + key + "()"
+            print getcom
+            tmp = eval(getcom)
+            if n!=1:
+                dset[l,0:n] = tmp[0:n]
+            else:
+                dset[l,0] = tmp
+        h5f.close()
+        
+    def create_h5_traj(self, h5f, groupname):
+        trajgrp = h5f.create_group(groupname)
+        for key in self.h5_datasets:
+            n = self.h5_datasets[key]
+            dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n))   
+            
+    def init_h5_datasets_pyspawn_cone(self):
+        self.h5_datasets["time"] = 1
+        self.h5_datasets["energies"] = self.numstates
+        self.h5_datasets["positions"] = self.numdims
+        self.h5_datasets["momenta"] = self.numdims
+        #self.h5_datasets["wf"] = self.numstates
+        
+
+        
+        
             
                                 

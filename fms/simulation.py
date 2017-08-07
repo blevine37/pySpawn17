@@ -9,9 +9,11 @@ class simulation(fmsobj):
         self.maxtime = -1.0
         self.numtraj = 0
         self.traj = dict()
-        self.spawntraj = traj()
+#        self.spawntraj = traj()
         self.defaulttimestep = 0.0
+        self.queue = ["END"]
 
+    # convert dict to simulation data structure
     def from_dict(self,**tempdict):
         for key in tempdict:
             if isinstance(tempdict[key],types.ListType) :
@@ -38,14 +40,59 @@ class simulation(fmsobj):
                             (tempdict[key])[key2] = obj
         self.__dict__.update(tempdict)
 
+    # add a trajectory to the simulation
     def add_traj(self,t1, key):
         self.traj[key] = t1
         self.numtraj += 1
 
-    def set_spawntraj(self,t1):
-        self.spawntraj = t1
-    
+    # 
+#    def set_spawntraj(self,t1):
+#        self.spawntraj = t1
 
+    def add_task(self,task):
+        self.queue.append(task)
+
+    def get_numtasks(self):
+        return (len(self.queue)-1)
+
+    def set_timestep_all(self,h):
+        for key in self.traj:
+            self.traj[key].set_timestep(h)
+
+    def set_maxtime_all(self,maxtime):
+        for key in self.traj:
+            self.traj[key].set_maxtime(maxtime)
+
+    def set_mintime_all(self,mintime):
+        for key in self.traj:
+            self.traj[key].set_mintime(mintime)
+
+    def set_propagator_all(self,prop):
+        for key in self.traj:
+            self.traj[key].set_propagator(prop)
+
+    def propagate(self):
+        while True:
+            self.update_queue()
+            if (self.queue[0] == "END"):
+                print "propagate DONE"
+                return
+            print self.queue[0]
+            print self.queue[1]
+            print self.traj
+            current = self.queue.pop(0)
+            print "Starting " + current
+            eval(current)
+            print "Done with " + current
+
+    def update_queue(self):
+        for key in self.traj:
+            print "key " + key
+            if self.traj[key].get_maxtime() > self.traj[key].get_time():
+                task_tmp = "self.traj[\"" + key  + "\"].propagate_step()"
+                self.queue.insert(0,task_tmp)
+    
+    
 
         
         

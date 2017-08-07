@@ -1,10 +1,15 @@
-# a class from which all fms classes should be derived.
-# Includes methods for output of classes
+# A class from which all fms classes should be derived.
+# Includes methods for output of classes to json format.
+# The ability to read/dump data from/to json is essential to the
+# restartability that we intend.
+# nested python dictionaries serve as an intermediate between json
+# and the native python class
 import types
 import numpy as np
 import json
 
-class fmsobj(object):    
+class fmsobj(object):
+    # Convert fmsobj structure to python dict structure
     def to_dict(self):
         tempdict=(self.__dict__).copy()
         for key in tempdict:
@@ -26,7 +31,8 @@ class fmsobj(object):
                         (tempdict2[key2])["fmsobjlabel"] = fmsobjlabel
                 
         return tempdict
-        
+
+    # Convert dict structure to fmsobj structure
     def from_dict(self,**tempdict):
         for key in tempdict:
             print key
@@ -41,11 +47,13 @@ class fmsobj(object):
                             tempdict[key] = np.asarray(tempdict[key])
         self.__dict__.update(tempdict)
 
+    # Write fmsobj structure to disk in json format
     def write_to_file(self,outfilename):
         tempdict = self.to_dict()
         with open(outfilename,'w') as outputfile:
             json.dump(tempdict,outputfile,sort_keys=True, indent=4, separators=(',', ': '))
 
+    # Read fmsobj structure from json file
     def read_from_file(self,infilename):
         with open(infilename,'r') as inputfile:
             tempdict = json.load(inputfile)
