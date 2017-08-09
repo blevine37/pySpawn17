@@ -86,11 +86,22 @@ class simulation(fmsobj):
             print "Done with " + current
 
     def update_queue(self):
+        while self.queue[0] != "END":
+            self.queue.pop(0)
         for key in self.traj:
             print "key " + key
-            if self.traj[key].get_maxtime() > self.traj[key].get_time():
+            if (self.traj[key].get_maxtime()-1.0e-6) > self.traj[key].get_time():
                 task_tmp = "self.traj[\"" + key  + "\"].propagate_step()"
                 self.queue.insert(0,task_tmp)
+        for key in self.traj:
+            print "key " + key
+            if (self.traj[key].get_mintime()+1.0e-6) < self.traj[key].get_backprop_time():
+                task_tmp = "self.traj[\"" + key  + "\"].propagate_step(zbackprop=True)"
+                self.queue.insert(0,task_tmp)
+        print (len(self.queue)-1), " jobs in queue"
+        for task in self.queue:
+            print task
+        
     
     
 

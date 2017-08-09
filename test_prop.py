@@ -3,7 +3,7 @@ import fms
 
 traj1 = fms.traj()
 
-t0 = 0.0
+t0 = 0.3
 
 timestep = 0.1
 
