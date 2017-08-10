@@ -14,6 +14,7 @@ class simulation(fmsobj):
         self.traj = dict()
         self.defaulttimestep = 0.0
         self.queue = ["END"]
+        self.olapmax = 0.8
 
     # convert dict to simulation data structure
     def from_dict(self,**tempdict):
@@ -57,6 +58,9 @@ class simulation(fmsobj):
 
     def get_numtasks(self):
         return (len(self.queue)-1)
+
+    def set_olapmax(self,s):
+        self.olapmax = s
 
     def set_timestep_all(self,h):
         for key in self.traj:
@@ -123,14 +127,23 @@ class simulation(fmsobj):
                     label = self.traj[key].get_label() + "->" + str(self.traj[key].get_numchildren())
                     print "Creating new traj, ", label
 
-                    spawntraj[label] = traj()
-                    spawntraj[label].init_spawn_traj(self.traj[key], jstate, label)
+                    newtraj = traj()
+                    newtraj.init_spawn_traj(self.traj[key], jstate, label)
 
-                    print "overlap ij ", cg.overlap_nuc(spawntraj[label],self.traj[key],positions_j="positions_tmdt",momenta_j="momenta_tmdt")
-                    print "overlap ij ", cg.overlap_nuc(spawntraj[label],self.traj[key],positions_j="positions_t",momenta_j="momenta_t")
-                    print "overlap ij ", cg.overlap_nuc(spawntraj[label],self.traj[key],positions_j="positions_tpdt",momenta_j="momenta_tpdt")
-                    
-                    self.traj[key].incr_numchildren()
+                    # checking to see if overlap with existing trajectories
+                    # is too high.  If so, we abort spawn
+                    z_add_traj=True
+                    for key2 in self.traj:
+                        overlap = cg.overlap_nuc_elec(newtraj,self.traj[key2],positions_j="positions_tmdt",momenta_j="momenta_tmdt")
+                        if np.absolute(overlap) > self.olapmax:
+                            z_add_traj=False
+                            
+                    if z_add_traj:
+                        spawntraj[label] = newtraj
+                        self.traj[key].incr_numchildren()
+                    else:
+                        print "Aborting spawn due to large overlap with existing trajectory"
+                        
                     z[jstate] = 0.0
                     z_dont[jstate] = 1.0
                     spawnt[jstate] = -1.0

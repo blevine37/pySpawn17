@@ -3,11 +3,11 @@ import cmath
 from fms.fmsobj import fmsobj
 from fms.traj import traj
 
-def overlap_nuc_elec(ti,tj):
+def overlap_nuc_elec(ti,tj,positions_i="positions",positions_j="positions",momenta_i="momenta",momenta_j="momenta"):
     if ti.get_istate() == tj.get_istate():
-        Sij = overlap_nuc(ti,tj)
+        Sij = overlap_nuc(ti,tj,positions_i=positions_i,positions_j=positions_j,momenta_i=momenta_i,momenta_j=momenta_j)
     else:
-        Sij = 0.0
+        Sij = complex(0.0,0.0)
     return Sij
 
 def overlap_nuc(ti,tj,positions_i="positions",positions_j="positions",momenta_i="momenta",momenta_j="momenta"):
