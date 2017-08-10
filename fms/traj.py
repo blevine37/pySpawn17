@@ -393,6 +393,33 @@ class traj(fmsobj):
         self.set_z_dont_spawn(z_dont)
         print "init_st mintime0", self.get_mintime()
 
+    def rescale_momentum(self, v_parent):
+        v_child = self.get_energies()[self.get_istate()]
+        print "rescale v_child ", v_child
+        print "rescale v_parent ", v_parent
+        # computing kinetic energy of parent.  Remember that, at this point,
+        # the child's momentum is still that of the parent, so we compute
+        # t_parent from the child's momentum
+        p_parent = self.get_momenta()
+        m = self.get_masses()
+        t_parent = 0.0
+        for idim in range(self.get_numdims()):
+            t_parent += 0.5 * p_parent[idim] * p_parent[idim] / m[idim]
+        print "rescale t_parent ", t_parent
+        factor = ( ( v_parent + t_parent - v_child ) / t_parent )
+        if factor < 0.0:
+            print "Aborting spawn because child does not have"
+            print "enough energy for momentum adjustment"
+            return False
+        print "rescale factor ", factor
+        factor = math.sqrt(factor)
+        print "rescale factor ", factor
+        p_child = factor * p_parent
+        print "rescale p_child ", p_child
+        print "rescale p_parent ", p_parent
+        self.set_momenta(p_child)
+        return True
+
     def set_forces(self,f):
         if f.shape == self.forces.shape:
             self.forces = f.copy()
@@ -901,6 +928,3 @@ class traj(fmsobj):
 
         exec("self.set_" + cbackprop + "positions(x_tp2dt)")
 ### end velocity Verlet (vv) integrator section ###
-        
-            
-                                

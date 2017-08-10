@@ -132,17 +132,15 @@ class simulation(fmsobj):
 
                     # checking to see if overlap with existing trajectories
                     # is too high.  If so, we abort spawn
-                    z_add_traj=True
-                    for key2 in self.traj:
-                        overlap = cg.overlap_nuc_elec(newtraj,self.traj[key2],positions_j="positions_tmdt",momenta_j="momenta_tmdt")
-                        if np.absolute(overlap) > self.olapmax:
-                            z_add_traj=False
-                            
-                    if z_add_traj:
+                    z_add_traj_olap = self.check_overlap(newtraj)
+
+                    # rescaling velocity.  We'll abort if there is not
+                    # enough energy (aka a "frustrated spawn")
+                    z_add_traj_rescale = newtraj.rescale_momentum(self.traj[key].get_energies_tmdt()[self.traj[key].get_istate()])
+                    
+                    if z_add_traj_olap and z_add_traj_rescale:
                         spawntraj[label] = newtraj
                         self.traj[key].incr_numchildren()
-                    else:
-                        print "Aborting spawn due to large overlap with existing trajectory"
                         
                     z[jstate] = 0.0
                     z_dont[jstate] = 1.0
@@ -156,6 +154,18 @@ class simulation(fmsobj):
             ### need to test overlaps before adding trajectories!!!!
             self.add_traj(spawntraj[label])
 
+    def check_overlap(self,newtraj):
+        z_add_traj=True
+        for key2 in self.traj:
+            overlap = cg.overlap_nuc_elec(newtraj,self.traj[key2],positions_j="positions_tmdt",momenta_j="momenta_tmdt")
+            print "overlap ", np.absolute(overlap), self.olapmax
+            if np.absolute(overlap) > self.olapmax:
+                z_add_traj=False
+            if not z_add_traj:
+                print "Aborting spawn due to large overlap with existing trajectory"
+        return z_add_traj
+        
+            
     def json_output(self):
         extensions = [3,2,1,0]
         for i in extensions :
@@ -175,9 +185,3 @@ class simulation(fmsobj):
                     else:
                         shutil.move(filename, filename2)
         self.write_to_file("sim.json")
-        
-
-    
-
-        
-        
