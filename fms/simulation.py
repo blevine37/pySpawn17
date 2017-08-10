@@ -3,13 +3,14 @@ import types
 import numpy as np
 from fms.fmsobj import fmsobj
 from fms.traj import traj
+import os
+import shutil
 
 class simulation(fmsobj):
     def __init__(self):
         self.maxtime = -1.0
         self.numtraj = 0
         self.traj = dict()
-#        self.spawntraj = traj()
         self.defaulttimestep = 0.0
         self.queue = ["END"]
 
@@ -89,6 +90,7 @@ class simulation(fmsobj):
             eval(current)
             print "Done with " + current
             self.spawn_as_necessary()
+            self.json_output()
 
     def update_queue(self):
         while self.queue[0] != "END":
@@ -136,7 +138,27 @@ class simulation(fmsobj):
             ### need to test overlaps before adding trajectories!!!!
             self.add_traj(spawntraj[label])
 
-                    
+    def json_output(self):
+        extensions = [3,2,1,0]
+        for i in extensions :
+            if i==0:
+                ext = ""
+            else:
+                ext = str(i) + "."
+            filename = "sim." + ext + "json"
+            if os.path.isfile(filename):
+                if (i == extensions[0]):
+                    os.remove(filename)
+                else:
+                    ext = str(i+1) + "."
+                    filename2 = "sim." + ext + "json"
+                    if (i == extensions[-1]):
+                        shutil.copy2(filename, filename2)
+                    else:
+                        shutil.move(filename, filename2)
+        self.write_to_file("sim.json")
+        
+
     
 
         
