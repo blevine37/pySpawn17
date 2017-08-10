@@ -41,7 +41,8 @@ class simulation(fmsobj):
         self.__dict__.update(tempdict)
 
     # add a trajectory to the simulation
-    def add_traj(self,t1, key):
+    def add_traj(self,t1):
+        key = t1.get_label()
         self.traj[key] = t1
         self.numtraj += 1
 
@@ -82,8 +83,12 @@ class simulation(fmsobj):
             print self.traj
             current = self.queue.pop(0)
             print "Starting " + current
+            # Right now we just run a single task per cycle,
+            # but we could parallelize here and send multiple tasks
+            # out for simultaneous processing.
             eval(current)
             print "Done with " + current
+            self.spawn_as_necessary()
 
     def update_queue(self):
         while self.queue[0] != "END":
@@ -102,7 +107,33 @@ class simulation(fmsobj):
         for task in self.queue:
             print task
         
-    
+    def spawn_as_necessary(self):
+        spawntraj = dict()
+        for key in self.traj:
+            for jstate in range(self.traj[key].get_numstates()):
+                z = self.traj[key].get_z_spawn_now()
+                if z[jstate] > 0.5:
+                    label = self.traj[key].get_label() + "->" + str(self.traj[key].get_numchildren())
+                    print "Creating new traj, ", label
+
+                    spawntraj[label] = traj()
+                    spawntraj[label].init_spawn_traj(self.traj[key], jstate, label)
+                    minspawntime = max([(2.0 * self.traj[key].get_time() - spawntraj[label].get_mintime()), self.traj[key].get_time() + 3.0 * self.traj[key].get_timestep()])
+                    mst = spawntraj[label].get_minspawntimes()
+                    mst[jstate] = minspawntime
+                    spawntraj[label].set_minspawntimes(mst)
+                    
+                    self.traj[key].incr_numchildren()
+                    z[jstate] = 0.0
+                    self.traj[key].set_z_spawn_now(z)
+                    spawnt = self.traj[key].get_spawntimes()
+                    spawnt[jstate] = -1.0
+                    self.traj[key].set_spawntimes(spawnt)
+                    
+        for label in spawntraj:
+            self.add_traj(spawntraj[label])
+
+                    
     
 
         

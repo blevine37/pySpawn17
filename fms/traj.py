@@ -19,7 +19,6 @@ class traj(fmsobj):
         self.widths = np.zeros(self.numdims)
         self.masses = np.zeros(self.numdims)
         self.istate = 0
-        self.ilabel = 0
         self.label = "00"
         self.h5_datasets = dict()
 
@@ -32,12 +31,9 @@ class traj(fmsobj):
         self.length_wf = self.numstates
         self.wf = np.zeros((self.numstates,self.length_wf))
         self.prev_wf = np.zeros((self.numstates,self.length_wf))
-        #self.last_es_positions = np.zeros(self.numdims)
-        #self.prev_positions = np.zeros(self.numdims)
         self.energies = np.zeros(self.numstates)
-        #self.prev_energies = np.zeros(self.numstates)
         self.forces = np.zeros((self.numstates,self.numdims))
-        #self.prev_forces = np.zeros((self.numstates,self.numdims))
+        self.timederivcoups = np.zeros(self.numstates)
 
         self.backprop_time = 0.0
         self.backprop_energies = np.zeros(self.numstates)
@@ -46,12 +42,31 @@ class traj(fmsobj):
         self.backprop_momenta = np.zeros(self.numdims)
         self.backprop_wf = np.zeros((self.numstates,self.length_wf))
         self.backprop_prev_wf = np.zeros((self.numstates,self.length_wf))
+
+        self.spawntimes = -1.0 * np.ones(self.numstates)
+        self.minspawntimes = -1.0 * np.ones(self.numstates)
+        self.spawnthresh = 0.0
+        self.spawnlastcoup = np.zeros(self.numstates)
+        self.positions_tpdt = np.zeros(self.numdims)
+        self.positions_t = np.zeros(self.numdims)
+        self.positions_tmdt = np.zeros(self.numdims)
+        self.momenta_tpdt = np.zeros(self.numdims)
+        self.momenta_t = np.zeros(self.numdims)
+        self.momenta_tmdt = np.zeros(self.numdims)
+        self.z_spawn_now = np.zeros(self.numstates)
+        self.numchildren = 0
         
     def set_time(self,t):
         self.time = t
     
     def get_time(self):
         return self.time
+    
+    def set_timestep(self,h):
+        self.timestep = h
+    
+    def get_timestep(self):
+        return self.timestep
     
     def set_backprop_time(self,t):
         self.backprop_time = t
@@ -71,6 +86,9 @@ class traj(fmsobj):
     def get_firsttime(self):
         return self.firsttime
     
+    def get_propagator(self):
+        return self.propagator
+    
     def set_propagator(self,prop):
         self.propagator = prop
     
@@ -86,8 +104,19 @@ class traj(fmsobj):
         self.momenta = np.zeros(self.numdims)
         self.widths = np.zeros(self.numdims)
         self.masses = np.zeros(self.numdims)
-        self.last_es_positions = np.zeros(self.numdims)
+        #self.last_es_positions = np.zeros(self.numdims)
         self.forces = np.zeros((self.numstates,self.numdims))
+
+        self.backprop_positions = np.zeros(self.numdims)
+        self.backprop_momenta = np.zeros(self.numdims)
+        self.backprop_forces = np.zeros((self.numstates,self.numdims))
+        
+        self.positions_t = np.zeros(self.numdims)
+        self.positions_tmdt = np.zeros(self.numdims)
+        self.positions_tpdt = np.zeros(self.numdims)
+        self.momenta_t = np.zeros(self.numdims)
+        self.momenta_tmdt = np.zeros(self.numdims)
+        self.momenta_tpdt = np.zeros(self.numdims)
         #self.prev_positions = np.zeros(self.numdims)
         #self.prev_forces = np.zeros((self.numstates,self.numdims))
         
@@ -95,11 +124,37 @@ class traj(fmsobj):
         self.numstates = nstates
         self.energies = np.zeros(self.numstates)
         self.forces = np.zeros((self.numstates,self.numdims))
+
+        self.backprop_energies = np.zeros(self.numstates)
+        self.backprop_forces = np.zeros((self.numstates,self.numdims))
+
+        self.spawntimes = -1.0 * np.ones(self.numstates)
+        self.timederivcoups = np.zeros(self.numstates)
+        self.spawnlastcoup = np.zeros(self.numstates)
+        self.z_spawn_now = np.zeros(self.numstates)
         #self.prev_energies = np.zeros(self.numstates)
         #self.prev_forces = np.zeros((self.numstates,self.numdims))
 
     def set_istate(self,ist):
         self.istate = ist
+
+    def get_istate(self):
+        return self.istate
+
+    def get_numstates(self):
+        return self.numstates
+
+    def get_numdims(self):
+        return self.numdims
+
+    def set_numchildren(self,ist):
+        self.numchildren = ist
+
+    def get_numchildren(self):
+        return self.numchildren
+
+    def incr_numchildren(self):
+        self.set_numchildren(self.get_numchildren() + 1)
 
     def set_software(self,sw):
         self.software = sw
@@ -123,6 +178,36 @@ class traj(fmsobj):
     def get_positions(self):
         return self.positions.copy()
             
+    def set_positions_t(self,pos):
+        if pos.shape == self.positions_t.shape:
+            self.positions_t = pos.copy()
+        else:
+            print "Error in set_positions_t"
+            sys.exit
+
+    def get_positions_t(self):
+        return self.positions_t.copy()
+            
+    def set_positions_tmdt(self,pos):
+        if pos.shape == self.positions_tmdt.shape:
+            self.positions_tmdt = pos.copy()
+        else:
+            print "Error in set_positions_tmdt"
+            sys.exit
+
+    def get_positions_tmdt(self):
+        return self.positions_tmdt.copy()
+            
+    def set_positions_tpdt(self,pos):
+        if pos.shape == self.positions_tpdt.shape:
+            self.positions_tpdt = pos.copy()
+        else:
+            print "Error in set_positions_tpdt"
+            sys.exit
+
+    def get_positions_tpdt(self):
+        return self.positions_tpdt.copy()
+            
     def set_momenta(self,mom):
         if mom.shape == self.momenta.shape:
             self.momenta = mom.copy()
@@ -132,6 +217,36 @@ class traj(fmsobj):
 
     def get_momenta(self):
         return self.momenta.copy()
+            
+    def set_momenta_t(self,mom):
+        if mom.shape == self.momenta_t.shape:
+            self.momenta_t = mom.copy()
+        else:
+            print "Error in set_momenta_t"
+            sys.exit
+
+    def get_momenta_t(self):
+        return self.momenta_t.copy()
+            
+    def set_momenta_tmdt(self,mom):
+        if mom.shape == self.momenta_tmdt.shape:
+            self.momenta_tmdt = mom.copy()
+        else:
+            print "Error in set_momenta_tmdt"
+            sys.exit
+
+    def get_momenta_tmdt(self):
+        return self.momenta_tmdt.copy()
+            
+    def set_momenta_tpdt(self,mom):
+        if mom.shape == self.momenta_tpdt.shape:
+            self.momenta_tpdt = mom.copy()
+        else:
+            print "Error in set_momenta_tpdt"
+            sys.exit
+
+    def get_momenta_tpdt(self):
+        return self.momenta_tpdt.copy()
             
     def set_backprop_positions(self,pos):
         if pos.shape == self.backprop_positions.shape:
@@ -173,29 +288,19 @@ class traj(fmsobj):
     def get_masses(self):
         return self.masses.copy()
 
-    def set_timestep(self,h):
-        self.timestep = h
-
-    def set_ilabel(self,i):
-        self.ilabel = i
-
-    def get_ilabel(self):
-        return self.ilabel
-    
     def set_label(self,lab):
         self.label = lab
 
     def get_label(self):
         return self.label
 
-    def init_traj(self,t,ndims,pos,mom,wid,m,nstates,istat,ilabel,lab):
+    def init_traj(self,t,ndims,pos,mom,wid,m,nstates,istat,lab):
         self.set_time(t)
         self.set_numdims(ndims)
         self.set_positions(pos)
         self.set_momenta(mom)
         self.set_widths(wid)
         self.set_masses(m)
-        self.set_ilabel(ilabel)
         self.set_label(lab)
         self.set_numstates(nstates)
         self.set_istate(istat)
@@ -205,6 +310,46 @@ class traj(fmsobj):
         self.set_backprop_momenta(mom)
 
         self.set_firsttime(t)
+
+    def init_spawn_traj(self, parent, istate, label):
+        self.set_numstates(parent.get_numstates())
+        self.set_numdims(parent.get_numdims())
+
+        self.set_istate(istate)
+        
+        time = parent.get_time() - 2.0 * parent.get_timestep()
+        self.set_time(time)
+
+        mintime = parent.get_spawntimes()[istate]
+        self.set_mintime(mintime)
+        self.set_label(label)
+
+        minspawnt = self.get_minspawntimes()
+        minspawntime = max([(2.0 * parent.get_time() - mintime), parent.get_time() + 3.0 * parent.get_timestep()])
+        print "minspawntime ", minspawntime
+        minspawnt[parent.get_istate()] = minspawntime
+        self.set_minspawntimes(minspawnt)
+        
+        pos = parent.get_positions_tmdt()
+        mom = parent.get_momenta_tmdt()
+
+# adjust momentum
+        
+        self.set_positions(pos)
+        self.set_momenta(mom)
+
+        self.set_backprop_time(time)
+        self.set_backprop_positions(pos)
+        self.set_backprop_momenta(mom)
+
+        self.set_firsttime(time)
+
+        self.set_maxtime(parent.get_maxtime())
+        self.set_widths(parent.get_widths())
+        self.set_masses(parent.get_masses())
+        
+        self.set_timestep(parent.get_timestep())
+        self.set_propagator(parent.get_propagator())   
 
     def set_forces(self,f):
         if f.shape == self.forces.shape:
@@ -286,6 +431,62 @@ class traj(fmsobj):
     def get_backprop_prev_wf(self):
         return self.prev_wf.copy()
 
+    def set_spawntimes(self,st):
+        if st.shape == self.spawntimes.shape:
+            self.spawntimes = st.copy()
+        else:
+            print "Error in set_spawntimes"
+            sys.exit
+
+    def get_spawntimes(self):
+        return self.spawntimes.copy()
+
+    def set_minspawntimes(self,st):
+        if st.shape == self.minspawntimes.shape:
+            self.minspawntimes = st.copy()
+        else:
+            print "Error in set_minspawntimes"
+            sys.exit
+
+    def get_minspawntimes(self):
+        return self.minspawntimes.copy()
+
+    def set_timederivcoups(self,t):
+        if t.shape == self.timederivcoups.shape:
+            self.timederivcoups = t.copy()
+        else:
+            print "Error in set_spawntimes"
+            sys.exit
+    
+    def get_timederivcoups(self):
+        return self.timederivcoups.copy()
+    
+    def set_spawnlastcoup(self,tdc):
+        if tdc.shape == self.spawnlastcoup.shape:
+            self.spawnlastcoup = tdc.copy()
+        else:
+            print "Error in set_spawnlastcoup"
+            sys.exit
+    
+    def get_spawnlastcoup(self):
+        return self.spawnlastcoup.copy()
+    
+    def set_z_spawn_now(self,z):
+        if z.shape == self.z_spawn_now.shape:
+            self.z_spawn_now = z.copy()
+        else:
+            print "Error in set_z_spawn_now"
+            sys.exit
+    
+    def get_z_spawn_now(self):
+        return self.z_spawn_now.copy()
+    
+    def set_spawnthresh(self,t):
+        self.spawnthresh = t
+    
+    def get_spawnthresh(self):
+        return self.spawnthresh
+    
     def compute_elec_struct(self,zbackprop):
         tmp = "self.compute_elec_struct_" + self.get_software() + "_" + self.get_method() + "(zbackprop)"
         eval(tmp)
@@ -301,7 +502,43 @@ class traj(fmsobj):
         else:
             tmp = "self.prop_" + self.propagator + "(zbackprop=" + str(zbackprop) + ")"
             eval(tmp)
+
+        # consider whether to spawn
+        if not zbackprop:
+            self.consider_spawning()
+
+    def consider_spawning(self):
+        tdc = self.get_timederivcoups()
+        lasttdc = self.get_spawnlastcoup()
+        spawnt = self.get_spawntimes()
+        thresh = self.get_spawnthresh()
         
+        for jstate in range(self.numstates):
+            print "consider1 ", jstate, self.get_istate()
+            if (jstate != self.get_istate()) and (self.get_time() > self.get_minspawntimes()[jstate]):
+                print "consider2 ",spawnt[jstate]
+                if spawnt[jstate] > -1.0e-6:
+        #check to see if a trajectory in a spawning region is ready to spawn
+                    print "consider3 ",tdc[jstate], lasttdc[jstate]
+                    if abs(tdc[jstate]) < abs(lasttdc[jstate]):
+                        print "Spawning to state ", jstate, " at time ", self.get_time()
+                        # setting z_spawn_now let's indicates that
+                        # this trajectory should spawn to jstate
+                        z = self.get_z_spawn_now()
+                        z[jstate] = 1.0
+                        self.set_z_spawn_now(z)
+                else:
+        #check to see if a trajectory is entering a spawning region
+                    print "consider4 ",tdc[jstate], thresh
+                    if abs(tdc[jstate]) > thresh:
+                        print "Entered spawning region ", jstate, " at time ", self.get_time()
+                        spawnt[jstate] = self.get_time()
+                        
+        self.set_spawnlastcoup(tdc)
+        self.set_spawntimes(spawnt)
+                        
+            
+            
     def h5_output(self, zbackprop):
         if not zbackprop:
             cbackprop = ""
@@ -356,8 +593,32 @@ class traj(fmsobj):
         trajgrp = h5f.create_group(groupname)
         for key in self.h5_datasets:
             n = self.h5_datasets[key]
-            dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n))   
-
+            dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n))
+            
+    def compute_tdc(self,W):
+        Atmp = np.arccos(W[0,0]) - np.arcsin(W[0,1])
+        Btmp = np.arccos(W[0,0]) + np.arcsin(W[0,1])
+        Ctmp = np.arccos(W[1,1]) - np.arcsin(W[1,0])
+        Dtmp = np.arccos(W[1,1]) + np.arcsin(W[1,0])
+        if Atmp < 1.0e-6:
+            A = -1.0
+        else:
+            A = -1.0 * np.sin(Atmp) / Atmp
+        if Btmp < 1.0e-6:
+            B = 1.0
+        else:
+            B = np.sin(Btmp) / Btmp
+        if Ctmp < 1.0e-6:
+            C = 1.0
+        else:
+            C = np.sin(Ctmp) / Ctmp
+        if Dtmp < 1.0e-6:
+            D = 1.0
+        else:
+            D = np.sin(Dtmp) / Dtmp
+        h = self.get_timestep()
+        tdc = 0.5 / h * (np.arccos(W[0,0])*(A+B) + np.arcsin(W[1,0])*(C+D))
+        return tdc
 
 #################################################
 ### electronic structure routines go here #######
@@ -408,14 +669,24 @@ class traj(fmsobj):
         wf[1,0] = math.cos(theta)
         wf[1,1] = -math.sin(theta)
         exec("prev_wf = self.get_" + cbackprop + "prev_wf()")
-        dot0 = wf[0,0] * prev_wf[0,0] + wf[0,1] * prev_wf[0,1]
-        dot1 = wf[1,0] * prev_wf[1,0] + wf[1,1] * prev_wf[1,1]
-        if dot0 < 0.0:
-            self.wf[0,:] = -1.0*self.wf[0,:]
-            dot0 = -1.0 * dot0
-        if dot1 < 0.0:
-            self.wf[1,:] = -1.0*self.wf[1,:]
-            dot1 = -1.0 * dot1
+        # phasing wave funciton to match previous time step
+        W = np.matmul(prev_wf,wf.T)
+        if W[0,0] < 0.0:
+            wf[0,:] = -1.0*wf[0,:]
+            W[:,0] = -1.0 * W[:,0]
+        if W[1,1] < 0.0:
+            wf[1,:] = -1.0*wf[1,:]
+            W[:,1] = -1.0 * W[:,1]
+        # computing NPI derivative coupling
+        tmp=self.compute_tdc(W)
+        tdc = np.zeros(self.numstates)
+        if self.istate == 1:
+            jstate = 0
+        else:
+            jstate = 1
+        tdc[jstate] = tmp
+        self.set_timederivcoups(tdc)
+        
         exec("self.set_" + cbackprop + "wf(wf)")
 
     def init_h5_datasets_pyspawn_cone(self):
@@ -425,6 +696,7 @@ class traj(fmsobj):
         self.h5_datasets["momenta"] = self.numdims
         self.h5_datasets["wf0"] = self.numstates
         self.h5_datasets["wf1"] = self.numstates
+        self.h5_datasets["timederivcoups"] = self.numstates
 
     def get_wf0(self):
         return self.wf[0,:].copy()
@@ -437,6 +709,9 @@ class traj(fmsobj):
 
     def get_backprop_wf1(self):
         return self.backprop_wf[1,:].copy()
+
+    def get_backprop_timederivcoups(self):
+        return np.zeros(self.numstates)
 
 ###end pyspawn_cone electronic structure section###
 
@@ -453,10 +728,10 @@ class traj(fmsobj):
     def prop_first_vv(self,zbackprop):
         if not zbackprop:
             cbackprop = ""
-            dt = self.timestep
+            dt = self.get_timestep()
         else:
             cbackprop = "backprop_"
-            dt = -1.0 * self.timestep
+            dt = -1.0 * self.get_timestep()
             
         exec("x_t = self.get_" + cbackprop + "positions()")
         self.compute_elec_struct(zbackprop)
@@ -488,6 +763,10 @@ class traj(fmsobj):
         v_tpdt = v_tphdt + 0.5 * a_tpdt * dt
         p_tpdt = v_tpdt * m
         
+        if not zbackprop:
+            self.set_momenta_tmdt(self.get_momenta_t())
+            self.set_momenta_t(self.get_momenta_tpdt())
+            self.set_momenta_tpdt(p_tpdt)
         exec("self.set_" + cbackprop + "momenta(p_tpdt)")
 
         t += dt
@@ -514,12 +793,16 @@ class traj(fmsobj):
     def prop_vv(self,zbackprop):
         if not zbackprop:
             cbackprop = ""
-            dt = self.timestep
+            dt = self.get_timestep()
         else:
             cbackprop = "backprop_"
-            dt = -1.0 * self.timestep
-            
+            dt = -1.0 * self.get_timestep()
+
         exec("x_tpdt = self.get_" + cbackprop + "positions()")
+        if not zbackprop:
+            self.set_positions_tmdt(self.get_positions_t())
+            self.set_positions_t(self.get_positions_tpdt())
+            self.set_positions_tpdt(x_tpdt)
         self.compute_elec_struct(zbackprop)
         exec("f_tpdt = self.get_" + cbackprop + "forces()[self.istate,:]")
         exec("p_tphdt = self.get_" + cbackprop + "momenta()")
@@ -532,6 +815,10 @@ class traj(fmsobj):
 
         p_tpdt = v_tpdt * m
 
+        if not zbackprop:
+            self.set_momenta_tmdt(self.get_momenta_t())
+            self.set_momenta_t(self.get_momenta_tpdt())
+            self.set_momenta_tpdt(p_tpdt)
         exec("self.set_" + cbackprop + "momenta(p_tpdt)")
         
         t += dt

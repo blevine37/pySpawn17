@@ -3,11 +3,11 @@ import fms
 
 traj1 = fms.traj()
 
-t0 = 0.3
+t0 = 0.0
 
 timestep = 0.1
 
-tfinal = 1.0
+tfinal = 2.0
 
 prop = "vv"
 
@@ -25,11 +25,13 @@ wid = np.ones(ndims)
 
 m = np.ones(ndims)
 
-traj1.init_traj(t0,ndims,pos,mom,wid,m,nstates,istate,0,"00")
+traj1.init_traj(t0,ndims,pos,mom,wid,m,nstates,istate,"00")
+
+traj1.set_spawnthresh(1.0)
 
 sim = fms.simulation()
 
-sim.add_traj(traj1,'0')
+sim.add_traj(traj1)
 
 sim.set_timestep_all(timestep)
 
