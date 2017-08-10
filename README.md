@@ -6,7 +6,6 @@
 | _|          |__| |_______/    | _|    /__/     \__\  \__/  \__/     |__| \__| 
 
 
-=========
 pySpawn17
 =========
 
@@ -16,9 +15,9 @@ created by
 Benjamin G. Levine
 Michigan State University
 
-A trim but extensible full multiple spawning software package, written in entirely in python and distrubed under the MIT License.
+A trim but extensible full multiple spawning software package, written in entirely in python and distributed under the MIT License.
 
-========
+
 Citation
 ========
 
@@ -28,7 +27,7 @@ If you use this code, we ask that you cite as follows:
 
 This citation will eventually be updated.
 
-=======
+
 License
 =======
 
@@ -40,7 +39,7 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-========
+
 Features
 ========
 
