@@ -110,27 +110,28 @@ class simulation(fmsobj):
     def spawn_as_necessary(self):
         spawntraj = dict()
         for key in self.traj:
+            z = self.traj[key].get_z_spawn_now()
+            z_dont = self.traj[key].get_z_dont_spawn()
+            spawnt = self.traj[key].get_spawntimes()
             for jstate in range(self.traj[key].get_numstates()):
-                z = self.traj[key].get_z_spawn_now()
                 if z[jstate] > 0.5:
                     label = self.traj[key].get_label() + "->" + str(self.traj[key].get_numchildren())
                     print "Creating new traj, ", label
 
                     spawntraj[label] = traj()
                     spawntraj[label].init_spawn_traj(self.traj[key], jstate, label)
-                    minspawntime = max([(2.0 * self.traj[key].get_time() - spawntraj[label].get_mintime()), self.traj[key].get_time() + 3.0 * self.traj[key].get_timestep()])
-                    mst = spawntraj[label].get_minspawntimes()
-                    mst[jstate] = minspawntime
-                    spawntraj[label].set_minspawntimes(mst)
                     
                     self.traj[key].incr_numchildren()
                     z[jstate] = 0.0
-                    self.traj[key].set_z_spawn_now(z)
-                    spawnt = self.traj[key].get_spawntimes()
+                    z_dont[jstate] = 1.0
                     spawnt[jstate] = -1.0
-                    self.traj[key].set_spawntimes(spawnt)
+                    
+            self.traj[key].set_z_spawn_now(z)
+            self.traj[key].set_z_dont_spawn(z_dont)
+            self.traj[key].set_spawntimes(spawnt)
                     
         for label in spawntraj:
+            ### need to test overlaps before adding trajectories!!!!
             self.add_traj(spawntraj[label])
 
                     

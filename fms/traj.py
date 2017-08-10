@@ -44,7 +44,6 @@ class traj(fmsobj):
         self.backprop_prev_wf = np.zeros((self.numstates,self.length_wf))
 
         self.spawntimes = -1.0 * np.ones(self.numstates)
-        self.minspawntimes = -1.0 * np.ones(self.numstates)
         self.spawnthresh = 0.0
         self.spawnlastcoup = np.zeros(self.numstates)
         self.positions_tpdt = np.zeros(self.numdims)
@@ -54,6 +53,7 @@ class traj(fmsobj):
         self.momenta_t = np.zeros(self.numdims)
         self.momenta_tmdt = np.zeros(self.numdims)
         self.z_spawn_now = np.zeros(self.numstates)
+        self.z_dont_spawn = np.zeros(self.numstates)
         self.numchildren = 0
         
     def set_time(self,t):
@@ -132,6 +132,7 @@ class traj(fmsobj):
         self.timederivcoups = np.zeros(self.numstates)
         self.spawnlastcoup = np.zeros(self.numstates)
         self.z_spawn_now = np.zeros(self.numstates)
+        self.z_dont_spawn = np.zeros(self.numstates)
         #self.prev_energies = np.zeros(self.numstates)
         #self.prev_forces = np.zeros((self.numstates,self.numdims))
 
@@ -323,12 +324,6 @@ class traj(fmsobj):
         mintime = parent.get_spawntimes()[istate]
         self.set_mintime(mintime)
         self.set_label(label)
-
-        minspawnt = self.get_minspawntimes()
-        minspawntime = max([(2.0 * parent.get_time() - mintime), parent.get_time() + 3.0 * parent.get_timestep()])
-        print "minspawntime ", minspawntime
-        minspawnt[parent.get_istate()] = minspawntime
-        self.set_minspawntimes(minspawnt)
         
         pos = parent.get_positions_tmdt()
         mom = parent.get_momenta_tmdt()
@@ -349,7 +344,11 @@ class traj(fmsobj):
         self.set_masses(parent.get_masses())
         
         self.set_timestep(parent.get_timestep())
-        self.set_propagator(parent.get_propagator())   
+        self.set_propagator(parent.get_propagator())
+
+        z_dont = np.zeros(parent.get_numstates())
+        z_dont[parent.get_istate()] = 1.0
+        self.set_z_dont_spawn(z_dont)
 
     def set_forces(self,f):
         if f.shape == self.forces.shape:
@@ -441,16 +440,6 @@ class traj(fmsobj):
     def get_spawntimes(self):
         return self.spawntimes.copy()
 
-    def set_minspawntimes(self,st):
-        if st.shape == self.minspawntimes.shape:
-            self.minspawntimes = st.copy()
-        else:
-            print "Error in set_minspawntimes"
-            sys.exit
-
-    def get_minspawntimes(self):
-        return self.minspawntimes.copy()
-
     def set_timederivcoups(self,t):
         if t.shape == self.timederivcoups.shape:
             self.timederivcoups = t.copy()
@@ -480,6 +469,16 @@ class traj(fmsobj):
     
     def get_z_spawn_now(self):
         return self.z_spawn_now.copy()
+    
+    def set_z_dont_spawn(self,z):
+        if z.shape == self.z_dont_spawn.shape:
+            self.z_dont_spawn = z.copy()
+        else:
+            print "Error in set_z_dont_spawn"
+            sys.exit
+    
+    def get_z_dont_spawn(self):
+        return self.z_dont_spawn.copy()
     
     def set_spawnthresh(self,t):
         self.spawnthresh = t
@@ -512,28 +511,34 @@ class traj(fmsobj):
         lasttdc = self.get_spawnlastcoup()
         spawnt = self.get_spawntimes()
         thresh = self.get_spawnthresh()
+        z_dont_spawn = self.get_z_dont_spawn()
+        z = self.get_z_spawn_now()
         
         for jstate in range(self.numstates):
             print "consider1 ", jstate, self.get_istate()
-            if (jstate != self.get_istate()) and (self.get_time() > self.get_minspawntimes()[jstate]):
+            if (jstate != self.get_istate()):
                 print "consider2 ",spawnt[jstate]
                 if spawnt[jstate] > -1.0e-6:
         #check to see if a trajectory in a spawning region is ready to spawn
                     print "consider3 ",tdc[jstate], lasttdc[jstate]
                     if abs(tdc[jstate]) < abs(lasttdc[jstate]):
                         print "Spawning to state ", jstate, " at time ", self.get_time()
-                        # setting z_spawn_now let's indicates that
+                        # setting z_spawn_now indicates that
                         # this trajectory should spawn to jstate
-                        z = self.get_z_spawn_now()
                         z[jstate] = 1.0
-                        self.set_z_spawn_now(z)
                 else:
         #check to see if a trajectory is entering a spawning region
                     print "consider4 ",tdc[jstate], thresh
-                    if abs(tdc[jstate]) > thresh:
+                    if (abs(tdc[jstate]) > thresh) and (z_dont_spawn[jstate] < 0.5):
                         print "Entered spawning region ", jstate, " at time ", self.get_time()
                         spawnt[jstate] = self.get_time()
+                    else:
+                        if (abs(tdc[jstate]) < (0.9*thresh)) and (z_dont_spawn[jstate] > 0.5):
+                            z_dont_spawn[jstate] = 0.0
                         
+                        
+        self.set_z_spawn_now(z)
+        self.set_z_dont_spawn(z_dont_spawn)
         self.set_spawnlastcoup(tdc)
         self.set_spawntimes(spawnt)
                         

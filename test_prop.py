@@ -7,7 +7,7 @@ t0 = 0.0
 
 timestep = 0.1
 
-tfinal = 2.0
+tfinal = 4.0
 
 prop = "vv"
 
