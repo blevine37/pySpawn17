@@ -52,6 +52,9 @@ class traj(fmsobj):
         self.momenta_tpdt = np.zeros(self.numdims)
         self.momenta_t = np.zeros(self.numdims)
         self.momenta_tmdt = np.zeros(self.numdims)
+        self.energies_tpdt = np.zeros(self.numstates)
+        self.energies_t = np.zeros(self.numstates)
+        self.energies_tmdt = np.zeros(self.numstates)
         self.z_spawn_now = np.zeros(self.numstates)
         self.z_dont_spawn = np.zeros(self.numstates)
         self.numchildren = 0
@@ -96,7 +99,7 @@ class traj(fmsobj):
         return self.mintime
     
     def set_mintime(self,t):
-        self.time = t
+        self.mintime = t
     
     def set_numdims(self,ndims):
         self.numdims = ndims
@@ -133,6 +136,10 @@ class traj(fmsobj):
         self.spawnlastcoup = np.zeros(self.numstates)
         self.z_spawn_now = np.zeros(self.numstates)
         self.z_dont_spawn = np.zeros(self.numstates)
+
+        self.energies_tpdt = np.zeros(self.numstates)
+        self.energies_t = np.zeros(self.numstates)
+        self.energies_tmdt = np.zeros(self.numstates)
         #self.prev_energies = np.zeros(self.numstates)
         #self.prev_forces = np.zeros((self.numstates,self.numdims))
 
@@ -249,6 +256,36 @@ class traj(fmsobj):
     def get_momenta_tpdt(self):
         return self.momenta_tpdt.copy()
             
+    def set_energies_t(self,e):
+        if e.shape == self.energies_t.shape:
+            self.energies_t = e.copy()
+        else:
+            print "Error in set_energies_t"
+            sys.exit
+
+    def get_energies_t(self):
+        return self.energies_t.copy()
+            
+    def set_energies_tmdt(self,e):
+        if e.shape == self.energies_tmdt.shape:
+            self.energies_tmdt = e.copy()
+        else:
+            print "Error in set_energies_tmdt"
+            sys.exit
+
+    def get_energies_tmdt(self):
+        return self.energies_tmdt.copy()
+            
+    def set_energies_tpdt(self,e):
+        if e.shape == self.energies_tpdt.shape:
+            self.energies_tpdt = e.copy()
+        else:
+            print "Error in set_energies_tpdt"
+            sys.exit
+
+    def get_energies_tpdt(self):
+        return self.energies_tpdt.copy()
+            
     def set_backprop_positions(self,pos):
         if pos.shape == self.backprop_positions.shape:
             self.backprop_positions = pos.copy()
@@ -321,21 +358,26 @@ class traj(fmsobj):
         time = parent.get_time() - 2.0 * parent.get_timestep()
         self.set_time(time)
 
-        mintime = parent.get_spawntimes()[istate]
-        self.set_mintime(mintime)
         self.set_label(label)
         
         pos = parent.get_positions_tmdt()
         mom = parent.get_momenta_tmdt()
+        e = parent.get_energies_tmdt()
 
 # adjust momentum
         
         self.set_positions(pos)
         self.set_momenta(mom)
+        self.set_energies(e)
 
+        mintime = parent.get_spawntimes()[istate]
+        print "init_st mintime", mintime
+        self.set_mintime(mintime)
+        print "init_st time", time
         self.set_backprop_time(time)
         self.set_backprop_positions(pos)
         self.set_backprop_momenta(mom)
+        print "init_st mintime2", self.get_mintime()
 
         self.set_firsttime(time)
 
@@ -349,6 +391,7 @@ class traj(fmsobj):
         z_dont = np.zeros(parent.get_numstates())
         z_dont[parent.get_istate()] = 1.0
         self.set_z_dont_spawn(z_dont)
+        print "init_st mintime0", self.get_mintime()
 
     def set_forces(self,f):
         if f.shape == self.forces.shape:
@@ -742,6 +785,7 @@ class traj(fmsobj):
         self.compute_elec_struct(zbackprop)
         exec("f_t = self.get_" + cbackprop + "forces()[self.istate,:]")
         exec("p_t = self.get_" + cbackprop + "momenta()")
+        exec("e_t = self.get_" + cbackprop + "energies()")
         m = self.get_masses()
         v_t = p_t / m
         a_t = f_t / m
@@ -763,15 +807,12 @@ class traj(fmsobj):
 
         self.compute_elec_struct(zbackprop)
         exec("f_tpdt = self.get_" + cbackprop + "forces()[self.istate,:]")
+        exec("e_tpdt = self.get_" + cbackprop + "energies()")
         
         a_tpdt = f_tpdt / m
         v_tpdt = v_tphdt + 0.5 * a_tpdt * dt
         p_tpdt = v_tpdt * m
         
-        if not zbackprop:
-            self.set_momenta_tmdt(self.get_momenta_t())
-            self.set_momenta_t(self.get_momenta_tpdt())
-            self.set_momenta_tpdt(p_tpdt)
         exec("self.set_" + cbackprop + "momenta(p_tpdt)")
 
         t += dt
@@ -793,6 +834,14 @@ class traj(fmsobj):
 
         x_tp2dt = x_tpdt + v_tp3hdt * dt
 
+        if not zbackprop:
+            self.set_positions_t(x_t)
+            self.set_positions_tpdt(x_tpdt)
+            self.set_momenta_t(p_t)
+            self.set_momenta_tpdt(p_tpdt)
+            self.set_energies_t(e_t)
+            self.set_energies_tpdt(e_tpdt)
+            
         exec("self.set_" + cbackprop + "positions(x_tp2dt)")
         
     def prop_vv(self,zbackprop):
@@ -804,12 +853,10 @@ class traj(fmsobj):
             dt = -1.0 * self.get_timestep()
 
         exec("x_tpdt = self.get_" + cbackprop + "positions()")
-        if not zbackprop:
-            self.set_positions_tmdt(self.get_positions_t())
-            self.set_positions_t(self.get_positions_tpdt())
-            self.set_positions_tpdt(x_tpdt)
         self.compute_elec_struct(zbackprop)
         exec("f_tpdt = self.get_" + cbackprop + "forces()[self.istate,:]")
+        exec("e_tpdt = self.get_" + cbackprop + "energies()")
+
         exec("p_tphdt = self.get_" + cbackprop + "momenta()")
         m = self.get_masses()
         v_tphdt = p_tphdt / m
@@ -821,6 +868,12 @@ class traj(fmsobj):
         p_tpdt = v_tpdt * m
 
         if not zbackprop:
+            self.set_positions_tmdt(self.get_positions_t())
+            self.set_positions_t(self.get_positions_tpdt())
+            self.set_positions_tpdt(x_tpdt)
+            self.set_energies_tmdt(self.get_energies_t())
+            self.set_energies_t(self.get_energies_tpdt())
+            self.set_energies_tpdt(e_tpdt)
             self.set_momenta_tmdt(self.get_momenta_t())
             self.set_momenta_t(self.get_momenta_tpdt())
             self.set_momenta_tpdt(p_tpdt)

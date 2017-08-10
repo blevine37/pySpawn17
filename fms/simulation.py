@@ -100,7 +100,9 @@ class simulation(fmsobj):
                 self.queue.insert(0,task_tmp)
         for key in self.traj:
             print "key " + key
+
             if (self.traj[key].get_mintime()+1.0e-6) < self.traj[key].get_backprop_time():
+                print "uq backprop ", self.traj[key].get_mintime(), self.traj[key].get_backprop_time()
                 task_tmp = "self.traj[\"" + key  + "\"].propagate_step(zbackprop=True)"
                 self.queue.insert(0,task_tmp)
         print (len(self.queue)-1), " jobs in queue"
