@@ -5,6 +5,7 @@ from fms.fmsobj import fmsobj
 from fms.traj import traj
 import os
 import shutil
+import complexgaussian as cg
 
 class simulation(fmsobj):
     def __init__(self):
@@ -124,6 +125,10 @@ class simulation(fmsobj):
 
                     spawntraj[label] = traj()
                     spawntraj[label].init_spawn_traj(self.traj[key], jstate, label)
+
+                    print "overlap ij ", cg.overlap_nuc(spawntraj[label],self.traj[key],positions_j="positions_tmdt",momenta_j="momenta_tmdt")
+                    print "overlap ij ", cg.overlap_nuc(spawntraj[label],self.traj[key],positions_j="positions_t",momenta_j="momenta_t")
+                    print "overlap ij ", cg.overlap_nuc(spawntraj[label],self.traj[key],positions_j="positions_tpdt",momenta_j="momenta_tpdt")
                     
                     self.traj[key].incr_numchildren()
                     z[jstate] = 0.0
