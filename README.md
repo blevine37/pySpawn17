@@ -15,7 +15,7 @@ created by
 Benjamin G. Levine
 Michigan State University
 
-A trim but extensible full multiple spawning software package, written in entirely in python and distributed under the MIT License.
+A trim but extensible full multiple spawning software package, written in python and distributed under the MIT License.
 
 
 Citation

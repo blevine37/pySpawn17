@@ -9,11 +9,11 @@ import complexgaussian as cg
 
 class simulation(fmsobj):
     def __init__(self):
-        self.maxtime = -1.0
-        self.numtraj = 0
         self.traj = dict()
-        self.defaulttimestep = 0.0
+        
         self.queue = ["END"]
+        self.tasktimes = [1e10]
+        
         self.olapmax = 0.8
 
     # convert dict to simulation data structure
@@ -47,7 +47,6 @@ class simulation(fmsobj):
     def add_traj(self,t1):
         key = t1.get_label()
         self.traj[key] = t1
-        self.numtraj += 1
 
     # 
 #    def set_spawntraj(self,t1):
@@ -87,7 +86,7 @@ class simulation(fmsobj):
             print self.queue[0]
             print self.queue[1]
             print self.traj
-            current = self.queue.pop(0)
+            current = self.pop_task() 
             print "Starting " + current
             # Right now we just run a single task per cycle,
             # but we could parallelize here and send multiple tasks
@@ -97,24 +96,35 @@ class simulation(fmsobj):
             self.spawn_as_necessary()
             self.json_output()
 
+    def pop_task(self):
+        self.tasktimes.pop(0)
+        return self.queue.pop(0)
+            
     def update_queue(self):
         while self.queue[0] != "END":
             self.queue.pop(0)
+            self.tasktimes.pop(0)
         for key in self.traj:
             print "key " + key
             if (self.traj[key].get_maxtime()-1.0e-6) > self.traj[key].get_time():
                 task_tmp = "self.traj[\"" + key  + "\"].propagate_step()"
-                self.queue.insert(0,task_tmp)
+                tasktime_tmp = self.traj[key].get_time()
+                self.insert_task(task_tmp,tasktime_tmp)
         for key in self.traj:
-            print "key " + key
-
             if (self.traj[key].get_mintime()+1.0e-6) < self.traj[key].get_backprop_time():
-                print "uq backprop ", self.traj[key].get_mintime(), self.traj[key].get_backprop_time()
                 task_tmp = "self.traj[\"" + key  + "\"].propagate_step(zbackprop=True)"
-                self.queue.insert(0,task_tmp)
-        print (len(self.queue)-1), " jobs in queue"
+                tasktime_tmp = self.traj[key].get_backprop_time()
+                self.insert_task(task_tmp,tasktime_tmp)
+        print (len(self.queue)-1), " jobs in queue:"
         for task in self.queue:
             print task
+
+    def insert_task(self,task,tasktime):
+        for i in range(len(self.tasktimes)):
+            if tasktime < self.tasktimes[i]:
+                self.queue.insert(i,task)
+                self.tasktimes.insert(i,tasktime)
+                return
         
     def spawn_as_necessary(self):
         spawntraj = dict()
