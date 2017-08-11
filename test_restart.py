@@ -1,9 +1,9 @@
 import numpy as np
-import fms         
+import pyspawn         
 
 tfinal = 6.0
 
-sim = fms.simulation()
+sim = pyspawn.simulation()
 
 sim.read_from_file("sim.json")
 

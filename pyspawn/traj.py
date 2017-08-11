@@ -2,7 +2,7 @@
 import numpy as np
 import sys
 import math
-from fms.fmsobj import fmsobj
+from pyspawn.fmsobj import fmsobj
 import os
 import shutil
 import h5py

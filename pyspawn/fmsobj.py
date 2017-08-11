@@ -15,7 +15,7 @@ class fmsobj(object):
         for key in tempdict:
             if type(tempdict[key]).__module__ == np.__name__ :
                 tempdict[key] = tempdict[key].tolist()
-            if (type(tempdict[key]).__module__)[0:3] == __name__[0:3] :
+            if (type(tempdict[key]).__module__)[0:7] == __name__[0:7] :
                 print "I'm here"
                 fmsobjlabel = type(tempdict[key]).__module__
                 tempdict[key] = tempdict[key].to_dict()
@@ -24,7 +24,7 @@ class fmsobj(object):
                 tempdict2 = (tempdict[key]).copy()
                 tempdict[key] = tempdict2
                 for key2 in tempdict2:
-                    if (type(tempdict2[key2]).__module__)[0:3] == __name__[0:3] :
+                    if (type(tempdict2[key2]).__module__)[0:7] == __name__[0:7] :
                         print "I'm there"
                         fmsobjlabel = type(tempdict2[key2]).__module__
                         tempdict2[key2] = tempdict2[key2].to_dict()

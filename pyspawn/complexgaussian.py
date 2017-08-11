@@ -1,7 +1,7 @@
 import math
 import cmath
-from fms.fmsobj import fmsobj
-from fms.traj import traj
+from pyspawn.fmsobj import fmsobj
+from pyspawn.traj import traj
 
 def overlap_nuc_elec(ti,tj,positions_i="positions",positions_j="positions",momenta_i="momenta",momenta_j="momenta"):
     if ti.get_istate() == tj.get_istate():

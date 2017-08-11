@@ -1,7 +1,7 @@
 import numpy as np
 
-from fms.fmsobj import fmsobj
-from fms.traj import traj
-import fms.complexgaussian
-from fms.simulation import simulation
+from pyspawn.fmsobj import fmsobj
+from pyspawn.traj import traj
+import pyspawn.complexgaussian
+from pyspawn.simulation import simulation
 

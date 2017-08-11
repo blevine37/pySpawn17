@@ -1,7 +1,7 @@
 import numpy as np
-import fms         
+import pyspawn        
 
-traj1 = fms.traj()
+traj1 = pyspawn.traj()
 
 t0 = 0.0
 
@@ -29,7 +29,7 @@ traj1.init_traj(t0,ndims,pos,mom,wid,m,nstates,istate,"00")
 
 traj1.set_spawnthresh(1.0)
 
-sim = fms.simulation()
+sim = pyspawn.simulation()
 
 sim.add_traj(traj1)
 
