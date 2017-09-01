@@ -61,6 +61,7 @@ class traj(fmsobj):
         
         self.positions_qm = np.zeros(self.numdims)
         self.momenta_qm = np.zeros(self.numdims)
+        self.energies_qm = np.zeros(self.numstates)
 
     def set_time(self,t):
         self.time = t
@@ -287,6 +288,16 @@ class traj(fmsobj):
     def get_momenta_tpdt(self):
         return self.momenta_tpdt.copy()
             
+    def set_energies_qm(self,e):
+        if e.shape == self.energies_qm.shape:
+            self.energies_qm = e.copy()
+        else:
+            print "Error in set_energies_qm"
+            sys.exit
+
+    def get_energies_qm(self):
+        return self.energies_qm.copy()
+
     def set_energies_t(self,e):
         if e.shape == self.energies_t.shape:
             self.energies_t = e.copy()
@@ -776,6 +787,31 @@ class traj(fmsobj):
         
         h5f.close()
         return pos, mom
+            
+    def get_e_at_time_from_h5(self,t):
+        h5f = h5py.File("sim.hdf5", "r")
+        if "_&_" not in self.get_label():
+            traj_or_cent = "traj_"
+        else:
+            traj_or_cent = "cent_"
+        groupname = traj_or_cent + self.label
+        filename = "sim.hdf5"
+        trajgrp = h5f.get(groupname)
+        dset_time = trajgrp["time"][:]
+        print "size", dset_time.size
+        dset_e = trajgrp["energies"][:]
+        ipoint = -1
+        for i in range(len(dset_time)):
+            if (dset_time[i] < t+1.0e-6) and (dset_time[i] > t-1.0e-6):
+                ipoint = i
+                print "dset_time[i] ", dset_time[i]
+                print "i ", i
+        e = np.zeros(self.get_numstates())
+        e = dset_e[ipoint,:]
+        print "dset_e[ipoint,:] ", dset_e[ipoint,:]
+        
+        h5f.close()
+        return e
             
     def compute_tdc(self,W):
         Atmp = np.arccos(W[0,0]) - np.arcsin(W[0,1])

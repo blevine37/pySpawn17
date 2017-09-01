@@ -33,7 +33,7 @@ class simulation(fmsobj):
         # quantum propagator
         self.qm_propagator = "RK4"
         # quantum hamiltonian
-        self.qm_hamiltonian = "DGAS"
+        self.qm_hamiltonian = "adiabatic"
 
         # maps trajectories to matrix element indeces
         self.traj_map = dict()
@@ -267,8 +267,8 @@ class simulation(fmsobj):
                 n += 1
         self.set_num_traj_qm(n)
         
-    # get geometries from hdf5
-    def get_qm_q_and_p_from_h5(self):
+    # get the necessary geometries and energies from hdf5
+    def get_qm_q_p_and_e_from_h5(self):
         qm_time = self.get_quantum_time()
         ntraj = self.get_num_traj_qm()
         print "ntraj ", ntraj
@@ -278,10 +278,20 @@ class simulation(fmsobj):
             if self.traj_map[key] < ntraj:
                 print "why am I here?"
                 pos, mom = self.traj[key].get_q_and_p_at_time_from_h5(qm_time)
+                e = self.traj[key].get_e_at_time_from_h5(qm_time)
                 self.traj[key].set_positions_qm(pos)
                 self.traj[key].set_momenta_qm(mom)
+                self.traj[key].set_energies_qm(e)
                 print "qm pos", pos
                 print "qm mom", mom
+        for key in self.centroids:
+            key1, key2 = str.split(key,"_&_")
+            print "key1 ", key1, self.traj_map[key1]
+            print "key2 ", key2, self.traj_map[key2]
+            if self.traj_map[key1] < ntraj and self.traj_map[key2] < ntraj:
+                e = self.centroids[key].get_e_at_time_from_h5(qm_time)
+                self.centroids[key].set_energies_qm(e)
+            
 
     # build the overlap matrix, S
     def build_S(self):
@@ -297,19 +307,49 @@ class simulation(fmsobj):
         print "S is built"
         print self.S
 
-
+    # compute Sinv from S
+    def invert_S(self):
+        self.Sinv = np.linalg.inv(self.S)
+        print "Sinv is built"
+        print self.Sinv
+        
     # build the Hamiltonian matrix, H
     # This routine assumes that S is already built
     def build_H(self):
-        #self.build_V()
+        self.build_V()
         self.build_T()
-        #self.H = self.T + self.V
+        self.H = self.T + self.V
 
     # build the potential energy matrix, V
     # This routine assumes that S is already built
-    #def build_V(self):
-        
-    
+    def build_V(self):
+        ntraj = self.get_num_traj_qm()
+        E = np.zeros((ntraj,ntraj))
+        for key in self.traj:
+            i = self.traj_map[key]
+            istate = self.traj[key].get_istate()
+            if i < ntraj:
+                E[i,i] = self.traj[key].get_energies_qm()[istate]
+        for key in self.centroids:
+            keyi, keyj = str.split(key,"_&_")
+            i = self.traj_map[keyi]
+            j = self.traj_map[keyj]
+            if i < ntraj and j < ntraj:
+                istate = self.centroids[key].get_istate()
+                jstate = self.centroids[key].get_jstate()
+                if istate == jstate:
+                    E[i,j] = self.centroids[key].get_energies_qm()[istate]
+                    E[j,i] = E[i,j]
+                #else:
+                #nonadiabatic coupling terms go here!!!!
+        print "E is built"
+        print E
+
+        self.V = E * self.S
+
+        print "V is built"
+        print self.V
+                
     # build the kinetic energy matrix, T
     def build_T(self):
         ntraj = self.get_num_traj_qm()
@@ -327,7 +367,10 @@ class simulation(fmsobj):
     # delete matrices
     def clean_up_matrices(self):
         del self.S
+        del self.Sinv
         del self.T
+        del self.V
+        del self.H
         
     # pop the task from the top of the queue
     def pop_task(self):
@@ -551,13 +594,14 @@ class simulation(fmsobj):
 ######################################################
         
 ######################################################
-# DGAS Hamiltonian
+# adiabatic Hamiltonian
 ######################################################
 
-    def build_Heff_first_half_DGAS(self):
+    def build_Heff_first_half_adiabatic(self):
         self.compute_num_traj_qm()
-        self.get_qm_q_and_p_from_h5()
+        self.get_qm_q_p_and_e_from_h5()
         self.build_S()
+        self.invert_S()
         self.build_H()
         
         self.clean_up_matrices()
