@@ -57,5 +57,16 @@ class fmsobj(object):
     def read_from_file(self,infilename):
         with open(infilename,'r') as inputfile:
             tempdict = json.load(inputfile)
+
+        # replace unicode keys (as read by json) with python strings
+        print "here I am"
+        for key in tempdict:
+            if isinstance(tempdict[key],types.DictType):
+                print "key ", key
+                for key2 in tempdict[key]:
+                    print "key2 type ", key2, type(key2)
+                    if isinstance(key2, types.UnicodeType):
+                        print "key2 ", key2
+                        tempdict[key][str(key2)] = tempdict[key].pop(key2)
             
         self.from_dict(**tempdict)

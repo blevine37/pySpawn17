@@ -149,6 +149,12 @@ class traj(fmsobj):
     def get_istate(self):
         return self.istate
 
+    def set_jstate(self,ist):
+        self.jstate = ist
+
+    def get_jstate(self):
+        return self.jstate
+
     def get_numstates(self):
         return self.numstates
 
@@ -330,6 +336,8 @@ class traj(fmsobj):
         self.label = lab
 
     def get_label(self):
+        #if self.label.type == 'unicode':
+        #    self.set_label(str(self.label))
         return self.label
 
     def init_traj(self,t,ndims,pos,mom,wid,m,nstates,istat,lab):
@@ -392,6 +400,28 @@ class traj(fmsobj):
         z_dont[parent.get_istate()] = 1.0
         self.set_z_dont_spawn(z_dont)
         print "init_st mintime0", self.get_mintime()
+
+    def init_centroid(self, existing, child, label):
+        self.set_numstates(child.get_numstates())
+        self.set_numdims(child.get_numdims())
+
+        self.set_istate(child.get_istate())
+        self.set_jstate(existing.get_istate())
+        
+        time = child.get_time()
+        self.set_time(time)
+
+        self.set_label(label)
+        
+        self.set_mintime(child.get_mintime())
+        self.set_backprop_time(time)
+        self.set_firsttime(time)
+        self.set_maxtime(child.get_maxtime())
+        
+        self.set_widths(child.get_widths())
+        self.set_masses(child.get_masses())
+        
+        self.set_timestep(child.get_timestep())
 
     def rescale_momentum(self, v_parent):
         v_child = self.get_energies()[self.get_istate()]
@@ -556,6 +586,18 @@ class traj(fmsobj):
     def get_spawnthresh(self):
         return self.spawnthresh
     
+    def set_z_compute_me(self,z):
+        self.z_compute_me = z
+    
+    def get_z_compute_me(self):
+        return self.z_compute_me
+    
+    def set_z_compute_me_backprop(self,z):
+        self.z_compute_me_backprop = z
+    
+    def get_z_compute_me_backprop(self):
+        return self.z_compute_me_backprop
+    
     def compute_elec_struct(self,zbackprop):
         tmp = "self.compute_elec_struct_" + self.get_software() + "_" + self.get_method() + "(zbackprop)"
         eval(tmp)
@@ -576,6 +618,14 @@ class traj(fmsobj):
         if not zbackprop:
             self.consider_spawning()
 
+    def compute_centroid(self, zbackprop=False):
+        self.compute_elec_struct(zbackprop)
+        self.h5_output(zbackprop)
+        if zbackprop:
+            self.set_backprop_time(self.get_backprop_time() - self.get_timestep())
+        else:
+            self.set_time(self.get_time() + self.get_timestep())
+                        
     def consider_spawning(self):
         tdc = self.get_timederivcoups()
         lasttdc = self.get_spawnlastcoup()
@@ -619,6 +669,10 @@ class traj(fmsobj):
             cbackprop = ""
         else:
             cbackprop = "backprop_"
+        if "_&_" not in self.get_label():
+            traj_or_cent = "traj_"
+        else:
+            traj_or_cent = "cent_"
         if len(self.h5_datasets) == 0:
             init = "self.init_h5_datasets_" + self.get_software() + "_" + self.get_method() + "()"
             eval(init)
@@ -640,7 +694,7 @@ class traj(fmsobj):
                     else:
                         shutil.move(filename, filename2)
         h5f = h5py.File(filename, "a")
-        groupname = "traj_" + self.label
+        groupname = traj_or_cent + self.label
         if groupname not in h5f.keys():
             self.create_h5_traj(h5f,groupname)
         trajgrp = h5f.get(groupname)
@@ -669,6 +723,34 @@ class traj(fmsobj):
         for key in self.h5_datasets:
             n = self.h5_datasets[key]
             dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n))
+            
+    def get_q_and_p_at_time_from_h5(self,t):
+        h5f = h5py.File("sim.hdf5", "r")
+        if "_&_" not in self.get_label():
+            traj_or_cent = "traj_"
+        else:
+            traj_or_cent = "cent_"
+        groupname = traj_or_cent + self.label
+        filename = "sim.hdf5"
+        trajgrp = h5f.get(groupname)
+        dset_time = trajgrp["time"][:]
+        print "size", dset_time.size
+        dset_pos = trajgrp["positions"][:]
+        dset_mom = trajgrp["momenta"][:]
+        ipoint = -1
+        for i in range(len(dset_time)):
+            if (dset_time[i] < t+1.0e-6) and (dset_time[i] > t-1.0e-6):
+                ipoint = i
+                print "dset_time[i] ", dset_time[i]
+                print "i ", i
+        pos = np.zeros(self.get_numdims())
+        pos = dset_pos[ipoint,:]
+        print "dset_pos[ipoint,:] ", dset_pos[ipoint,:]
+        mom = dset_mom[ipoint,:]
+        print "dset_mom[ipoint,:] ", dset_mom[ipoint,:]
+        
+        h5f.close()
+        return pos, mom
             
     def compute_tdc(self,W):
         Atmp = np.arccos(W[0,0]) - np.arcsin(W[0,1])

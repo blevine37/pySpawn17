@@ -10,6 +10,8 @@ import complexgaussian as cg
 class simulation(fmsobj):
     def __init__(self):
         self.traj = dict()
+
+        self.centroids = dict()
         
         self.queue = ["END"]
         self.tasktimes = [1e10]
@@ -68,6 +70,8 @@ class simulation(fmsobj):
     def set_maxtime_all(self,maxtime):
         for key in self.traj:
             self.traj[key].set_maxtime(maxtime)
+        for key in self.centroids:
+            self.centroids[key].set_maxtime(maxtime)
 
     def set_mintime_all(self,mintime):
         for key in self.traj:
@@ -79,6 +83,7 @@ class simulation(fmsobj):
 
     def propagate(self):
         while True:
+            self.update_centroids()
             self.update_queue()
             if (self.queue[0] == "END"):
                 print "propagate DONE"
@@ -98,22 +103,35 @@ class simulation(fmsobj):
 
     def pop_task(self):
         return self.queue.pop(0)
-            
+
+    # build a list of all tasks that need to be completed
     def update_queue(self):
         while self.queue[0] != "END":
             self.queue.pop(0)
         tasktimes=[1e10]
+        
+        # forward propagation tasks
         for key in self.traj:
             print "key " + key
             if (self.traj[key].get_maxtime()-1.0e-6) > self.traj[key].get_time():
                 task_tmp = "self.traj[\"" + key  + "\"].propagate_step()"
                 tasktime_tmp = self.traj[key].get_time()
                 self.insert_task(task_tmp,tasktime_tmp, tasktimes)
+                
+        # backward propagation tasks
         for key in self.traj:
             if (self.traj[key].get_mintime()+1.0e-6) < self.traj[key].get_backprop_time():
                 task_tmp = "self.traj[\"" + key  + "\"].propagate_step(zbackprop=True)"
                 tasktime_tmp = self.traj[key].get_backprop_time()
                 self.insert_task(task_tmp,tasktime_tmp, tasktimes)
+                
+        # centroid tasks (forward propagation)
+        for key in self.centroids:
+            if self.centroids[key].get_z_compute_me():
+                task_tmp = "self.centroids[\"" + key  + "\"].compute_centroid()"
+                tasktime_tmp = self.centroids[key].get_time()
+                self.insert_task(task_tmp,tasktime_tmp, tasktimes)
+                
         print (len(self.queue)-1), " jobs in queue:"
         for task in self.queue:
             print task
@@ -125,6 +143,56 @@ class simulation(fmsobj):
                 tasktimes.insert(i,tt)
                 return
         
+    def update_centroids(self):
+        #update backprop
+        for key in self.centroids:
+            print "key ", key
+            print "type ", type(key)
+            print "typ2 ", type(str(key))
+            key1, key2 = str.split(key,"_&_")
+            print "key1 ", key1
+            print "key2 ", key2
+            timestep = self.centroids[key].get_timestep()
+
+            self.centroids[key].set_z_compute_me_backprop(False)
+            backprop_time = self.centroids[key].get_backprop_time()
+            print "u_cent backprop_time ", backprop_time
+            if (self.centroids[key].get_mintime()+1.0e-6) < backprop_time:
+                if (backprop_time > self.traj[key1].get_backprop_time() + timestep - 1.0e-6):
+                    if (backprop_time > self.traj[key2].get_backprop_time() + timestep - 1.0e-6):
+                        pos1, mom1 = self.traj[key1].get_q_and_p_at_time_from_h5(backprop_time)
+                        pos2, mom2 = self.traj[key2].get_q_and_p_at_time_from_h5(backprop_time)
+                        pos_cent = 0.5 * ( pos1 + pos2 )
+                        mom_cent = 0.5 * ( mom1 + mom2 )
+                        print "pos1 ", pos1
+                        print "pos2 ", pos2
+                        print "pos_cent ", pos_cent
+                        print "mom1 ", mom1
+                        print "mom2 ", mom2
+                        print "mom_cent ", mom_cent
+                        self.centroids[key].set_positions_backprop(pos_cent)
+                        self.centroids[key].set_momenta_backprop(mom_cent)
+                        self.centroids[key].set_z_compute_me_backprop(True)
+                        
+            self.centroids[key].set_z_compute_me(False)
+            time = self.centroids[key].get_time()
+            print "u_cent time ", time
+            if (self.centroids[key].get_maxtime()-1.0e-6) > time:
+                if (time < self.traj[key1].get_time() - timestep + 1.0e-6):
+                    if (time < self.traj[key2].get_time() - timestep + 1.0e-6):
+                        pos1, mom1 = self.traj[key1].get_q_and_p_at_time_from_h5(time)
+                        pos2, mom2 = self.traj[key2].get_q_and_p_at_time_from_h5(time)
+                        pos_cent = 0.5 * ( pos1 + pos2 )
+                        mom_cent = 0.5 * ( mom1 + mom2 )
+                        print "pos1 ", pos1
+                        print "pos2 ", pos2
+                        print "pos_cent ", pos_cent
+                        self.centroids[key].set_positions(pos_cent)
+                        self.centroids[key].set_momenta(mom_cent)
+                        self.centroids[key].set_z_compute_me(True)
+                        
+
+
     def spawn_as_necessary(self):
         spawntraj = dict()
         for key in self.traj:
@@ -146,7 +214,8 @@ class simulation(fmsobj):
                     # rescaling velocity.  We'll abort if there is not
                     # enough energy (aka a "frustrated spawn")
                     z_add_traj_rescale = newtraj.rescale_momentum(self.traj[key].get_energies_tmdt()[self.traj[key].get_istate()])
-                    
+
+                    # okay, now we finally decide whether to spawn or not
                     if z_add_traj_olap and z_add_traj_rescale:
                         spawntraj[label] = newtraj
                         self.traj[key].incr_numchildren()
@@ -160,7 +229,14 @@ class simulation(fmsobj):
             self.traj[key].set_spawntimes(spawnt)
                     
         for label in spawntraj:
-            ### need to test overlaps before adding trajectories!!!!
+            # create new centroids
+            for key2 in self.traj:
+                centkey = str(key2 + "_&_" + label)
+                newcent = traj()
+                newcent.init_centroid(self.traj[key2],spawntraj[label], centkey)
+                self.centroids[centkey] = newcent
+                print "adding centroid ", centkey
+                            
             self.add_traj(spawntraj[label])
 
     def check_overlap(self,newtraj):
