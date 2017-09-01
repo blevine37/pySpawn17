@@ -26,6 +26,15 @@ class simulation(fmsobj):
         # the spawn is cancelled
         self.olapmax = 0.8
 
+        # quantum time is the current time of the quantum amplitudes
+        self.quantum_time = 0.0
+        # timestep for qunatum propagation
+        self.timestep = 0.0
+        # quantum propagator
+        self.qm_propagator = "RK4"
+        # quantum hamiltonian
+        self.qm_hamiltonian = "DGAS"
+
     # convert dict to simulation data structure
     def from_dict(self,**tempdict):
         for key in tempdict:
@@ -71,6 +80,7 @@ class simulation(fmsobj):
 
     # set the timestep on all trajectories and centroids
     def set_timestep_all(self,h):
+        self.timestep = h
         for key in self.traj:
             self.traj[key].set_timestep(h)
         for key in self.centroids:
@@ -94,6 +104,30 @@ class simulation(fmsobj):
     def set_propagator_all(self,prop):
         for key in self.traj:
             self.traj[key].set_propagator(prop)
+
+    def get_quantum_time(self):
+        return self.quantum_time
+            
+    def set_quantum_time(self,t):
+        self.quantum_time = t
+
+    def get_timestep(self):
+        return self.timestep
+            
+    def set_timestep(self,h):
+        self.timestep = h
+
+    def get_qm_propagator(self):
+        return self.qm_propagator
+            
+    def set_qm_propagator(self,prop):
+        self.qm_propagator = prop
+
+    def get_qm_hamiltonian(self):
+        return self.qm_hamiltonian
+            
+    def set_qm_hamiltonian(self,ham):
+        self.qm_hamiltonian = ham
 
     # this is the main propagation loop for the simulation
     def propagate(self):
@@ -121,9 +155,81 @@ class simulation(fmsobj):
             # spawn new trajectories if needed
             self.spawn_as_necessary()
 
+            # propagate quantum variables if possible
+            self.propagate_quantum_as_necessary()
+            
             # print restart output
             self.json_output()
 
+    # here we will propagate the quantum amplitudes if we have
+    # the necessary information to do so
+    def propagate_quantum_as_necessary(self):
+        # we have to determine what the maximum time is for which
+        # we have all the necessary information to propogate the amplitudes
+        max_info_time = 1.0e10
+        # first check centroids
+        for key in self.traj:
+            # if a trajectory is spawning, we can only propagate to the
+            # spawntime
+            spawntimes = self.traj[key].get_spawntimes()
+            for i in range(len(spawntimes)):
+                if spawntimes[i] < max_info_time and spawntimes[i] > 0.0 :
+                    max_info_time = spawntimes[i]
+                    print "key, spawntimes[i] ", key, spawntimes[i]
+            # if a trajectory is backpropagating, we can only propagate to
+            # its mintime
+            mintime = self.traj[key].get_mintime()
+            if (mintime + 1.0e-6) < self.traj[key].get_backprop_time():
+                if mintime < max_info_time:
+                    max_info_time = mintime
+                    print "key, mintime", key, mintime
+            # if a trajectory is neither spawning nor backpropagating, we can
+            # only propagate to its current forward propagation time
+            time = self.traj[key].get_time()
+            timestep = self.traj[key].get_timestep()
+            if (time - timestep) < max_info_time and time > (mintime + 1.0e-6):
+                max_info_time = time - timestep
+                print "key, time", key, time
+        # now centroids
+        for key in self.centroids:
+            # if a centroid is backpropagating, we can only propagate to
+            # its mintime
+            mintime = self.centroids[key].get_mintime()
+            if (mintime + 1.0e-6) < self.centroids[key].get_backprop_time():
+                if mintime < max_info_time:
+                    max_info_time = mintime
+                    max_info_time = mintime
+                    print "key, mintime", key, mintime
+            # if a centroid is not backpropagating, we can
+            # only propagate to its current forward propagation time
+            time = self.centroids[key].get_time()
+            timestep = self.centroids[key].get_timestep()
+            if (time - timestep) < max_info_time and time > (mintime + 1.0e-6):
+                # we subtract two timesteps because the spawning procedure
+                # can take is back in time in a subsequent step
+                max_info_time = time - timestep
+                print "key, time", key, time
+
+        print "max_info_time ", max_info_time
+
+        # now, if we have the necessary info, we propagate
+        while max_info_time > (self.get_quantum_time() + 1.0e-6):
+            self.qm_propagate_step()
+                        
+
+    # this routine will call the necessary routines to propagate the amplitudes
+    def qm_propagate_step(self):
+        routine = "self.qm_propagate_step_" + self.get_qm_propagator() + "()"
+        exec(routine)
+
+    def build_Heff_first_half(self):
+        routine = "self.build_Heff_first_half_" + self.get_qm_hamiltonian() + "()"
+        exec(routine)
+        
+    def build_Heff_second_half(self):
+        routine = "self.build_Heff_second_half_" + self.get_qm_hamiltonian() + "()"
+        exec(routine)
+        
     # pop the task from the top of the queue
     def pop_task(self):
         return self.queue.pop(0)
@@ -329,3 +435,22 @@ class simulation(fmsobj):
                         
         # now we write the current json file
         self.write_to_file("sim.json")
+
+######################################################
+# adaptive RK4 quantum integrator
+######################################################
+
+    def qm_propagate_step_RK4(self):
+        qm_time = self.get_quantum_time()
+        dt = self.get_timestep()
+        #self.build_Heff_first_half()
+
+        qm_time += dt
+        print "qm_time", qm_time
+        self.set_quantum_time(qm_time)
+        
+######################################################
+        
+######################################################
+# DGAS Hamiltonian
+######################################################
