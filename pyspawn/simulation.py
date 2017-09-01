@@ -35,6 +35,11 @@ class simulation(fmsobj):
         # quantum hamiltonian
         self.qm_hamiltonian = "DGAS"
 
+        # maps trajectories to matrix element indeces
+        self.traj_map = dict()
+
+        # number of trajectories to be included in qm propagation at quantum time
+
     # convert dict to simulation data structure
     def from_dict(self,**tempdict):
         for key in tempdict:
@@ -65,8 +70,25 @@ class simulation(fmsobj):
     # add a trajectory to the simulation
     def add_traj(self,t1):
         key = t1.get_label()
+        mintime = t1.get_mintime()
+        index = -1
+        for key2 in self.traj:
+            if mintime < self.traj[key2].get_mintime():
+                if index < 0:
+                    index = self.traj_map[key2]
+                self.traj_map[key2] += 1
+        if index < 0:
+            index = len(self.traj)
         self.traj[key] = t1
+        self.traj_map[key] = index
+        print "traj_map", self.traj_map
+        #sort traj_map by mintime
+        
 
+    # get number of trajectories
+    def get_num_traj(self):
+        return len(self.traj)
+        
     # add a task to the queue
     def add_task(self,task):
         self.queue.append(task)
@@ -104,6 +126,12 @@ class simulation(fmsobj):
     def set_propagator_all(self,prop):
         for key in self.traj:
             self.traj[key].set_propagator(prop)
+
+    def get_num_traj_qm(self):
+        return self.num_traj_qm
+            
+    def set_num_traj_qm(self,n):
+        self.num_traj_qm = n
 
     def get_quantum_time(self):
         return self.quantum_time
@@ -171,40 +199,39 @@ class simulation(fmsobj):
         for key in self.traj:
             # if a trajectory is spawning, we can only propagate to the
             # spawntime
+            timestep = self.traj[key].get_timestep()
             spawntimes = self.traj[key].get_spawntimes()
             for i in range(len(spawntimes)):
-                if spawntimes[i] < max_info_time and spawntimes[i] > 0.0 :
-                    max_info_time = spawntimes[i]
+                if (spawntimes[i] - timestep) < max_info_time and spawntimes[i] > 0.0 :
+                    max_info_time = spawntimes[i] - timestep
                     print "key, spawntimes[i] ", key, spawntimes[i]
             # if a trajectory is backpropagating, we can only propagate to
             # its mintime
             mintime = self.traj[key].get_mintime()
             if (mintime + 1.0e-6) < self.traj[key].get_backprop_time():
-                if mintime < max_info_time:
-                    max_info_time = mintime
+                if (mintime - timestep) < max_info_time:
+                    max_info_time = mintime - timestep
                     print "key, mintime", key, mintime
             # if a trajectory is neither spawning nor backpropagating, we can
             # only propagate to its current forward propagation time
             time = self.traj[key].get_time()
-            timestep = self.traj[key].get_timestep()
-            if (time - timestep) < max_info_time and time > (mintime + 1.0e-6):
+            if (time - timestep) < max_info_time:
                 max_info_time = time - timestep
                 print "key, time", key, time
         # now centroids
         for key in self.centroids:
             # if a centroid is backpropagating, we can only propagate to
             # its mintime
+            timestep = self.centroids[key].get_timestep()
             mintime = self.centroids[key].get_mintime()
             if (mintime + 1.0e-6) < self.centroids[key].get_backprop_time():
-                if mintime < max_info_time:
-                    max_info_time = mintime
-                    max_info_time = mintime
+                if (mintime - timestep) < max_info_time:
+                    max_info_time = mintime - timestep
                     print "key, mintime", key, mintime
             # if a centroid is not backpropagating, we can
             # only propagate to its current forward propagation time
             time = self.centroids[key].get_time()
-            timestep = self.centroids[key].get_timestep()
-            if (time - timestep) < max_info_time and time > (mintime + 1.0e-6):
+            if (time - timestep) < max_info_time:
                 # we subtract two timesteps because the spawning procedure
                 # can take is back in time in a subsequent step
                 max_info_time = time - timestep
@@ -222,13 +249,85 @@ class simulation(fmsobj):
         routine = "self.qm_propagate_step_" + self.get_qm_propagator() + "()"
         exec(routine)
 
+    # build the effective Hamiltonian for the first half of the time step
     def build_Heff_first_half(self):
         routine = "self.build_Heff_first_half_" + self.get_qm_hamiltonian() + "()"
         exec(routine)
         
+    # build the effective Hamiltonian for the second half of the time step
     def build_Heff_second_half(self):
         routine = "self.build_Heff_second_half_" + self.get_qm_hamiltonian() + "()"
         exec(routine)
+
+    def compute_num_traj_qm(self):
+        n = 0
+        qm_time = self.get_quantum_time()
+        for key in self.traj:
+            if qm_time > (self.traj[key].get_mintime() - 1.0e-6):
+                n += 1
+        self.set_num_traj_qm(n)
+        
+    # get geometries from hdf5
+    def get_qm_q_and_p_from_h5(self):
+        qm_time = self.get_quantum_time()
+        ntraj = self.get_num_traj_qm()
+        print "ntraj ", ntraj
+        for key in self.traj:
+            print "key ", key, self.traj_map[key]
+            print "times", qm_time, self.traj[key].get_mintime(),self.traj[key].get_time(), self.traj[key].get_backprop_time()
+            if self.traj_map[key] < ntraj:
+                print "why am I here?"
+                pos, mom = self.traj[key].get_q_and_p_at_time_from_h5(qm_time)
+                self.traj[key].set_positions_qm(pos)
+                self.traj[key].set_momenta_qm(mom)
+                print "qm pos", pos
+                print "qm mom", mom
+
+    # build the overlap matrix, S
+    def build_S(self):
+        ntraj = self.get_num_traj_qm()
+        self.S = np.zeros((ntraj,ntraj), dtype=np.complex128)
+        for keyi in self.traj:
+            i = self.traj_map[keyi]
+            if i < ntraj:
+                for keyj in self.traj:
+                    j = self.traj_map[keyj]
+                    if j < ntraj:
+                        self.S[i,j] = cg.overlap_nuc_elec(self.traj[keyi], self.traj[keyj],positions_i="positions_qm",positions_j="positions_qm",momenta_i="momenta_qm",momenta_j="momenta_qm")
+        print "S is built"
+        print self.S
+
+
+    # build the Hamiltonian matrix, H
+    # This routine assumes that S is already built
+    def build_H(self):
+        #self.build_V()
+        self.build_T()
+        #self.H = self.T + self.V
+
+    # build the potential energy matrix, V
+    # This routine assumes that S is already built
+    #def build_V(self):
+        
+    
+    # build the kinetic energy matrix, T
+    def build_T(self):
+        ntraj = self.get_num_traj_qm()
+        self.T = np.zeros((ntraj,ntraj), dtype=np.complex128)
+        for keyi in self.traj:
+            i = self.traj_map[keyi]
+            if i < ntraj:
+                for keyj in self.traj:
+                    j = self.traj_map[keyj]
+                    if j < ntraj:
+                        self.T[i,j] = cg.kinetic_nuc_elec(self.traj[keyi], self.traj[keyj],positions_i="positions_qm",positions_j="positions_qm",momenta_i="momenta_qm",momenta_j="momenta_qm")
+        print "T is built"
+        print self.T
+
+    # delete matrices
+    def clean_up_matrices(self):
+        del self.S
+        del self.T
         
     # pop the task from the top of the queue
     def pop_task(self):
@@ -300,8 +399,8 @@ class simulation(fmsobj):
                         # width!!!!  Fix this soon
                         pos_cent = 0.5 * ( pos1 + pos2 )
                         mom_cent = 0.5 * ( mom1 + mom2 )
-                        self.centroids[key].set_positions_backprop(pos_cent)
-                        self.centroids[key].set_momenta_backprop(mom_cent)
+                        self.centroids[key].set_backprop_positions(pos_cent)
+                        self.centroids[key].set_backprop_momenta(mom_cent)
                         self.centroids[key].set_z_compute_me_backprop(True)
 
             # update forward propagating centroids
@@ -339,7 +438,7 @@ class simulation(fmsobj):
                     # a trajectory labeled 00->1->5 means that the initial
                     # trajectory "00" spawned a trajecory "1" (its
                     # second child) which then spawned another (it's 6th child)
-                    label = self.traj[key].get_label() + "->" + str(self.traj[key].get_numchildren())
+                    label = str(self.traj[key].get_label() + "->" + str(self.traj[key].get_numchildren()))
                     print "Creating new traj, ", label
 
                     # create and initiate new trajectpory structure
@@ -443,7 +542,7 @@ class simulation(fmsobj):
     def qm_propagate_step_RK4(self):
         qm_time = self.get_quantum_time()
         dt = self.get_timestep()
-        #self.build_Heff_first_half()
+        self.build_Heff_first_half()
 
         qm_time += dt
         print "qm_time", qm_time
@@ -454,3 +553,12 @@ class simulation(fmsobj):
 ######################################################
 # DGAS Hamiltonian
 ######################################################
+
+    def build_Heff_first_half_DGAS(self):
+        self.compute_num_traj_qm()
+        self.get_qm_q_and_p_from_h5()
+        self.build_S()
+        self.build_H()
+        
+        self.clean_up_matrices()
+        

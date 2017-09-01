@@ -59,6 +59,9 @@ class traj(fmsobj):
         self.z_dont_spawn = np.zeros(self.numstates)
         self.numchildren = 0
         
+        self.positions_qm = np.zeros(self.numdims)
+        self.momenta_qm = np.zeros(self.numdims)
+
     def set_time(self,t):
         self.time = t
     
@@ -122,6 +125,8 @@ class traj(fmsobj):
         self.momenta_tpdt = np.zeros(self.numdims)
         #self.prev_positions = np.zeros(self.numdims)
         #self.prev_forces = np.zeros((self.numstates,self.numdims))
+        self.positions_qm = np.zeros(self.numdims)
+        self.momenta_qm = np.zeros(self.numdims)
         
     def set_numstates(self,nstates):
         self.numstates = nstates
@@ -192,6 +197,16 @@ class traj(fmsobj):
     def get_positions(self):
         return self.positions.copy()
             
+    def set_positions_qm(self,pos):
+        if pos.shape == self.positions_qm.shape:
+            self.positions_qm = pos.copy()
+        else:
+            print "Error in set_positions_qm"
+            sys.exit
+
+    def get_positions_qm(self):
+        return self.positions_qm.copy()
+            
     def set_positions_t(self,pos):
         if pos.shape == self.positions_t.shape:
             self.positions_t = pos.copy()
@@ -221,6 +236,16 @@ class traj(fmsobj):
 
     def get_positions_tpdt(self):
         return self.positions_tpdt.copy()
+            
+    def set_momenta_qm(self,mom):
+        if mom.shape == self.momenta_qm.shape:
+            self.momenta_qm = mom.copy()
+        else:
+            print "Error in set_momenta"
+            sys.exit
+
+    def get_momenta_qm(self):
+        return self.momenta_qm.copy()
             
     def set_momenta(self,mom):
         if mom.shape == self.momenta.shape:
