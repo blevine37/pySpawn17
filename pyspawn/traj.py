@@ -10,6 +10,7 @@ import h5py
 class traj(fmsobj):
     def __init__(self):
         self.time = 0.0
+        self.time_half_step = 0.0
         self.maxtime = -1.0
         self.mintime = 0.0
         self.firsttime = 0.0
@@ -21,6 +22,7 @@ class traj(fmsobj):
         self.istate = 0
         self.label = "00"
         self.h5_datasets = dict()
+        self.h5_datasets_half_step = dict()
 
         self.timestep = 0.0
         self.propagator = "vv"
@@ -36,12 +38,14 @@ class traj(fmsobj):
         self.timederivcoups = np.zeros(self.numstates)
 
         self.backprop_time = 0.0
+        self.backprop_time_half_step = 0.0
         self.backprop_energies = np.zeros(self.numstates)
         self.backprop_forces = np.zeros((self.numstates,self.numdims))
         self.backprop_positions = np.zeros(self.numdims)
         self.backprop_momenta = np.zeros(self.numdims)
         self.backprop_wf = np.zeros((self.numstates,self.length_wf))
         self.backprop_prev_wf = np.zeros((self.numstates,self.length_wf))
+        self.backprop_timederivcoups = np.zeros(self.numstates)
 
         self.spawntimes = -1.0 * np.ones(self.numstates)
         self.spawnthresh = 0.0
@@ -62,12 +66,19 @@ class traj(fmsobj):
         self.positions_qm = np.zeros(self.numdims)
         self.momenta_qm = np.zeros(self.numdims)
         self.energies_qm = np.zeros(self.numstates)
+        self.timederivcoups_qm = np.zeros(self.numstates)
 
     def set_time(self,t):
         self.time = t
     
     def get_time(self):
         return self.time
+    
+    def set_time_half_step(self,t):
+        self.time_half_step = t
+    
+    def get_time_half_step(self):
+        return self.time_half_step
     
     def set_timestep(self,h):
         self.timestep = h
@@ -80,6 +91,12 @@ class traj(fmsobj):
     
     def get_backprop_time(self):
         return self.backprop_time
+    
+    def set_backprop_time_half_step(self,t):
+        self.backprop_time_half_step = t
+    
+    def get_backprop_time_half_step(self):
+        return self.backprop_time_half_step
     
     def set_maxtime(self,t):
         self.maxtime = t
@@ -139,6 +156,8 @@ class traj(fmsobj):
 
         self.spawntimes = -1.0 * np.ones(self.numstates)
         self.timederivcoups = np.zeros(self.numstates)
+        self.backprop_timederivcoups = np.zeros(self.numstates)
+        self.timederivcoups_qm = np.zeros(self.numstates)
         self.spawnlastcoup = np.zeros(self.numstates)
         self.z_spawn_now = np.zeros(self.numstates)
         self.z_dont_spawn = np.zeros(self.numstates)
@@ -554,7 +573,7 @@ class traj(fmsobj):
             sys.exit
 
     def get_backprop_wf(self):
-        return self.wf.copy()
+        return self.backprop_wf.copy()
 
     def set_backprop_prev_wf(self,wf):
         if wf.shape == self.backprop_prev_wf.shape:
@@ -564,7 +583,7 @@ class traj(fmsobj):
             sys.exit
 
     def get_backprop_prev_wf(self):
-        return self.prev_wf.copy()
+        return self.backprop_prev_wf.copy()
 
     def set_spawntimes(self,st):
         if st.shape == self.spawntimes.shape:
@@ -585,6 +604,18 @@ class traj(fmsobj):
     
     def get_timederivcoups(self):
         return self.timederivcoups.copy()
+    
+    def set_backprop_timederivcoups(self,t):
+        if t.shape == self.backprop_timederivcoups.shape:
+            # we multiply by -1.0 because the tdc is computed as the
+            # derivative with respect to -t during back propagation
+            self.backprop_timederivcoups = -1.0 * t.copy()
+        else:
+            print "Error in set_spawntimes"
+            sys.exit
+    
+    def get_backprop_timederivcoups(self):
+        return self.backprop_timederivcoups.copy()
     
     def set_timederivcoups_qm(self,t):
         if t.shape == self.timederivcoups_qm.shape:
@@ -666,15 +697,22 @@ class traj(fmsobj):
 
     def compute_centroid(self, zbackprop=False):
         self.compute_elec_struct(zbackprop)
+        firsttime = self.get_firsttime()
+        dt = self.get_timestep()
         if zbackprop:
-            backprop_time = self.get_backprop_time()
-            firsttime = self.get_firsttime()
-            self.set_backprop_time(backprop_time - self.get_timestep())
-            if (backprop_time + 1.0e-6) < firsttime:
+            t = self.get_backprop_time()
+            self.set_backprop_time_half_step(t + 0.5 * dt)
+            if (t + 1.0e-6) < firsttime:
                 self.h5_output(zbackprop)
+            self.set_backprop_time(t - dt)
         else:
-            self.set_time(self.get_time() + self.get_timestep())
-            self.h5_output(zbackprop)
+            t = self.get_time()
+            self.set_time_half_step(t - 0.5 * dt)
+            if (t - 1.0e-6 > firsttime):
+                self.h5_output(zbackprop)
+            else:
+                self.h5_output(zbackprop,zdont_half_step=True)                
+            self.set_time(t + dt)
                        
     def consider_spawning(self):
         tdc = self.get_timederivcoups()
@@ -714,7 +752,7 @@ class traj(fmsobj):
                         
             
             
-    def h5_output(self, zbackprop):
+    def h5_output(self, zbackprop,zdont_half_step=False):
         if not zbackprop:
             cbackprop = ""
         else:
@@ -748,8 +786,11 @@ class traj(fmsobj):
         if groupname not in h5f.keys():
             self.create_h5_traj(h5f,groupname)
         trajgrp = h5f.get(groupname)
-        for key in self.h5_datasets:
-            n = self.h5_datasets[key]
+        all_datasets = self.h5_datasets.copy()
+        if not zdont_half_step:
+            all_datasets.update(self.h5_datasets_half_step)
+        for key in all_datasets:
+            n = all_datasets[key]
             print "key", key
             dset = trajgrp.get(key)
             l = dset.len()
@@ -772,6 +813,9 @@ class traj(fmsobj):
         trajgrp = h5f.create_group(groupname)
         for key in self.h5_datasets:
             n = self.h5_datasets[key]
+            dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n))
+        for key in self.h5_datasets_half_step:
+            n = self.h5_datasets_half_step[key]
             dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n))
             
     def get_data_at_time_from_h5(self,t,dset_name):
@@ -816,6 +860,33 @@ class traj(fmsobj):
                 print "dset_time[i] ", dset_time[i]
                 print "i ", i
         for dset_name in self.h5_datasets:
+            dset = trajgrp[dset_name][:]            
+            data = np.zeros(len(dset[ipoint,:]))
+            data = dset[ipoint,:]
+            comm = "self." + dset_name + "_qm = data"
+            exec(comm)
+            print "comm ", comm
+            print "dset[ipoint,:] ", dset[ipoint,:]        
+        h5f.close()
+            
+    def get_all_qm_data_at_time_from_h5_half_step(self,t):
+        h5f = h5py.File("sim.hdf5", "r")
+        if "_&_" not in self.get_label():
+            traj_or_cent = "traj_"
+        else:
+            traj_or_cent = "cent_"
+        groupname = traj_or_cent + self.label
+        filename = "sim.hdf5"
+        trajgrp = h5f.get(groupname)
+        dset_time = trajgrp["time_half_step"][:]
+        print "size", dset_time.size
+        ipoint = -1
+        for i in range(len(dset_time)):
+            if (dset_time[i] < t+1.0e-6) and (dset_time[i] > t-1.0e-6):
+                ipoint = i
+                print "dset_time[i] ", dset_time[i]
+                print "i ", i
+        for dset_name in self.h5_datasets_half_step:
             dset = trajgrp[dset_name][:]            
             data = np.zeros(len(dset[ipoint,:]))
             data = dset[ipoint,:]
@@ -898,12 +969,7 @@ class traj(fmsobj):
             cbackprop = "backprop_"
 
         
-        #self.prev_energies = self.energies.copy()
-        #self.prev_forces = self.forces.copy()
         exec("self.set_" + cbackprop + "prev_wf(self.get_" + cbackprop + "wf())")
-        #self.prev_wf = self.wf.copy()
-        #self.prev_positions = self.last_es_positions.copy()
-        #self.last_es_positions = self.positions.copy()
 
         exec("x = self.get_" + cbackprop + "positions()[0]")
         exec("y = self.get_" + cbackprop + "positions()[1]")
@@ -946,7 +1012,7 @@ class traj(fmsobj):
         else:
             jstate = 1
         tdc[jstate] = tmp
-        self.set_timederivcoups(tdc)
+        exec("self.set_" + cbackprop + "timederivcoups(tdc)")
         
         exec("self.set_" + cbackprop + "wf(wf)")
 
@@ -957,7 +1023,8 @@ class traj(fmsobj):
         self.h5_datasets["momenta"] = self.numdims
         self.h5_datasets["wf0"] = self.numstates
         self.h5_datasets["wf1"] = self.numstates
-        self.h5_datasets["timederivcoups"] = self.numstates
+        self.h5_datasets_half_step["time_half_step"] = 1
+        self.h5_datasets_half_step["timederivcoups"] = self.numstates
 
     def get_wf0(self):
         return self.wf[0,:].copy()
@@ -971,8 +1038,8 @@ class traj(fmsobj):
     def get_backprop_wf1(self):
         return self.backprop_wf[1,:].copy()
 
-    def get_backprop_timederivcoups(self):
-        return np.zeros(self.numstates)
+    #def get_backprop_timederivcoups(self):
+    #    return np.zeros(self.numstates)
 
 ###end pyspawn_cone electronic structure section###
 
@@ -1011,7 +1078,7 @@ class traj(fmsobj):
         print "a_t ", a_t
 
         if not zbackprop:
-            self.h5_output(zbackprop)
+            self.h5_output(zbackprop, zdont_half_step=True)
         
         v_tphdt = v_t + 0.5 * a_t * dt
         x_tpdt = x_t + v_tphdt * dt
@@ -1028,9 +1095,11 @@ class traj(fmsobj):
         
         exec("self.set_" + cbackprop + "momenta(p_tpdt)")
 
+        t_half = t + 0.5 * dt
         t += dt
 
         exec("self.set_" + cbackprop + "time(t)")
+        exec("self.set_" + cbackprop + "time_half_step(t_half)")
 
         print "t ", t
         print "x_t ", x_tpdt
@@ -1091,10 +1160,12 @@ class traj(fmsobj):
             self.set_momenta_t(self.get_momenta_tpdt())
             self.set_momenta_tpdt(p_tpdt)
         exec("self.set_" + cbackprop + "momenta(p_tpdt)")
-        
+
+        t_half = t + 0.5 * dt
         t += dt
 
         exec("self.set_" + cbackprop + "time(t)")
+        exec("self.set_" + cbackprop + "time_half_step(t_half)")
 
         print "t ", t
         print "x_t ", x_tpdt

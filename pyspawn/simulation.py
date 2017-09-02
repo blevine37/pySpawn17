@@ -28,6 +28,8 @@ class simulation(fmsobj):
 
         # quantum time is the current time of the quantum amplitudes
         self.quantum_time = 0.0
+        # quantum time is the current time of the quantum amplitudes
+        self.quantum_time_half_step = 0.0
         # timestep for qunatum propagation
         self.timestep = 0.0
         # quantum propagator
@@ -138,6 +140,12 @@ class simulation(fmsobj):
             
     def set_quantum_time(self,t):
         self.quantum_time = t
+
+    def get_quantum_time_half_step(self):
+        return self.quantum_time_half_step
+            
+    def set_quantum_time_half_step(self,t):
+        self.quantum_time_half_step = t
 
     def get_timestep(self):
         return self.timestep
@@ -278,49 +286,52 @@ class simulation(fmsobj):
             if self.traj_map[key] < ntraj:
                 print "why am I here?"
                 self.traj[key].get_all_qm_data_at_time_from_h5(qm_time)
-                #pos = self.traj[key].get_data_at_time_from_h5(qm_time,"positions")
-                #mom = self.traj[key].get_data_at_time_from_h5(qm_time,"momenta")
-                #e = self.traj[key].get_data_at_time_from_h5(qm_time,"energies")
-                #self.traj[key].set_positions_qm(pos)
-                #self.traj[key].set_momenta_qm(mom)
-                #self.traj[key].set_energies_qm(e)
-                
-                #self.traj[key].load_nac_data_from_h5(qm_time)
-                #print "qm pos", pos
-                #print "qm mom", mom
         for key in self.centroids:
             key1, key2 = str.split(key,"_&_")
             print "key1 ", key1, self.traj_map[key1]
             print "key2 ", key2, self.traj_map[key2]
             if self.traj_map[key1] < ntraj and self.traj_map[key2] < ntraj:
                 self.centroids[key].get_all_qm_data_at_time_from_h5(qm_time)
-                #e = self.centroids[key].get_data_at_time_from_h5(qm_time, "energies")
-                #self.centroids[key].set_energies_qm(e)
-
-                #self.centroids[key].load_nac_data_from_h5(qm_time)
             
-    # get time derivative couplings from time step t.  This is useful because
-    # NPI TDCs are out of sync with the rest of the computed quantities
-    # by half a time step.
-    def get_coupling_data_for_time_from_h5(self, t):
+    def get_qm_data_from_h5_half_step(self):
+        qm_time = self.get_quantum_time_half_step()
         ntraj = self.get_num_traj_qm()
         print "ntraj ", ntraj
         for key in self.traj:
             print "key ", key, self.traj_map[key]
-            print "times", t, self.traj[key].get_mintime(),self.traj[key].get_time(), self.traj[key].get_backprop_time()
+            print "times", qm_time, self.traj[key].get_mintime(),self.traj[key].get_time(), self.traj[key].get_backprop_time()
             if self.traj_map[key] < ntraj:
                 print "why am I here?"
-                tdc = self.traj[key].get_data_at_time_from_h5(t,"timederivcoups")
-                self.traj[key].set_timederivcoups_qm(tdc)
-                print "t tdc ", t, tdc
+                self.traj[key].get_all_qm_data_at_time_from_h5_half_step(qm_time)
         for key in self.centroids:
             key1, key2 = str.split(key,"_&_")
             print "key1 ", key1, self.traj_map[key1]
             print "key2 ", key2, self.traj_map[key2]
             if self.traj_map[key1] < ntraj and self.traj_map[key2] < ntraj:
-                tdc = self.centroids[key].get_data_at_time_from_h5(t,"timederivcoups")
-                self.centroids[key].set_timederivcoups_qm(tdc)
-                print "t tdc ", t, tdc
+                self.centroids[key].get_all_qm_data_at_time_from_h5_half_step(qm_time)
+            
+    # get time derivative couplings from time step t.  This is useful because
+    # NPI TDCs are out of sync with the rest of the computed quantities
+    # by half a time step.
+    #def get_coupling_data_for_time_from_h5(self, t):
+    #    ntraj = self.get_num_traj_qm()
+    #    print "ntraj ", ntraj
+    #    for key in self.traj:
+    #        print "key ", key, self.traj_map[key]
+    #        print "times", t, self.traj[key].get_mintime(),self.traj[key].get_time(), self.traj[key].get_backprop_time()
+    #        if self.traj_map[key] < ntraj:
+    #            print "why am I here?"
+    #            tdc = self.traj[key].get_data_at_time_from_h5(t,"timederivcoups")
+    #            self.traj[key].set_timederivcoups_qm(tdc)
+    #            print "t tdc ", t, tdc
+    #    for key in self.centroids:
+    #        key1, key2 = str.split(key,"_&_")
+    #        print "key1 ", key1, self.traj_map[key1]
+    #        print "key2 ", key2, self.traj_map[key2]
+    #        if self.traj_map[key1] < ntraj and self.traj_map[key2] < ntraj:
+    #            tdc = self.centroids[key].get_data_at_time_from_h5(t,"timederivcoups")
+    #            self.centroids[key].set_timederivcoups_qm(tdc)
+    #            print "t tdc ", t, tdc
             
     # build the overlap matrix, S
     def build_S(self):
@@ -639,12 +650,11 @@ class simulation(fmsobj):
         self.compute_num_traj_qm()
         self.get_qm_data_from_h5()
         
-        # this is a sort of sloppy fix - the couplings are half a time
-        # step out of sync with the rest of the data.  We need the couplings
-        # recorded for the next time step to propertly integrate here
         qm_time = self.get_quantum_time()
         dt = self.get_timestep()
-        self.get_coupling_data_for_time_from_h5(qm_time + dt)
+        t_half = qm_time + 0.5 * dt
+        self.set_quantum_time_half_step(t_half)
+        self.get_qm_data_from_h5_half_step()        
         
         self.build_S()
         self.invert_S()
