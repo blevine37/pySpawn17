@@ -586,6 +586,16 @@ class traj(fmsobj):
     def get_timederivcoups(self):
         return self.timederivcoups.copy()
     
+    def set_timederivcoups_qm(self,t):
+        if t.shape == self.timederivcoups_qm.shape:
+            self.timederivcoups_qm = t.copy()
+        else:
+            print "Error in set_spawntimes"
+            sys.exit
+    
+    def get_timederivcoups_qm(self):
+        return self.timederivcoups_qm.copy()
+    
     def set_spawnlastcoup(self,tdc):
         if tdc.shape == self.spawnlastcoup.shape:
             self.spawnlastcoup = tdc.copy()
@@ -656,12 +666,16 @@ class traj(fmsobj):
 
     def compute_centroid(self, zbackprop=False):
         self.compute_elec_struct(zbackprop)
-        self.h5_output(zbackprop)
         if zbackprop:
-            self.set_backprop_time(self.get_backprop_time() - self.get_timestep())
+            backprop_time = self.get_backprop_time()
+            firsttime = self.get_firsttime()
+            self.set_backprop_time(backprop_time - self.get_timestep())
+            if (backprop_time + 1.0e-6) < firsttime:
+                self.h5_output(zbackprop)
         else:
             self.set_time(self.get_time() + self.get_timestep())
-                        
+            self.h5_output(zbackprop)
+                       
     def consider_spawning(self):
         tdc = self.get_timederivcoups()
         lasttdc = self.get_spawnlastcoup()
@@ -760,7 +774,7 @@ class traj(fmsobj):
             n = self.h5_datasets[key]
             dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n))
             
-    def get_q_and_p_at_time_from_h5(self,t):
+    def get_data_at_time_from_h5(self,t,dset_name):
         h5f = h5py.File("sim.hdf5", "r")
         if "_&_" not in self.get_label():
             traj_or_cent = "traj_"
@@ -771,24 +785,20 @@ class traj(fmsobj):
         trajgrp = h5f.get(groupname)
         dset_time = trajgrp["time"][:]
         print "size", dset_time.size
-        dset_pos = trajgrp["positions"][:]
-        dset_mom = trajgrp["momenta"][:]
         ipoint = -1
         for i in range(len(dset_time)):
             if (dset_time[i] < t+1.0e-6) and (dset_time[i] > t-1.0e-6):
                 ipoint = i
                 print "dset_time[i] ", dset_time[i]
                 print "i ", i
-        pos = np.zeros(self.get_numdims())
-        pos = dset_pos[ipoint,:]
-        print "dset_pos[ipoint,:] ", dset_pos[ipoint,:]
-        mom = dset_mom[ipoint,:]
-        print "dset_mom[ipoint,:] ", dset_mom[ipoint,:]
-        
+        dset = trajgrp[dset_name][:]            
+        data = np.zeros(len(dset[ipoint,:]))
+        data = dset[ipoint,:]
+        print "dset[ipoint,:] ", dset[ipoint,:]        
         h5f.close()
-        return pos, mom
-            
-    def get_e_at_time_from_h5(self,t):
+        return data
+
+    def get_all_qm_data_at_time_from_h5(self,t):
         h5f = h5py.File("sim.hdf5", "r")
         if "_&_" not in self.get_label():
             traj_or_cent = "traj_"
@@ -799,20 +809,53 @@ class traj(fmsobj):
         trajgrp = h5f.get(groupname)
         dset_time = trajgrp["time"][:]
         print "size", dset_time.size
-        dset_e = trajgrp["energies"][:]
         ipoint = -1
         for i in range(len(dset_time)):
             if (dset_time[i] < t+1.0e-6) and (dset_time[i] > t-1.0e-6):
                 ipoint = i
                 print "dset_time[i] ", dset_time[i]
                 print "i ", i
-        e = np.zeros(self.get_numstates())
-        e = dset_e[ipoint,:]
-        print "dset_e[ipoint,:] ", dset_e[ipoint,:]
-        
+        for dset_name in self.h5_datasets:
+            dset = trajgrp[dset_name][:]            
+            data = np.zeros(len(dset[ipoint,:]))
+            data = dset[ipoint,:]
+            comm = "self." + dset_name + "_qm = data"
+            exec(comm)
+            print "comm ", comm
+            print "dset[ipoint,:] ", dset[ipoint,:]        
         h5f.close()
-        return e
             
+    #def get_e_at_time_from_h5(self,t):
+    #    h5f = h5py.File("sim.hdf5", "r")
+    #    if "_&_" not in self.get_label():
+    #        traj_or_cent = "traj_"
+    #    else:
+    #        traj_or_cent = "cent_"
+    #    groupname = traj_or_cent + self.label
+    #    filename = "sim.hdf5"
+    #    trajgrp = h5f.get(groupname)
+
+    #dset_time = trajgrp["time"][:]
+    #    print "size", dset_time.size
+    #    dset_e = trajgrp["energies"][:]
+    #    ipoint = -1
+    #    for i in range(len(dset_time)):
+    #        if (dset_time[i] < t+1.0e-6) and (dset_time[i] > t-1.0e-6):
+    #            ipoint = i
+    #            print "dset_time[i] ", dset_time[i]
+    #            print "i ", i
+    #
+    #   e = np.zeros(self.get_numstates())
+    #    e = dset_e[ipoint,:]
+    #    print "dset_e[ipoint,:] ", dset_e[ipoint,:]
+        
+    #    h5f.close()
+    #    return e
+
+    #def load_nac_data_from_h5(self, qm_time):
+    #    routine = "load_nac_data_from_h5_" + self.get_software() + "_" + self.get_method() + "(qm_time)"
+    #    exec(routine)
+    
     def compute_tdc(self,W):
         Atmp = np.arccos(W[0,0]) - np.arcsin(W[0,1])
         Btmp = np.arccos(W[0,0]) + np.arcsin(W[0,1])

@@ -5,7 +5,7 @@ traj1 = pyspawn.traj()
 
 t0 = 0.0
 
-timestep = 0.1
+timestep = 0.02
 
 tfinal = 4.0
 

@@ -268,7 +268,7 @@ class simulation(fmsobj):
         self.set_num_traj_qm(n)
         
     # get the necessary geometries and energies from hdf5
-    def get_qm_q_p_and_e_from_h5(self):
+    def get_qm_data_from_h5(self):
         qm_time = self.get_quantum_time()
         ntraj = self.get_num_traj_qm()
         print "ntraj ", ntraj
@@ -277,22 +277,51 @@ class simulation(fmsobj):
             print "times", qm_time, self.traj[key].get_mintime(),self.traj[key].get_time(), self.traj[key].get_backprop_time()
             if self.traj_map[key] < ntraj:
                 print "why am I here?"
-                pos, mom = self.traj[key].get_q_and_p_at_time_from_h5(qm_time)
-                e = self.traj[key].get_e_at_time_from_h5(qm_time)
-                self.traj[key].set_positions_qm(pos)
-                self.traj[key].set_momenta_qm(mom)
-                self.traj[key].set_energies_qm(e)
-                print "qm pos", pos
-                print "qm mom", mom
+                self.traj[key].get_all_qm_data_at_time_from_h5(qm_time)
+                #pos = self.traj[key].get_data_at_time_from_h5(qm_time,"positions")
+                #mom = self.traj[key].get_data_at_time_from_h5(qm_time,"momenta")
+                #e = self.traj[key].get_data_at_time_from_h5(qm_time,"energies")
+                #self.traj[key].set_positions_qm(pos)
+                #self.traj[key].set_momenta_qm(mom)
+                #self.traj[key].set_energies_qm(e)
+                
+                #self.traj[key].load_nac_data_from_h5(qm_time)
+                #print "qm pos", pos
+                #print "qm mom", mom
         for key in self.centroids:
             key1, key2 = str.split(key,"_&_")
             print "key1 ", key1, self.traj_map[key1]
             print "key2 ", key2, self.traj_map[key2]
             if self.traj_map[key1] < ntraj and self.traj_map[key2] < ntraj:
-                e = self.centroids[key].get_e_at_time_from_h5(qm_time)
-                self.centroids[key].set_energies_qm(e)
-            
+                self.centroids[key].get_all_qm_data_at_time_from_h5(qm_time)
+                #e = self.centroids[key].get_data_at_time_from_h5(qm_time, "energies")
+                #self.centroids[key].set_energies_qm(e)
 
+                #self.centroids[key].load_nac_data_from_h5(qm_time)
+            
+    # get time derivative couplings from time step t.  This is useful because
+    # NPI TDCs are out of sync with the rest of the computed quantities
+    # by half a time step.
+    def get_coupling_data_for_time_from_h5(self, t):
+        ntraj = self.get_num_traj_qm()
+        print "ntraj ", ntraj
+        for key in self.traj:
+            print "key ", key, self.traj_map[key]
+            print "times", t, self.traj[key].get_mintime(),self.traj[key].get_time(), self.traj[key].get_backprop_time()
+            if self.traj_map[key] < ntraj:
+                print "why am I here?"
+                tdc = self.traj[key].get_data_at_time_from_h5(t,"timederivcoups")
+                self.traj[key].set_timederivcoups_qm(tdc)
+                print "t tdc ", t, tdc
+        for key in self.centroids:
+            key1, key2 = str.split(key,"_&_")
+            print "key1 ", key1, self.traj_map[key1]
+            print "key2 ", key2, self.traj_map[key2]
+            if self.traj_map[key1] < ntraj and self.traj_map[key2] < ntraj:
+                tdc = self.centroids[key].get_data_at_time_from_h5(t,"timederivcoups")
+                self.centroids[key].set_timederivcoups_qm(tdc)
+                print "t tdc ", t, tdc
+            
     # build the overlap matrix, S
     def build_S(self):
         ntraj = self.get_num_traj_qm()
@@ -323,13 +352,15 @@ class simulation(fmsobj):
     # build the potential energy matrix, V
     # This routine assumes that S is already built
     def build_V(self):
+        c1i = (complex(0.0,1.0))
+        cm1i = (complex(0.0,-1.0))
         ntraj = self.get_num_traj_qm()
-        E = np.zeros((ntraj,ntraj))
+        self.V = np.zeros((ntraj,ntraj),dtype=np.complex128)
         for key in self.traj:
             i = self.traj_map[key]
             istate = self.traj[key].get_istate()
             if i < ntraj:
-                E[i,i] = self.traj[key].get_energies_qm()[istate]
+                self.V[i,i] = self.traj[key].get_energies_qm()[istate]
         for key in self.centroids:
             keyi, keyj = str.split(key,"_&_")
             i = self.traj_map[keyi]
@@ -338,14 +369,14 @@ class simulation(fmsobj):
                 istate = self.centroids[key].get_istate()
                 jstate = self.centroids[key].get_jstate()
                 if istate == jstate:
-                    E[i,j] = self.centroids[key].get_energies_qm()[istate]
-                    E[j,i] = E[i,j]
-                #else:
-                #nonadiabatic coupling terms go here!!!!
-        print "E is built"
-        print E
-
-        self.V = E * self.S
+                    E = self.centroids[key].get_energies_qm()[istate]
+                    self.V[i,j] = self.S[i,j] * E
+                    self.V[j,i] = self.S[j,i] * E
+                else:
+                    Sij = cg.overlap_nuc(self.traj[keyi], self.traj[keyj],positions_i="positions_qm",positions_j="positions_qm",momenta_i="momenta_qm",momenta_j="momenta_qm")
+                    tdc = self.centroids[key].get_timederivcoups_qm()[jstate]
+                    self.V[i,j] = Sij * cm1i * tdc
+                    self.V[j,i] = Sij.conjugate() * c1i * tdc
 
         print "V is built"
         print self.V
@@ -436,8 +467,11 @@ class simulation(fmsobj):
             if (self.centroids[key].get_mintime()+1.0e-6) < backprop_time:
                 if (backprop_time > self.traj[key1].get_backprop_time() + timestep - 1.0e-6):
                     if (backprop_time > self.traj[key2].get_backprop_time() + timestep - 1.0e-6):
-                        pos1, mom1 = self.traj[key1].get_q_and_p_at_time_from_h5(backprop_time)
-                        pos2, mom2 = self.traj[key2].get_q_and_p_at_time_from_h5(backprop_time)
+                        pos1 = self.traj[key1].get_data_at_time_from_h5(backprop_time, "positions")
+                        mom1 = self.traj[key1].get_data_at_time_from_h5(backprop_time, "momenta")
+                        pos2 = self.traj[key2].get_data_at_time_from_h5(backprop_time, "positions")
+                        mom2 = self.traj[key2].get_data_at_time_from_h5(backprop_time, "momenta")
+                        #pos2, mom2 = self.traj[key2].get_q_and_p_at_time_from_h5(backprop_time)
                         # this is only write if all basis functions have same
                         # width!!!!  Fix this soon
                         pos_cent = 0.5 * ( pos1 + pos2 )
@@ -452,8 +486,12 @@ class simulation(fmsobj):
             if (self.centroids[key].get_maxtime()-1.0e-6) > time:
                 if (time < self.traj[key1].get_time() - timestep + 1.0e-6):
                     if (time < self.traj[key2].get_time() - timestep + 1.0e-6):
-                        pos1, mom1 = self.traj[key1].get_q_and_p_at_time_from_h5(time)
-                        pos2, mom2 = self.traj[key2].get_q_and_p_at_time_from_h5(time)
+                        pos1 = self.traj[key1].get_data_at_time_from_h5(time, "positions")
+                        mom1 = self.traj[key1].get_data_at_time_from_h5(time, "momenta")
+                        pos2 = self.traj[key2].get_data_at_time_from_h5(time, "positions")
+                        mom2 = self.traj[key2].get_data_at_time_from_h5(time, "momenta")
+                        #pos1, mom1 = self.traj[key1].get_q_and_p_at_time_from_h5(time)
+                        #pos2, mom2 = self.traj[key2].get_q_and_p_at_time_from_h5(time)
                         # this is only write if all basis functions have same
                         # width!!!!  Fix this soon
                         pos_cent = 0.5 * ( pos1 + pos2 )
@@ -599,7 +637,15 @@ class simulation(fmsobj):
 
     def build_Heff_first_half_adiabatic(self):
         self.compute_num_traj_qm()
-        self.get_qm_q_p_and_e_from_h5()
+        self.get_qm_data_from_h5()
+        
+        # this is a sort of sloppy fix - the couplings are half a time
+        # step out of sync with the rest of the data.  We need the couplings
+        # recorded for the next time step to propertly integrate here
+        qm_time = self.get_quantum_time()
+        dt = self.get_timestep()
+        self.get_coupling_data_for_time_from_h5(qm_time + dt)
+        
         self.build_S()
         self.invert_S()
         self.build_H()
