@@ -216,7 +216,7 @@ class simulation(fmsobj):
             # if a trajectory is backpropagating, we can only propagate to
             # its mintime
             mintime = self.traj[key].get_mintime()
-            if (mintime - 1.0e-6) < self.traj[key].get_backprop_time():
+            if (mintime + 1.0e-6) < self.traj[key].get_backprop_time():
                 if (mintime - timestep) < max_info_time:
                     max_info_time = mintime - timestep
                     print "key, mintime", key, mintime
@@ -232,7 +232,7 @@ class simulation(fmsobj):
             # its mintime
             timestep = self.centroids[key].get_timestep()
             mintime = self.centroids[key].get_mintime()
-            if (mintime - 1.0e-6) < self.centroids[key].get_backprop_time():
+            if (mintime + 1.0e-6) < self.centroids[key].get_backprop_time():
                 if (mintime - timestep) < max_info_time:
                     max_info_time = mintime - timestep
                     print "key, mintime", key, mintime
