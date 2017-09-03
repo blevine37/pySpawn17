@@ -457,6 +457,8 @@ class traj(fmsobj):
         print "init_st mintime0", self.get_mintime()
 
     def init_centroid(self, existing, child, label):
+        ts = child.get_timestep()
+        
         self.set_numstates(child.get_numstates())
         self.set_numdims(child.get_numdims())
 
@@ -464,19 +466,19 @@ class traj(fmsobj):
         self.set_jstate(existing.get_istate())
         
         time = child.get_time()
-        self.set_time(time)
+        self.set_time(time - ts)
 
         self.set_label(label)
         
         self.set_mintime(child.get_mintime())
-        self.set_backprop_time(time)
+        self.set_backprop_time(time + ts)
         self.set_firsttime(time)
         self.set_maxtime(child.get_maxtime())
         
         self.set_widths(child.get_widths())
         self.set_masses(child.get_masses())
         
-        self.set_timestep(child.get_timestep())
+        self.set_timestep(ts)
 
     def rescale_momentum(self, v_parent):
         v_child = self.get_energies()[self.get_istate()]
@@ -684,7 +686,7 @@ class traj(fmsobj):
             cbackprop = ""
         else:
             cbackprop = "backprop_"
-        if eval("self.get_" + cbackprop + "time()") == self.get_firsttime():
+        if abs(eval("self.get_" + cbackprop + "time()") - self.get_firsttime()) < 1.0e-6:
             tmp = "self.prop_first_" + self.propagator + "(zbackprop=" + str(zbackprop) + ")"
             eval(tmp)
         else:
@@ -696,23 +698,26 @@ class traj(fmsobj):
             self.consider_spawning()
 
     def compute_centroid(self, zbackprop=False):
-        self.compute_elec_struct(zbackprop)
         firsttime = self.get_firsttime()
         dt = self.get_timestep()
         if zbackprop:
-            t = self.get_backprop_time()
-            self.set_backprop_time_half_step(t + 0.5 * dt)
-            if (t + 1.0e-6) < firsttime:
-                self.h5_output(zbackprop)
-            self.set_backprop_time(t - dt)
+            cbackprop = "backprop_"
+            sign = -1.0
         else:
-            t = self.get_time()
-            self.set_time_half_step(t - 0.5 * dt)
-            if (t - 1.0e-6 > firsttime):
-                self.h5_output(zbackprop)
-            else:
-                self.h5_output(zbackprop,zdont_half_step=True)                
-            self.set_time(t + dt)
+            cbackprop = ""
+            sign = 1.0
+        t = eval("self.get_" + cbackprop + "time()")
+        t += sign * dt
+        exec("self.set_" + cbackprop + "time(t)")
+        exec("self.set_" + cbackprop + "time_half_step(t + sign * -0.5 * dt)")
+        # if it is this trajectories first timestep (forward or backward)
+        self.compute_elec_struct(zbackprop)
+        # only output on forward propagation
+        if abs(t - firsttime) < 1.0e-6:
+            if not zbackprop:
+                self.h5_output(zbackprop,zdont_half_step=True)
+        else:
+            self.h5_output(zbackprop)
                        
     def consider_spawning(self):
         tdc = self.get_timederivcoups()

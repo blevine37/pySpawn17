@@ -216,7 +216,7 @@ class simulation(fmsobj):
             # if a trajectory is backpropagating, we can only propagate to
             # its mintime
             mintime = self.traj[key].get_mintime()
-            if (mintime + 1.0e-6) < self.traj[key].get_backprop_time():
+            if (mintime - 1.0e-6) < self.traj[key].get_backprop_time():
                 if (mintime - timestep) < max_info_time:
                     max_info_time = mintime - timestep
                     print "key, mintime", key, mintime
@@ -232,7 +232,7 @@ class simulation(fmsobj):
             # its mintime
             timestep = self.centroids[key].get_timestep()
             mintime = self.centroids[key].get_mintime()
-            if (mintime + 1.0e-6) < self.centroids[key].get_backprop_time():
+            if (mintime - 1.0e-6) < self.centroids[key].get_backprop_time():
                 if (mintime - timestep) < max_info_time:
                     max_info_time = mintime - timestep
                     print "key, mintime", key, mintime
@@ -357,8 +357,9 @@ class simulation(fmsobj):
     # This routine assumes that S is already built
     def build_H(self):
         self.build_V()
+        self.build_tau()
         self.build_T()
-        self.H = self.T + self.V
+        self.H = self.T + self.V + self.tau
 
     # build the potential energy matrix, V
     # This routine assumes that S is already built
@@ -383,14 +384,46 @@ class simulation(fmsobj):
                     E = self.centroids[key].get_energies_qm()[istate]
                     self.V[i,j] = self.S[i,j] * E
                     self.V[j,i] = self.S[j,i] * E
-                else:
-                    Sij = cg.overlap_nuc(self.traj[keyi], self.traj[keyj],positions_i="positions_qm",positions_j="positions_qm",momenta_i="momenta_qm",momenta_j="momenta_qm")
-                    tdc = self.centroids[key].get_timederivcoups_qm()[jstate]
-                    self.V[i,j] = Sij * cm1i * tdc
-                    self.V[j,i] = Sij.conjugate() * c1i * tdc
+                #else:
+                #    Sij = cg.overlap_nuc(self.traj[keyi], self.traj[keyj],positions_i="positions_qm",positions_j="positions_qm",momenta_i="momenta_qm",momenta_j="momenta_qm")
+                #    tdc = self.centroids[key].get_timederivcoups_qm()[jstate]
+                #    self.V[i,j] = Sij * cm1i * tdc
+                #    self.V[j,i] = Sij.conjugate() * c1i * tdc
 
         print "V is built"
         print self.V
+                
+    # build the nonadiabatic coupling matrix, tau
+    # This routine assumes that S is already built
+    def build_tau(self):
+        c1i = (complex(0.0,1.0))
+        cm1i = (complex(0.0,-1.0))
+        ntraj = self.get_num_traj_qm()
+        self.tau = np.zeros((ntraj,ntraj),dtype=np.complex128)
+        #for key in self.traj:
+        #    i = self.traj_map[key]
+        #    istate = self.traj[key].get_istate()
+        #    if i < ntraj:
+        #        self.V[i,i] = self.traj[key].get_energies_qm()[istate]
+        for key in self.centroids:
+            keyi, keyj = str.split(key,"_&_")
+            i = self.traj_map[keyi]
+            j = self.traj_map[keyj]
+            if i < ntraj and j < ntraj:
+                istate = self.centroids[key].get_istate()
+                jstate = self.centroids[key].get_jstate()
+                if istate != jstate:
+                #    E = self.centroids[key].get_energies_qm()[istate]
+                #    self.V[i,j] = self.S[i,j] * E
+                #    self.V[j,i] = self.S[j,i] * E
+                #else:
+                    Sij = cg.overlap_nuc(self.traj[keyi], self.traj[keyj],positions_i="positions_qm",positions_j="positions_qm",momenta_i="momenta_qm",momenta_j="momenta_qm")
+                    tdc = self.centroids[key].get_timederivcoups_qm()[jstate]
+                    self.tau[i,j] = Sij * cm1i * tdc
+                    self.tau[j,i] = Sij.conjugate() * c1i * tdc
+
+        print "tau is built"
+        print self.tau
                 
     # build the kinetic energy matrix, T
     def build_T(self):
@@ -413,6 +446,7 @@ class simulation(fmsobj):
         del self.T
         del self.V
         del self.H
+        del self.tau
         
     # pop the task from the top of the queue
     def pop_task(self):
@@ -474,10 +508,12 @@ class simulation(fmsobj):
 
             #update backpropagating centroids
             self.centroids[key].set_z_compute_me_backprop(False)
-            backprop_time = self.centroids[key].get_backprop_time()
-            if (self.centroids[key].get_mintime()+1.0e-6) < backprop_time:
-                if (backprop_time > self.traj[key1].get_backprop_time() + timestep - 1.0e-6):
-                    if (backprop_time > self.traj[key2].get_backprop_time() + timestep - 1.0e-6):
+            backprop_time = self.centroids[key].get_backprop_time() - timestep
+            if (self.centroids[key].get_mintime()-1.0e-6) < backprop_time:
+                backprop_time1 = self.traj[key1].get_backprop_time()
+                if (backprop_time > backprop_time1 - 1.0e-6) and (backprop_time1  < (self.traj[key1].get_firsttime() - 1.0e-6) or backprop_time1  < (self.traj[key1].get_mintime() + 1.0e-6)):
+                    backprop_time2 = self.traj[key2].get_backprop_time()
+                    if (backprop_time > backprop_time2 - 1.0e-6) and (backprop_time2  < (self.traj[key2].get_firsttime() - 1.0e-6) or backprop_time2  < (self.traj[key2].get_mintime() + 1.0e-6)):
                         pos1 = self.traj[key1].get_data_at_time_from_h5(backprop_time, "positions")
                         mom1 = self.traj[key1].get_data_at_time_from_h5(backprop_time, "momenta")
                         pos2 = self.traj[key2].get_data_at_time_from_h5(backprop_time, "positions")
@@ -493,10 +529,12 @@ class simulation(fmsobj):
 
             # update forward propagating centroids
             self.centroids[key].set_z_compute_me(False)
-            time = self.centroids[key].get_time()
-            if (self.centroids[key].get_maxtime()-1.0e-6) > time:
-                if (time < self.traj[key1].get_time() - timestep + 1.0e-6):
-                    if (time < self.traj[key2].get_time() - timestep + 1.0e-6):
+            time = self.centroids[key].get_time() + timestep
+            if (self.centroids[key].get_maxtime()+1.0e-6) > time:
+                time1 = self.traj[key1].get_time()
+                if (time < time1 + 1.0e-6) and time1 > self.traj[key1].get_firsttime() + 1.0e-6:
+                    time2 = self.traj[key2].get_time()
+                    if (time < time2 + 1.0e-6) and time2 > self.traj[key2].get_firsttime() + 1.0e-6:
                         pos1 = self.traj[key1].get_data_at_time_from_h5(time, "positions")
                         mom1 = self.traj[key1].get_data_at_time_from_h5(time, "momenta")
                         pos2 = self.traj[key2].get_data_at_time_from_h5(time, "positions")
