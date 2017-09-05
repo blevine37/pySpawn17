@@ -40,7 +40,8 @@ class simulation(fmsobj):
         # maps trajectories to matrix element indeces
         self.traj_map = dict()
 
-        # number of trajectories to be included in qm propagation at quantum time
+        # quantum amplitudes
+        self.qm_amplitudes = np.zeros(0)
 
     # convert dict to simulation data structure
     def from_dict(self,**tempdict):
@@ -165,6 +166,17 @@ class simulation(fmsobj):
     def set_qm_hamiltonian(self,ham):
         self.qm_hamiltonian = ham
 
+    def get_qm_amplitudes(self):
+        return self.qm_amplitudes.copy()
+            
+    def set_qm_amplitudes(self,amp):
+        if amp.shape == self.qm_amplitudes.shape:
+            self.qm_amplitutes = amp.copy()
+        else:
+            print "Error in set_qm_amplitudes"
+            sys.exit
+
+
     # this is the main propagation loop for the simulation
     def propagate(self):
         while True:
@@ -267,6 +279,12 @@ class simulation(fmsobj):
         routine = "self.build_Heff_second_half_" + self.get_qm_hamiltonian() + "()"
         exec(routine)
 
+    # sets the first amplitude to 1.0 and all others to zero
+    def init_amplitudes_one(self):
+        self.compute_num_traj_qm()
+        self.qm_amplitudes = np.zeros_like(self.qm_amplitudes)
+        self.qm_amplitudes[0] = 1.0
+        
     def compute_num_traj_qm(self):
         n = 0
         qm_time = self.get_quantum_time()
@@ -274,6 +292,11 @@ class simulation(fmsobj):
             if qm_time > (self.traj[key].get_mintime() - 1.0e-6):
                 n += 1
         self.set_num_traj_qm(n)
+        print "len n ",len(self.get_qm_amplitudes()), n
+        while n > len(self.get_qm_amplitudes()):
+            self.qm_amplitudes = np.append(self.qm_amplitudes,0.0)
+            print "len n ",len(self.get_qm_amplitudes()), n
+        
         
     # get the necessary geometries and energies from hdf5
     def get_qm_data_from_h5(self):
@@ -346,6 +369,19 @@ class simulation(fmsobj):
                         self.S[i,j] = cg.overlap_nuc_elec(self.traj[keyi], self.traj[keyj],positions_i="positions_qm",positions_j="positions_qm",momenta_i="momenta_qm",momenta_j="momenta_qm")
         print "S is built"
         print self.S
+
+    def build_Sdot(self):
+        ntraj = self.get_num_traj_qm()
+        self.Sdot = np.zeros((ntraj,ntraj), dtype=np.complex128)
+        for keyi in self.traj:
+            i = self.traj_map[keyi]
+            if i < ntraj:
+                for keyj in self.traj:
+                    j = self.traj_map[keyj]
+                    if j < ntraj:
+                        self.Sdot[i,j] = cg.Sdot_nuc_elec(self.traj[keyi], self.traj[keyj],positions_i="positions_qm",positions_j="positions_qm",momenta_i="momenta_qm",momenta_j="momenta_qm",forces_j="forces_i_qm")
+        print "Sdot is built"
+        print self.Sdot
 
     # compute Sinv from S
     def invert_S(self):
@@ -439,14 +475,23 @@ class simulation(fmsobj):
         print "T is built"
         print self.T
 
+    # built Heff form H, Sinv, and Sdot
+    def build_Heff(self):
+        c1i = (complex(0.0,1.0))
+        self.Heff = self.Sinv * (self.H - c1i * self.Sdot)
+        print "Heff is built"
+        print self.Heff
+        
     # delete matrices
     def clean_up_matrices(self):
         del self.S
         del self.Sinv
+        del self.Sdot
         del self.T
         del self.V
-        del self.H
         del self.tau
+        del self.H
+        del self.Heff
         
     # pop the task from the top of the queue
     def pop_task(self):
@@ -670,13 +715,25 @@ class simulation(fmsobj):
 ######################################################
 
     def qm_propagate_step_RK4(self):
+        self.compute_num_traj_qm()
         qm_time = self.get_quantum_time()
         dt = self.get_timestep()
         self.build_Heff_first_half()
 
+        amps_t = self.get_qm_amplitudes()
+        print "amps_t", amps_t
+
+        ncut = 0
+        while ncut < 8:
+            
+            ncut += 1
+
         qm_time += dt
         print "qm_time", qm_time
         self.set_quantum_time(qm_time)
+
+        self.build_Heff_second_half()
+        
         
 ######################################################
         
@@ -684,8 +741,9 @@ class simulation(fmsobj):
 # adiabatic Hamiltonian
 ######################################################
 
+    # build Heff for the first half of the time step in the adibatic rep
+    # (with NPI)
     def build_Heff_first_half_adiabatic(self):
-        self.compute_num_traj_qm()
         self.get_qm_data_from_h5()
         
         qm_time = self.get_quantum_time()
@@ -696,7 +754,30 @@ class simulation(fmsobj):
         
         self.build_S()
         self.invert_S()
+        self.build_Sdot()
         self.build_H()
+
+        self.build_Heff()
+        
+        self.clean_up_matrices()
+        
+    # build Heff for the second half of the time step in the adibatic rep
+    # (with NPI)
+    def build_Heff_second_half_adiabatic(self):
+        self.get_qm_data_from_h5()
+        
+        qm_time = self.get_quantum_time()
+        dt = self.get_timestep()
+        t_half = qm_time - 0.5 * dt
+        self.set_quantum_time_half_step(t_half)
+        self.get_qm_data_from_h5_half_step()        
+        
+        self.build_S()
+        self.invert_S()
+        self.build_Sdot()
+        self.build_H()
+
+        self.build_Heff()
         
         self.clean_up_matrices()
         

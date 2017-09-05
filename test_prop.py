@@ -41,6 +41,8 @@ sim.set_maxtime_all(tfinal)
 
 sim.set_propagator_all(prop)
 
+sim.init_amplitudes_one()
+
 sim.propagate()
 
 

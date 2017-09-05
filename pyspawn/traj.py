@@ -66,6 +66,7 @@ class traj(fmsobj):
         self.positions_qm = np.zeros(self.numdims)
         self.momenta_qm = np.zeros(self.numdims)
         self.energies_qm = np.zeros(self.numstates)
+        self.forces_i_qm = np.zeros(self.numdims)
         self.timederivcoups_qm = np.zeros(self.numstates)
 
     def set_time(self,t):
@@ -145,6 +146,7 @@ class traj(fmsobj):
         #self.prev_forces = np.zeros((self.numstates,self.numdims))
         self.positions_qm = np.zeros(self.numdims)
         self.momenta_qm = np.zeros(self.numdims)
+        self.forces_i_qm = np.zeros(self.numdims)
         
     def set_numstates(self,nstates):
         self.numstates = nstates
@@ -266,6 +268,16 @@ class traj(fmsobj):
 
     def get_momenta_qm(self):
         return self.momenta_qm.copy()
+            
+    def set_forces_i_qm(self,f):
+        if f.shape == self.forces_i_qm.shape:
+            self.forces_i_qm = f.copy()
+        else:
+            print "Error in set_forces_i_qm"
+            sys.exit
+
+    def get_forces_i_qm(self):
+        return self.forces_i_qm.copy()
             
     def set_momenta(self,mom):
         if mom.shape == self.momenta.shape:
@@ -517,6 +529,10 @@ class traj(fmsobj):
     def get_forces(self):
         return self.forces.copy()
 
+    def get_forces_i(self):
+        fi = self.get_forces()[self.get_istate(),:]
+        return fi
+
     def set_backprop_forces(self,f):
         if f.shape == self.backprop_forces.shape:
             self.backprop_forces = f.copy()
@@ -526,6 +542,10 @@ class traj(fmsobj):
 
     def get_backprop_forces(self):
         return self.backprop_forces.copy()
+
+    def get_backprop_forces_i(self):
+        fi = self.get_backprop_forces()[self.get_istate(),:]
+        return fi
 
     def set_energies(self,e):
         if e.shape == self.energies.shape:
@@ -994,7 +1014,7 @@ class traj(fmsobj):
         f[1,0] = ( x / r ) * ftmp
         f[1,1] = ( y / r ) * ftmp
         exec("self.set_" + cbackprop + "forces(f)")
-
+        
         wf = np.zeros((self.numstates,self.length_wf))
         wf[0,0] = math.sin(theta)
         wf[0,1] = math.cos(theta)
@@ -1026,6 +1046,7 @@ class traj(fmsobj):
         self.h5_datasets["energies"] = self.numstates
         self.h5_datasets["positions"] = self.numdims
         self.h5_datasets["momenta"] = self.numdims
+        self.h5_datasets["forces_i"] = self.numdims
         self.h5_datasets["wf0"] = self.numstates
         self.h5_datasets["wf1"] = self.numstates
         self.h5_datasets_half_step["time_half_step"] = 1
@@ -1068,7 +1089,7 @@ class traj(fmsobj):
             
         exec("x_t = self.get_" + cbackprop + "positions()")
         self.compute_elec_struct(zbackprop)
-        exec("f_t = self.get_" + cbackprop + "forces()[self.istate,:]")
+        exec("f_t = self.get_" + cbackprop + "forces_i()")
         exec("p_t = self.get_" + cbackprop + "momenta()")
         exec("e_t = self.get_" + cbackprop + "energies()")
         m = self.get_masses()
@@ -1091,7 +1112,7 @@ class traj(fmsobj):
         exec("self.set_" + cbackprop + "positions(x_tpdt)")
 
         self.compute_elec_struct(zbackprop)
-        exec("f_tpdt = self.get_" + cbackprop + "forces()[self.istate,:]")
+        exec("f_tpdt = self.get_" + cbackprop + "forces_i()")
         exec("e_tpdt = self.get_" + cbackprop + "energies()")
         
         a_tpdt = f_tpdt / m
@@ -1141,7 +1162,7 @@ class traj(fmsobj):
 
         exec("x_tpdt = self.get_" + cbackprop + "positions()")
         self.compute_elec_struct(zbackprop)
-        exec("f_tpdt = self.get_" + cbackprop + "forces()[self.istate,:]")
+        exec("f_tpdt = self.get_" + cbackprop + "forces_i()")
         exec("e_tpdt = self.get_" + cbackprop + "energies()")
 
         exec("p_tphdt = self.get_" + cbackprop + "momenta()")

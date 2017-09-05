@@ -1,9 +1,14 @@
+# this module contains functions for doing complex Gaussian math.  Right
+# now everything is hard coded for adiabatic/diabatic representation, but
+# it shouldn't be hard to modify for DGAS
+
 import math
 import cmath
 import numpy as np
 from pyspawn.fmsobj import fmsobj
 from pyspawn.traj import traj
 
+# compute the overlap of two virbonic TBFs (electronic part included)
 def overlap_nuc_elec(ti,tj,positions_i="positions",positions_j="positions",momenta_i="momenta",momenta_j="momenta"):
     if ti.get_istate() == tj.get_istate():
         Sij = overlap_nuc(ti,tj,positions_i=positions_i,positions_j=positions_j,momenta_i=momenta_i,momenta_j=momenta_j)
@@ -11,6 +16,7 @@ def overlap_nuc_elec(ti,tj,positions_i="positions",positions_j="positions",momen
         Sij = complex(0.0,0.0)
     return Sij
 
+# compute the overlap of two nuclear TBFs (electronic part not included)
 def overlap_nuc(ti,tj,positions_i="positions",positions_j="positions",momenta_i="momenta",momenta_j="momenta"):
     ri = eval("ti.get_" + positions_i + "()")
     rj = eval("tj.get_" + positions_j + "()")
@@ -32,6 +38,7 @@ def overlap_nuc(ti,tj,positions_i="positions",positions_j="positions",momenta_i=
 
     return Sij
 
+# compute the kinetic energy matrix element between two virbonic TBFs
 def kinetic_nuc_elec(ti,tj,positions_i="positions",positions_j="positions",momenta_i="momenta",momenta_j="momenta"):
     if ti.get_istate() == tj.get_istate():
         Tij = kinetic_nuc(ti,tj,positions_i=positions_i,positions_j=positions_j,momenta_i=momenta_i,momenta_j=momenta_j)
@@ -39,6 +46,7 @@ def kinetic_nuc_elec(ti,tj,positions_i="positions",positions_j="positions",momen
         Tij = complex(0.0,0.0)
     return Tij
 
+# compute the kinetic energy matrix element between two nuclear TBFs
 def kinetic_nuc(ti,tj,positions_i="positions",positions_j="positions",momenta_i="momenta",momenta_j="momenta"):
     ri = eval("ti.get_" + positions_i + "()")
     rj = eval("tj.get_" + positions_j + "()")
@@ -80,6 +88,45 @@ def kinetic_nuc(ti,tj,positions_i="positions",positions_j="positions",momenta_i=
 
     return Tij
 
+# compute the Sdot matrix element between two vibronic TBFs
+def Sdot_nuc_elec(ti,tj,positions_i="positions",positions_j="positions",momenta_i="momenta",momenta_j="momenta",forces_j="forces"):
+    if ti.get_istate() == tj.get_istate():
+        Sdot_ij = Sdot_nuc(ti,tj,positions_i=positions_i,positions_j=positions_j,momenta_i=momenta_i,momenta_j=momenta_j,forces_j=forces_j)
+    else:
+        Sdot_ij = complex(0.0,0.0)
+    return Sdot_ij
+
+# compute the Sdot matrix element between two nuclear TBFs
+def Sdot_nuc(ti,tj,positions_i="positions",positions_j="positions",momenta_i="momenta",momenta_j="momenta",forces_j="forces"):
+    c1i = (complex(0.0,1.0))
+    ri = eval("ti.get_" + positions_i + "()")
+    rj = eval("tj.get_" + positions_j + "()")
+    pi = eval("ti.get_" + momenta_i + "()")
+    pj = eval("tj.get_" + momenta_j + "()")
+    fj = eval("tj.get_" + forces_j + "()")
+        
+    widthsi = ti.get_widths()
+    widthsj = tj.get_widths()
+
+    massesi = ti.get_masses()
+
+    ndim = ti.get_numdims()
+    
+    Sij = overlap_nuc(ti,tj,positions_i=positions_i,positions_j=positions_j,momenta_i=momenta_i,momenta_j=momenta_j)
+
+    deltar = ri - rj
+    psum = pi + pj
+    pdiff = pi - pj
+    o4wj = 0.25 / widthsj
+    Cdbydr = widthsj * deltar - (0.5 * c1i) * psum
+    Cdbydp = o4wj * pdiff + (0.5 * c1i) * deltar
+    Ctemp1 = Cdbydr * pj / massesi + Cdbydp * fj
+    Ctemp = np.sum(Ctemp1)    
+    Sdot_ij = Ctemp * Sij
+    
+    return Sdot_ij
+
+# compute 1-dimensional nuclear overlaps
 def overlap_nuc_1d(xi, xj, di, dj, xwi, xwj):
     c1i = (complex(0.0,1.0))
     deltax = xi - xj
@@ -99,7 +146,8 @@ def overlap_nuc_1d(xi, xj, di, dj, xwi, xwj):
         cgold = 0.0
         
     return cgold
-                        
+
+# compute 1-dimensional nuclear kinetic energy matrix elements
 def kinetic_nuc_1d(xi, xj, di, dj, xwi, xwj):
     c1i = (complex(0.0,1.0))
     psum = di + dj
