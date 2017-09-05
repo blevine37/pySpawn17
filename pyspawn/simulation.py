@@ -1,6 +1,7 @@
 # simulation object contains the current state of the simulation.
 # It is analagous to the "bundle" object in the original FMS code.
 import types
+import math
 import numpy as np
 from pyspawn.fmsobj import fmsobj
 from pyspawn.traj import traj
@@ -33,7 +34,7 @@ class simulation(fmsobj):
         # timestep for qunatum propagation
         self.timestep = 0.0
         # quantum propagator
-        self.qm_propagator = "RK4"
+        self.qm_propagator = "RK2"
         # quantum hamiltonian
         self.qm_hamiltonian = "adiabatic"
 
@@ -41,7 +42,7 @@ class simulation(fmsobj):
         self.traj_map = dict()
 
         # quantum amplitudes
-        self.qm_amplitudes = np.zeros(0)
+        self.qm_amplitudes = np.zeros(0,dtype=np.complex128)
 
     # convert dict to simulation data structure
     def from_dict(self,**tempdict):
@@ -171,7 +172,7 @@ class simulation(fmsobj):
             
     def set_qm_amplitudes(self,amp):
         if amp.shape == self.qm_amplitudes.shape:
-            self.qm_amplitutes = amp.copy()
+            self.qm_amplitudes = amp.copy()
         else:
             print "Error in set_qm_amplitudes"
             sys.exit
@@ -182,16 +183,24 @@ class simulation(fmsobj):
         while True:
             # compute centroid positions and mark those centroids that
             # can presently be computed
+            print "amps A ", self.get_qm_amplitudes()
+            
             self.update_centroids()
 
+            print "amps B ", self.get_qm_amplitudes()
+            
             # update the queue (list of tasks to be computed)
             self.update_queue()
 
+            print "amps C ", self.get_qm_amplitudes()
+            
             # if the queue is empty, we're done!
             if (self.queue[0] == "END"):
                 print "propagate DONE"
                 return
 
+            print "amps D ", self.get_qm_amplitudes()
+            
             # Right now we just run a single task per cycle,
             # but we could parallelize here and send multiple tasks
             # out for simultaneous processing.
@@ -200,14 +209,20 @@ class simulation(fmsobj):
             eval(current)
             print "Done with " + current
 
+            print "amps E ", self.get_qm_amplitudes()
+            
             # spawn new trajectories if needed
             self.spawn_as_necessary()
-
+            
+            print "amps F ", self.get_qm_amplitudes()
+            
             # propagate quantum variables if possible
             self.propagate_quantum_as_necessary()
             
+            print "amps G ", self.get_qm_amplitudes()
+            
             # print restart output
-            self.json_output()
+            #self.json_output()
 
     # here we will propagate the quantum amplitudes if we have
     # the necessary information to do so
@@ -282,7 +297,7 @@ class simulation(fmsobj):
     # sets the first amplitude to 1.0 and all others to zero
     def init_amplitudes_one(self):
         self.compute_num_traj_qm()
-        self.qm_amplitudes = np.zeros_like(self.qm_amplitudes)
+        self.qm_amplitudes = np.zeros_like(self.qm_amplitudes,dtype=np.complex128)
         self.qm_amplitudes[0] = 1.0
         
     def compute_num_traj_qm(self):
@@ -396,6 +411,8 @@ class simulation(fmsobj):
         self.build_tau()
         self.build_T()
         self.H = self.T + self.V + self.tau
+        print "H is built"
+        print self.H
 
     # build the potential energy matrix, V
     # This routine assumes that S is already built
@@ -478,7 +495,7 @@ class simulation(fmsobj):
     # built Heff form H, Sinv, and Sdot
     def build_Heff(self):
         c1i = (complex(0.0,1.0))
-        self.Heff = self.Sinv * (self.H - c1i * self.Sdot)
+        self.Heff = np.matmul(self.Sinv, (self.H - c1i * self.Sdot))
         print "Heff is built"
         print self.Heff
         
@@ -711,29 +728,95 @@ class simulation(fmsobj):
         self.write_to_file("sim.json")
 
 ######################################################
-# adaptive RK4 quantum integrator
+# adaptive RK2 quantum integrator
 ######################################################
 
-    def qm_propagate_step_RK4(self):
+    def qm_propagate_step_RK2(self):
+        maxcut = 2
+        c1i = (complex(0.0,1.0))
         self.compute_num_traj_qm()
-        qm_time = self.get_quantum_time()
+        qm_t = self.get_quantum_time()
         dt = self.get_timestep()
-        self.build_Heff_first_half()
-
+        qm_tpdt = qm_t + dt 
+        ntraj = self.get_num_traj_qm()
+        
         amps_t = self.get_qm_amplitudes()
         print "amps_t", amps_t
 
-        ncut = 0
-        while ncut < 8:
-            
-            ncut += 1
+        self.build_Heff_first_half()
 
-        qm_time += dt
-        print "qm_time", qm_time
-        self.set_quantum_time(qm_time)
+        ncut = 0
+        # adaptive integration
+        while ncut <= maxcut and ncut >= 0:
+            amps = amps_t
+            # how many quantum time steps will we take
+            nstep = 1
+            for i in range(ncut):
+                nstep *= 2
+            dt_small = dt / float(nstep)
+
+            for istep in range(nstep):
+                print "istep nstep dt_small ", istep, nstep, dt_small
+                k1 = (-1.0 * dt_small * c1i) * np.matmul(self.Heff,amps)
+                print "k1 ", k1
+                tmp = amps + 0.5 * k1
+                print "temp ", tmp
+                k2 = (-1.0 * dt_small * c1i) * np.matmul(self.Heff,tmp)
+                print "k2 ", k2
+                amps = amps + k2
+                print "amps ", amps
+            
+            if ncut > 0:
+                diff = amps - amps_save
+                error = math.sqrt((np.sum(np.absolute(diff * np.conjugate(diff)))/ntraj)) 
+                if error < 0.0001:
+                    ncut = -2
+                            
+            ncut += 1
+            amps_save = amps
+
+        if ncut != -1:
+            print "Problem in quantum integration: error = ", error, "after maximum adaptation!"
+
+        self.set_quantum_time(qm_tpdt)
 
         self.build_Heff_second_half()
         
+        ncut = 0
+        # adaptive integration
+        while ncut <= maxcut and ncut >= 0:
+            amps = amps_t
+            # how many quantum time steps will we take
+            nstep = 1
+            for i in range(ncut):
+                nstep *= 2
+            dt_small = dt / float(nstep)
+
+            for istep in range(nstep):
+                k1 = (-1.0 * dt_small * c1i) * np.matmul(self.Heff,amps)
+                tmp = amps + 0.5 * k1
+                k2 = (-1.0 * dt_small * c1i) * np.matmul(self.Heff,tmp)
+                amps = amps + k2
+            
+            if ncut > 0:
+                diff = amps - amps_save
+                error = math.sqrt((np.sum(np.absolute(diff * np.conjugate(diff)))/ntraj)) 
+                if error < 0.0001:
+                    ncut = -2
+                            
+            ncut += 1
+            amps_save = amps
+        
+        if ncut != -1:
+            print "Problem in quantum integration: error = ", error, "after maximum adaptation!"
+
+        print "amps_tpdt ", amps
+
+        self.set_qm_amplitudes(amps)
+        
+        print "amps saved ", self.get_qm_amplitudes()
+            
+        self.clean_up_matrices()
         
 ######################################################
         
@@ -759,8 +842,6 @@ class simulation(fmsobj):
 
         self.build_Heff()
         
-        self.clean_up_matrices()
-        
     # build Heff for the second half of the time step in the adibatic rep
     # (with NPI)
     def build_Heff_second_half_adiabatic(self):
@@ -779,5 +860,4 @@ class simulation(fmsobj):
 
         self.build_Heff()
         
-        self.clean_up_matrices()
         
