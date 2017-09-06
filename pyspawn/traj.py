@@ -445,7 +445,7 @@ class traj(fmsobj):
         self.set_momenta(mom)
         self.set_energies(e)
 
-        mintime = parent.get_spawntimes()[istate]
+        mintime = float(parent.get_spawntimes()[istate])
         print "init_st mintime", mintime
         self.set_mintime(mintime)
         print "init_st time", time

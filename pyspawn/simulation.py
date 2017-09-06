@@ -47,15 +47,29 @@ class simulation(fmsobj):
     # convert dict to simulation data structure
     def from_dict(self,**tempdict):
         for key in tempdict:
+            if isinstance(tempdict[key],types.UnicodeType) :
+                tempdict[key] = str(tempdict[key])
             if isinstance(tempdict[key],types.ListType) :
                 if isinstance((tempdict[key])[0],types.FloatType) :
                     # convert 1d float lists to np arrays
                     tempdict[key] = np.asarray(tempdict[key])
+                if isinstance((tempdict[key])[0],types.StringTypes) :
+                    if (tempdict[key])[0][0] == "^":
+                        for i in range(len(tempdict[key])):
+                            tempdict[key][i] = eval(tempdict[key][i][1:])
+                        tempdict[key] = np.asarray(tempdict[key],dtype=np.complex128)
                 else:
                     if isinstance((tempdict[key])[0],types.ListType):
                         if isinstance((tempdict[key])[0][0],types.FloatType) :
                             # convert 2d float lists to np arrays
                            tempdict[key] = np.asarray(tempdict[key])
+                        if isinstance((tempdict[key])[0][0],types.StringTypes) :
+                            if (tempdict[key])[0][0][0] == "^":
+                                for i in range(len(tempdict[key])):
+                                    for j in range(len(tempdict[key][i])):
+                                        print tempdict[key][i][j]
+                                        tempdict[key][i][j] = eval(tempdict[key][i][j][1:])
+                                tempdict[key] = np.asarray(tempdict[key],dtype=np.complex128)
             if isinstance(tempdict[key],types.DictType) :
                 if 'fmsobjlabel' in (tempdict[key]).keys():
                     fmsobjlabel = (tempdict[key]).pop('fmsobjlabel')
@@ -222,7 +236,7 @@ class simulation(fmsobj):
             print "amps G ", self.get_qm_amplitudes()
             
             # print restart output
-            #self.json_output()
+            self.json_output()
 
     # here we will propagate the quantum amplitudes if we have
     # the necessary information to do so
@@ -816,7 +830,7 @@ class simulation(fmsobj):
         
         print "amps saved ", self.get_qm_amplitudes()
             
-        self.clean_up_matrices()
+        #self.clean_up_matrices()
         
 ######################################################
         
