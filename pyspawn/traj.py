@@ -832,6 +832,7 @@ class traj(fmsobj):
                 dset[ipos,0:n] = tmp[0:n]
             else:
                 dset[ipos,0] = tmp
+        h5f.flush()
         h5f.close()
         
     def create_h5_traj(self, h5f, groupname):

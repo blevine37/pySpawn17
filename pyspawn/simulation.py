@@ -3,6 +3,7 @@
 import types
 import math
 import numpy as np
+import h5py
 from pyspawn.fmsobj import fmsobj
 from pyspawn.traj import traj
 import os
@@ -43,6 +44,10 @@ class simulation(fmsobj):
 
         # quantum amplitudes
         self.qm_amplitudes = np.zeros(0,dtype=np.complex128)
+
+        # variables to be output to hdf5 mapped to the size of each data point
+        self.h5_datasets = dict()
+        self.h5_types = dict()
 
     # convert dict to simulation data structure
     def from_dict(self,**tempdict):
@@ -191,30 +196,37 @@ class simulation(fmsobj):
             print "Error in set_qm_amplitudes"
             sys.exit
 
+    def get_H(self):
+        return self.H.copy()
+    
+    def get_Heff(self):
+        return self.Heff.copy()
+    
+    def get_S(self):
+        return self.S.copy()
+    
+    def get_Sdot(self):
+        return self.Sdot.copy()
+    
+    def get_Sinv(self):
+        return self.Sinv.copy()
+    
 
     # this is the main propagation loop for the simulation
     def propagate(self):
         while True:
             # compute centroid positions and mark those centroids that
             # can presently be computed
-            print "amps A ", self.get_qm_amplitudes()
-            
             self.update_centroids()
 
-            print "amps B ", self.get_qm_amplitudes()
-            
             # update the queue (list of tasks to be computed)
             self.update_queue()
 
-            print "amps C ", self.get_qm_amplitudes()
-            
             # if the queue is empty, we're done!
             if (self.queue[0] == "END"):
                 print "propagate DONE"
                 return
 
-            print "amps D ", self.get_qm_amplitudes()
-            
             # Right now we just run a single task per cycle,
             # but we could parallelize here and send multiple tasks
             # out for simultaneous processing.
@@ -223,17 +235,11 @@ class simulation(fmsobj):
             eval(current)
             print "Done with " + current
 
-            print "amps E ", self.get_qm_amplitudes()
-            
             # spawn new trajectories if needed
             self.spawn_as_necessary()
             
-            print "amps F ", self.get_qm_amplitudes()
-            
             # propagate quantum variables if possible
             self.propagate_quantum_as_necessary()
-            
-            print "amps G ", self.get_qm_amplitudes()
             
             # print restart output
             self.json_output()
@@ -297,6 +303,7 @@ class simulation(fmsobj):
     def qm_propagate_step(self):
         routine = "self.qm_propagate_step_" + self.get_qm_propagator() + "()"
         exec(routine)
+        self.h5_output()
 
     # build the effective Hamiltonian for the first half of the time step
     def build_Heff_first_half(self):
@@ -741,6 +748,81 @@ class simulation(fmsobj):
         # now we write the current json file
         self.write_to_file("sim.json")
 
+    def h5_output(self):
+        self.init_h5_datasets()
+        extensions = [3,2,1,0]
+        for i in extensions :
+            if i==0:
+                ext = ""
+            else:
+                ext = str(i) + "."
+            filename = "sim." + ext + "hdf5"
+            if os.path.isfile(filename):
+                if (i == extensions[0]):
+                    os.remove(filename)
+                else:
+                    ext = str(i+1) + "."
+                    filename2 = "sim." + ext + "hdf5"
+                    if (i == extensions[-1]):
+                        shutil.copy2(filename, filename2)
+                    else:
+                        shutil.move(filename, filename2)
+        h5f = h5py.File(filename, "a")
+        groupname = "sim"
+        if groupname not in h5f.keys():
+            self.create_h5_sim(h5f,groupname)
+        grp = h5f.get(groupname)
+        for key in self.h5_datasets:
+            n = self.h5_datasets[key]
+            print "key", key
+            dset = grp.get(key)
+            l = dset.len()
+            if l > 0:
+                lwidth = dset.size / l
+                if n > lwidth:
+                    dset.resize(n,axis=1)
+            dset.resize(l+1,axis=0)
+            ipos=l
+            getcom = "self.get_" + key + "()"
+            print getcom
+            tmp = eval(getcom)
+            if type(tmp).__module__ == np.__name__:
+                tmp = np.ndarray.flatten(tmp)
+                print tmp[0:n]
+                dset[ipos,0:n] = tmp[0:n]
+            else:
+                dset[ipos,0] = tmp
+        h5f.flush()
+        h5f.close()
+        
+    def create_h5_sim(self, h5f, groupname):
+        trajgrp = h5f.create_group(groupname)
+        for key in self.h5_datasets:
+            n = self.h5_datasets[key]
+            dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,None), dtype=self.h5_types[key])
+
+    def init_h5_datasets(self):
+        ntraj = self.get_num_traj_qm()
+        ntraj2 = ntraj * ntraj
+        self.h5_datasets = dict()
+        self.h5_datasets["quantum_time"] = 1
+        self.h5_datasets["qm_amplitudes"] = ntraj
+        self.h5_datasets["Heff"] = ntraj2
+        self.h5_datasets["H"] = ntraj2
+        self.h5_datasets["S"] = ntraj2
+        self.h5_datasets["Sdot"] = ntraj2
+        self.h5_datasets["Sinv"] = ntraj2
+        self.h5_datasets["num_traj_qm"] = 1
+        self.h5_types = dict()
+        self.h5_types["quantum_time"] = "float64"
+        self.h5_types["qm_amplitudes"] = "complex128"
+        self.h5_types["Heff"] = "complex128"
+        self.h5_types["H"] = "complex128"
+        self.h5_types["S"] = "complex128"
+        self.h5_types["Sdot"] = "complex128"
+        self.h5_types["Sinv"] = "complex128"
+        self.h5_types["num_traj_qm"] = "int32"
+        
 ######################################################
 # adaptive RK2 quantum integrator
 ######################################################
