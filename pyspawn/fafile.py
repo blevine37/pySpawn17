@@ -67,17 +67,18 @@ class fafile(object):
         S = self.retrieve_Ss()
         ntraj = self.retrieve_num_traj_qm()
         maxstates = self.get_max_state()
-        Nstate = np.zeros((ntimes,maxstates+1))
+        Nstate = np.zeros((maxstates+1,ntimes))
         for i in range(ntimes):
             nt = ntraj[i]
             c_t = c[i][0:nt]
             nt2 = nt*nt
             S_t = S[i][0:nt2].reshape((nt,nt))
             for ist in range(maxstates):
-                Nstate[i][ist] =  self.compute_expec_istate_not_normalized(S_t,c_t,ist)
-            Nstate[i][maxstates] = self.compute_expec(S_t,c_t)
+                Nstate[ist,i] =  self.compute_expec_istate_not_normalized(S_t,c_t,ist)
+            Nstate[maxstates,i] = self.compute_expec(S_t,c_t)
             if column_filename != None:
-                of.write(str(times[i])+ " "+" ".join(map(str,Nstate[i][:]))+"\n")
+                of.write(str(times[i])+ " "+" ".join(map(str,Nstate[:,i]))+"\n")
         if column_filename != None:
-            of.close()
-            return times, Nstate
+            of.close() 
+
+        return times, Nstate
