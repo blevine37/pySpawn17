@@ -39,7 +39,7 @@ class simulation(fmsobj):
         # quantum hamiltonian
         self.qm_hamiltonian = "adiabatic"
 
-        # maps trajectories to matrix element indeces
+        # maps trajectories to matrix element indices
         self.traj_map = dict()
 
         # quantum amplitudes
@@ -772,6 +772,7 @@ class simulation(fmsobj):
         if groupname not in h5f.keys():
             self.create_h5_sim(h5f,groupname)
         grp = h5f.get(groupname)
+        znewmap = False
         for key in self.h5_datasets:
             n = self.h5_datasets[key]
             print "key", key
@@ -781,6 +782,9 @@ class simulation(fmsobj):
                 lwidth = dset.size / l
                 if n > lwidth:
                     dset.resize(n,axis=1)
+                    if not znewmap:
+                        self.create_new_h5_map(grp)
+                        znewmap = True
             dset.resize(l+1,axis=0)
             ipos=l
             getcom = "self.get_" + key + "()"
@@ -794,6 +798,18 @@ class simulation(fmsobj):
                 dset[ipos,0] = tmp
         h5f.flush()
         h5f.close()
+
+    def create_new_h5_map(self,grp):
+        ntraj = self.get_num_traj_qm()
+        labels = np.empty(ntraj,dtype="S512")
+        istates = np.zeros(ntraj,dtype=np.int32)
+        for key in self.traj_map:
+            print "cnh5m ", key, self.traj_map[key]
+            labels[self.traj_map[key]] = key
+            print labels[self.traj_map[key]]
+            istates[self.traj_map[key]] = self.traj[key].get_istate()
+        grp.attrs["labels"] = labels
+        grp.attrs["istates"] = istates
         
     def create_h5_sim(self, h5f, groupname):
         trajgrp = h5f.create_group(groupname)

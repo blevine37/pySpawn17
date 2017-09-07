@@ -834,7 +834,8 @@ class traj(fmsobj):
                 dset[ipos,0] = tmp
         h5f.flush()
         h5f.close()
-        
+
+    # create a new trajectory group in hdf5 output file
     def create_h5_traj(self, h5f, groupname):
         trajgrp = h5f.create_group(groupname)
         for key in self.h5_datasets:
@@ -843,7 +844,9 @@ class traj(fmsobj):
         for key in self.h5_datasets_half_step:
             n = self.h5_datasets_half_step[key]
             dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n))
-            
+        # add some metadata
+        trajgrp.attrs["istate"] = self.istate
+        
     def get_data_at_time_from_h5(self,t,dset_name):
         h5f = h5py.File("sim.hdf5", "r")
         if "_&_" not in self.get_label():
