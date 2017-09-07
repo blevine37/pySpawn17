@@ -9,9 +9,9 @@ import traj
 import numpy as np
 import h5py
 
-class fmsanalysis(object):
-    def __init__(self):
-        self.h5file = h5py.File("sim.hdf5", "r")
+class fafile(object):
+    def __init__(self,h5filename):
+        self.h5file = h5py.File(h5filename, "r")
         self.num_traj = len(self.retrieve_amplitudes()[0][:])
         self.labels = self.h5file["sim"].attrs["labels"]
         self.istates = self.h5file["sim"].attrs["istates"]
@@ -57,22 +57,27 @@ class fmsanalysis(object):
         times = np.ndarray.flatten(self.h5file["sim/quantum_time"][()])
         return times
         
-    def compute_norms(self,outfilename):
-        of = open(outfilename, 'w')
+    def compute_norms(self,column_filename=None):
+        if column_filename != None:
+            of = open(column_filename, 'w')
         
         times = self.retrieve_times()
+        ntimes = len(times)
         c = self.retrieve_amplitudes()
         S = self.retrieve_Ss()
         ntraj = self.retrieve_num_traj_qm()
         maxstates = self.get_max_state()
-        for i in range(len(times)):
+        Nstate = np.zeros((ntimes,maxstates+1))
+        for i in range(ntimes):
             nt = ntraj[i]
             c_t = c[i][0:nt]
             nt2 = nt*nt
             S_t = S[i][0:nt2].reshape((nt,nt))
-            Nstate = np.zeros(maxstates)
             for ist in range(maxstates):
-                Nstate[ist] =  self.compute_expec_istate_not_normalized(S_t,c_t,ist)
-            N = self.compute_expec(S_t,c_t)
-            of.write(str(times[i])+ " "+" ".join(map(str,Nstate))+" "+str(N)+"\n")
-        of.close()
+                Nstate[i][ist] =  self.compute_expec_istate_not_normalized(S_t,c_t,ist)
+            Nstate[i][maxstates] = self.compute_expec(S_t,c_t)
+            if column_filename != None:
+                of.write(str(times[i])+ " "+" ".join(map(str,Nstate[i][:]))+"\n")
+        if column_filename != None:
+            of.close()
+            return times, Nstate

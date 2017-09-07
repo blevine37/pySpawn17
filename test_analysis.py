@@ -1,8 +1,11 @@
 import pyspawn
 
-an = pyspawn.fmsanalysis()
+an = pyspawn.fafile("sim.hdf5")
 
-an.compute_norms("N.dat")
+times, N = an.compute_norms(column_filename = "N.dat")
+
+print times
+print N
 
 del an
 
