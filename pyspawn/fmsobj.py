@@ -90,3 +90,5 @@ class fmsobj(object):
                         tempdict[key][str(key2)] = tempdict[key].pop(key2)
             
         self.from_dict(**tempdict)
+
+        

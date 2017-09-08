@@ -6,6 +6,9 @@ import pyspawn.complexgaussian
 from pyspawn.simulation import simulation
 import pyspawn.fms_analysis
 from fafile import fafile
-#from pyspawn.fms_analysis_file import fms_analysis_file
+import pyspawn.import_methods
+import pyspawn.qm_integrator_rk2
+import pyspawn.qm_hamiltonian_adiabatic
+
 
 

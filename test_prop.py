@@ -1,6 +1,9 @@
 import numpy as np
 import pyspawn        
 
+pyspawn.import_methods.into_simulation(pyspawn.qm_integrator_rk2)
+pyspawn.import_methods.into_simulation(pyspawn.qm_hamiltonian_adiabatic)
+    
 traj1 = pyspawn.traj()
 
 t0 = 0.0

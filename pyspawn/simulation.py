@@ -35,9 +35,9 @@ class simulation(fmsobj):
         # timestep for qunatum propagation
         self.timestep = 0.0
         # quantum propagator
-        self.qm_propagator = "RK2"
+        #self.qm_propagator = "RK2"
         # quantum hamiltonian
-        self.qm_hamiltonian = "adiabatic"
+        #self.qm_hamiltonian = "adiabatic"
 
         # maps trajectories to matrix element indices
         self.traj_map = dict()
@@ -174,17 +174,17 @@ class simulation(fmsobj):
     def set_timestep(self,h):
         self.timestep = h
 
-    def get_qm_propagator(self):
-        return self.qm_propagator
+    #def get_qm_propagator(self):
+    #    return self.qm_propagator
             
-    def set_qm_propagator(self,prop):
-        self.qm_propagator = prop
+    #def set_qm_propagator(self,prop):
+    #    self.qm_propagator = prop
 
-    def get_qm_hamiltonian(self):
-        return self.qm_hamiltonian
+    #def get_qm_hamiltonian(self):
+    #    return self.qm_hamiltonian
             
-    def set_qm_hamiltonian(self,ham):
-        self.qm_hamiltonian = ham
+    #def set_qm_hamiltonian(self,ham):
+    #    self.qm_hamiltonian = ham
 
     def get_qm_amplitudes(self):
         return self.qm_amplitudes.copy()
@@ -297,23 +297,23 @@ class simulation(fmsobj):
         # now, if we have the necessary info, we propagate
         while max_info_time > (self.get_quantum_time() + 1.0e-6):
             self.qm_propagate_step()
-                        
+            self.h5_output()
 
     # this routine will call the necessary routines to propagate the amplitudes
-    def qm_propagate_step(self):
-        routine = "self.qm_propagate_step_" + self.get_qm_propagator() + "()"
-        exec(routine)
-        self.h5_output()
+    #def qm_propagate_step(self):
+    #    routine = "self.qm_propagate_step_" + self.get_qm_propagator() + "()"
+    #    exec(routine)
+    #    self.h5_output()
 
     # build the effective Hamiltonian for the first half of the time step
-    def build_Heff_first_half(self):
-        routine = "self.build_Heff_first_half_" + self.get_qm_hamiltonian() + "()"
-        exec(routine)
+#    def build_Heff_first_half(self):
+#        routine = "self.build_Heff_first_half_" + self.get_qm_hamiltonian() + "()"
+#        exec(routine)
         
     # build the effective Hamiltonian for the second half of the time step
-    def build_Heff_second_half(self):
-        routine = "self.build_Heff_second_half_" + self.get_qm_hamiltonian() + "()"
-        exec(routine)
+#    def build_Heff_second_half(self):
+#        routine = "self.build_Heff_second_half_" + self.get_qm_hamiltonian() + "()"
+#        exec(routine)
 
     # sets the first amplitude to 1.0 and all others to zero
     def init_amplitudes_one(self):
@@ -843,90 +843,90 @@ class simulation(fmsobj):
 # adaptive RK2 quantum integrator
 ######################################################
 
-    def qm_propagate_step_RK2(self):
-        maxcut = 2
-        c1i = (complex(0.0,1.0))
-        self.compute_num_traj_qm()
-        qm_t = self.get_quantum_time()
-        dt = self.get_timestep()
-        qm_tpdt = qm_t + dt 
-        ntraj = self.get_num_traj_qm()
+#    def qm_propagate_step_RK2(self):
+#        maxcut = 2
+#        c1i = (complex(0.0,1.0))
+#        self.compute_num_traj_qm()
+#        qm_t = self.get_quantum_time()
+#        dt = self.get_timestep()
+#        qm_tpdt = qm_t + dt 
+#        ntraj = self.get_num_traj_qm()
         
-        amps_t = self.get_qm_amplitudes()
-        print "amps_t", amps_t
+#        amps_t = self.get_qm_amplitudes()
+#        print "amps_t", amps_t
 
-        self.build_Heff_first_half()
+#        self.build_Heff_first_half()
 
-        ncut = 0
+#        ncut = 0
         # adaptive integration
-        while ncut <= maxcut and ncut >= 0:
-            amps = amps_t
-            # how many quantum time steps will we take
-            nstep = 1
-            for i in range(ncut):
-                nstep *= 2
-            dt_small = dt / float(nstep)
+#        while ncut <= maxcut and ncut >= 0:
+#            amps = amps_t
+#            # how many quantum time steps will we take
+#            nstep = 1
+#            for i in range(ncut):
+#                nstep *= 2
+#            dt_small = dt / float(nstep)
 
-            for istep in range(nstep):
-                print "istep nstep dt_small ", istep, nstep, dt_small
-                k1 = (-1.0 * dt_small * c1i) * np.matmul(self.Heff,amps)
-                print "k1 ", k1
-                tmp = amps + 0.5 * k1
-                print "temp ", tmp
-                k2 = (-1.0 * dt_small * c1i) * np.matmul(self.Heff,tmp)
-                print "k2 ", k2
-                amps = amps + k2
-                print "amps ", amps
+#            for istep in range(nstep):
+#                print "istep nstep dt_small ", istep, nstep, dt_small
+#                k1 = (-1.0 * dt_small * c1i) * np.matmul(self.Heff,amps)
+#                print "k1 ", k1
+#                tmp = amps + 0.5 * k1
+#                print "temp ", tmp
+#                k2 = (-1.0 * dt_small * c1i) * np.matmul(self.Heff,tmp)
+#                print "k2 ", k2
+#                amps = amps + k2
+#                print "amps ", amps
             
-            if ncut > 0:
-                diff = amps - amps_save
-                error = math.sqrt((np.sum(np.absolute(diff * np.conjugate(diff)))/ntraj)) 
-                if error < 0.0001:
-                    ncut = -2
+#            if ncut > 0:
+#                diff = amps - amps_save
+#                error = math.sqrt((np.sum(np.absolute(diff * np.conjugate(diff)))/ntraj)) 
+#                if error < 0.0001:
+#                    ncut = -2
                             
-            ncut += 1
-            amps_save = amps
+#            ncut += 1
+#            amps_save = amps
 
-        if ncut != -1:
-            print "Problem in quantum integration: error = ", error, "after maximum adaptation!"
+#        if ncut != -1:
+#            print "Problem in quantum integration: error = ", error, "after maximum adaptation!"
 
-        self.set_quantum_time(qm_tpdt)
+#        self.set_quantum_time(qm_tpdt)
 
-        self.build_Heff_second_half()
+#        self.build_Heff_second_half()
         
-        ncut = 0
+#        ncut = 0
         # adaptive integration
-        while ncut <= maxcut and ncut >= 0:
-            amps = amps_t
-            # how many quantum time steps will we take
-            nstep = 1
-            for i in range(ncut):
-                nstep *= 2
-            dt_small = dt / float(nstep)
+#        while ncut <= maxcut and ncut >= 0:
+#            amps = amps_t
+#            # how many quantum time steps will we take
+#            nstep = 1
+#            for i in range(ncut):
+#                nstep *= 2
+#            dt_small = dt / float(nstep)
 
-            for istep in range(nstep):
-                k1 = (-1.0 * dt_small * c1i) * np.matmul(self.Heff,amps)
-                tmp = amps + 0.5 * k1
-                k2 = (-1.0 * dt_small * c1i) * np.matmul(self.Heff,tmp)
-                amps = amps + k2
-            
-            if ncut > 0:
-                diff = amps - amps_save
-                error = math.sqrt((np.sum(np.absolute(diff * np.conjugate(diff)))/ntraj)) 
-                if error < 0.0001:
-                    ncut = -2
+#            for istep in range(nstep):
+#                k1 = (-1.0 * dt_small * c1i) * np.matmul(self.Heff,amps)
+#                tmp = amps + 0.5 * k1
+#                k2 = (-1.0 * dt_small * c1i) * np.matmul(self.Heff,tmp)
+#                amps = amps + k2
+#            
+#            if ncut > 0:
+#                diff = amps - amps_save
+#                error = math.sqrt((np.sum(np.absolute(diff * np.conjugate(diff)))/ntraj)) 
+#                if error < 0.0001:
+#                    ncut = -2
                             
-            ncut += 1
-            amps_save = amps
+#            ncut += 1
+#            amps_save = amps
         
-        if ncut != -1:
-            print "Problem in quantum integration: error = ", error, "after maximum adaptation!"
+#        if ncut != -1:
+#            print "Problem in quantum integration: error = ", error, "after maximum adaptation!"
 
-        print "amps_tpdt ", amps
+#        print "amps_tpdt ", amps
 
-        self.set_qm_amplitudes(amps)
+#        self.set_qm_amplitudes(amps)
         
-        print "amps saved ", self.get_qm_amplitudes()
+#        print "amps saved ", self.get_qm_amplitudes()
             
         #self.clean_up_matrices()
         
@@ -938,38 +938,38 @@ class simulation(fmsobj):
 
     # build Heff for the first half of the time step in the adibatic rep
     # (with NPI)
-    def build_Heff_first_half_adiabatic(self):
-        self.get_qm_data_from_h5()
+#    def build_Heff_first_half_adiabatic(self):
+#        self.get_qm_data_from_h5()
         
-        qm_time = self.get_quantum_time()
-        dt = self.get_timestep()
-        t_half = qm_time + 0.5 * dt
-        self.set_quantum_time_half_step(t_half)
-        self.get_qm_data_from_h5_half_step()        
+#        qm_time = self.get_quantum_time()
+#        dt = self.get_timestep()
+#        t_half = qm_time + 0.5 * dt
+#        self.set_quantum_time_half_step(t_half)
+#        self.get_qm_data_from_h5_half_step()        
         
-        self.build_S()
-        self.invert_S()
-        self.build_Sdot()
-        self.build_H()
+#        self.build_S()
+#        self.invert_S()
+#        self.build_Sdot()
+#        self.build_H()
 
-        self.build_Heff()
+#        self.build_Heff()
         
     # build Heff for the second half of the time step in the adibatic rep
     # (with NPI)
-    def build_Heff_second_half_adiabatic(self):
-        self.get_qm_data_from_h5()
+#    def build_Heff_second_half_adiabatic(self):
+#        self.get_qm_data_from_h5()
         
-        qm_time = self.get_quantum_time()
-        dt = self.get_timestep()
-        t_half = qm_time - 0.5 * dt
-        self.set_quantum_time_half_step(t_half)
-        self.get_qm_data_from_h5_half_step()        
+#        qm_time = self.get_quantum_time()
+#        dt = self.get_timestep()
+#        t_half = qm_time - 0.5 * dt
+#        self.set_quantum_time_half_step(t_half)
+#        self.get_qm_data_from_h5_half_step()        
         
-        self.build_S()
-        self.invert_S()
-        self.build_Sdot()
-        self.build_H()
+#        self.build_S()
+#        self.invert_S()
+#        self.build_Sdot()
+#        self.build_H()
 
-        self.build_Heff()
+#        self.build_Heff()
         
         
