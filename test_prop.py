@@ -3,6 +3,9 @@ import pyspawn
 
 pyspawn.import_methods.into_simulation(pyspawn.qm_integrator_rk2)
 pyspawn.import_methods.into_simulation(pyspawn.qm_hamiltonian_adiabatic)
+
+pyspawn.import_methods.into_traj(pyspawn.potential_test_cone)
+pyspawn.import_methods.into_traj(pyspawn.classical_integrator_vv)
     
 traj1 = pyspawn.traj()
 
@@ -11,8 +14,6 @@ t0 = 0.0
 timestep = 0.02
 
 tfinal = 4.0
-
-prop = "vv"
 
 ndims = 2
 
@@ -41,8 +42,6 @@ sim.set_timestep_all(timestep)
 sim.set_mintime_all(t0)
 
 sim.set_maxtime_all(tfinal)
-
-sim.set_propagator_all(prop)
 
 sim.init_amplitudes_one()
 

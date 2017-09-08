@@ -25,11 +25,11 @@ class traj(fmsobj):
         self.h5_datasets_half_step = dict()
 
         self.timestep = 0.0
-        self.propagator = "vv"
+        #self.propagator = "vv"
         
         self.numstates = 2
-        self.software = "pyspawn"
-        self.method = "cone"
+        #self.software = "pyspawn"
+        #self.method = "cone"
         self.length_wf = self.numstates
         self.wf = np.zeros((self.numstates,self.length_wf))
         self.prev_wf = np.zeros((self.numstates,self.length_wf))
@@ -111,11 +111,11 @@ class traj(fmsobj):
     def get_firsttime(self):
         return self.firsttime
     
-    def get_propagator(self):
-        return self.propagator
+    #def get_propagator(self):
+    #    return self.propagator
     
-    def set_propagator(self,prop):
-        self.propagator = prop
+    #def set_propagator(self,prop):
+    #    self.propagator = prop
     
     def get_mintime(self):
         return self.mintime
@@ -197,17 +197,17 @@ class traj(fmsobj):
     def incr_numchildren(self):
         self.set_numchildren(self.get_numchildren() + 1)
 
-    def set_software(self,sw):
-        self.software = sw
+    #def set_software(self,sw):
+    #    self.software = sw
 
-    def set_method(self,meth):
-        self.method = meth
+    #def set_method(self,meth):
+    #    self.method = meth
 
-    def get_software(self):
-        return self.software
+    #def get_software(self):
+    #    return self.software
 
-    def get_method(self):
-        return self.method
+    #def get_method(self):
+    #    return self.method
 
     def set_positions(self,pos):
         if pos.shape == self.positions.shape:
@@ -461,7 +461,7 @@ class traj(fmsobj):
         self.set_masses(parent.get_masses())
         
         self.set_timestep(parent.get_timestep())
-        self.set_propagator(parent.get_propagator())
+        #self.set_propagator(parent.get_propagator())
 
         z_dont = np.zeros(parent.get_numstates())
         z_dont[parent.get_istate()] = 1.0
@@ -697,9 +697,9 @@ class traj(fmsobj):
     def get_z_compute_me_backprop(self):
         return self.z_compute_me_backprop
     
-    def compute_elec_struct(self,zbackprop):
-        tmp = "self.compute_elec_struct_" + self.get_software() + "_" + self.get_method() + "(zbackprop)"
-        eval(tmp)
+#    def compute_elec_struct(self,zbackprop):
+#        tmp = "self.compute_elec_struct_" + self.get_software() + "_" + self.get_method() + "(zbackprop)"
+#        eval(tmp)
 
     def propagate_step(self, zbackprop=False):
         if not zbackprop:
@@ -707,11 +707,9 @@ class traj(fmsobj):
         else:
             cbackprop = "backprop_"
         if abs(eval("self.get_" + cbackprop + "time()") - self.get_firsttime()) < 1.0e-6:
-            tmp = "self.prop_first_" + self.propagator + "(zbackprop=" + str(zbackprop) + ")"
-            eval(tmp)
+            self.prop_first_step(zbackprop=zbackprop)
         else:
-            tmp = "self.prop_" + self.propagator + "(zbackprop=" + str(zbackprop) + ")"
-            eval(tmp)
+            self.prop_not_first_step(zbackprop=zbackprop)
 
         # consider whether to spawn
         if not zbackprop:
@@ -787,8 +785,7 @@ class traj(fmsobj):
         else:
             traj_or_cent = "cent_"
         if len(self.h5_datasets) == 0:
-            init = "self.init_h5_datasets_" + self.get_software() + "_" + self.get_method() + "()"
-            eval(init)
+            self.init_h5_datasets()
         extensions = [3,2,1,0]
         for i in extensions :
             if i==0:
@@ -925,37 +922,6 @@ class traj(fmsobj):
             print "dset[ipoint,:] ", dset[ipoint,:]        
         h5f.close()
             
-    #def get_e_at_time_from_h5(self,t):
-    #    h5f = h5py.File("sim.hdf5", "r")
-    #    if "_&_" not in self.get_label():
-    #        traj_or_cent = "traj_"
-    #    else:
-    #        traj_or_cent = "cent_"
-    #    groupname = traj_or_cent + self.label
-    #    filename = "sim.hdf5"
-    #    trajgrp = h5f.get(groupname)
-
-    #dset_time = trajgrp["time"][:]
-    #    print "size", dset_time.size
-    #    dset_e = trajgrp["energies"][:]
-    #    ipoint = -1
-    #    for i in range(len(dset_time)):
-    #        if (dset_time[i] < t+1.0e-6) and (dset_time[i] > t-1.0e-6):
-    #            ipoint = i
-    #            print "dset_time[i] ", dset_time[i]
-    #            print "i ", i
-    #
-    #   e = np.zeros(self.get_numstates())
-    #    e = dset_e[ipoint,:]
-    #    print "dset_e[ipoint,:] ", dset_e[ipoint,:]
-        
-    #    h5f.close()
-    #    return e
-
-    #def load_nac_data_from_h5(self, qm_time):
-    #    routine = "load_nac_data_from_h5_" + self.get_software() + "_" + self.get_method() + "(qm_time)"
-    #    exec(routine)
-    
     def compute_tdc(self,W):
         Atmp = np.arccos(W[0,0]) - np.arcsin(W[0,1])
         Btmp = np.arccos(W[0,0]) + np.arcsin(W[0,1])
@@ -981,237 +947,4 @@ class traj(fmsobj):
         tdc = 0.5 / h * (np.arccos(W[0,0])*(A+B) + np.arcsin(W[1,0])*(C+D))
         return tdc
 
-#################################################
-### electronic structure routines go here #######
-#################################################
 
-#each electronic structure method requires at least two routines:
-#1) compute_elec_struct_, which computes energies, forces, and wfs
-#2) init_h5_datasets_, which defines the datasets to be output to hdf5
-#other ancillary routines may be included as well
-
-### pyspawn_cone electronic structure ###
-    def compute_elec_struct_pyspawn_cone(self,zbackprop):
-        if not zbackprop:
-            cbackprop = ""
-        else:
-            cbackprop = "backprop_"
-
-        
-        exec("self.set_" + cbackprop + "prev_wf(self.get_" + cbackprop + "wf())")
-
-        exec("x = self.get_" + cbackprop + "positions()[0]")
-        exec("y = self.get_" + cbackprop + "positions()[1]")
-        r = math.sqrt( x * x + y * y )
-        theta = (math.atan2(y,x)) / 2.0
-
-        e = np.zeros(self.numstates)
-        e[0] = ( r - 1.0 ) * ( r - 1.0 ) - 1.0
-        e[1] = ( r + 1.0 ) * ( r + 1.0 ) - 1.0
-        exec("self.set_" + cbackprop + "energies(e)")
-
-        f = np.zeros((self.numstates,self.numdims))
-        ftmp = -2.0 * ( r - 1.0 )
-        f[0,0] = ( x / r ) * ftmp
-        f[0,1] = ( y / r ) * ftmp
-        ftmp = -2.0 * ( r + 1.0 )
-        f[1,0] = ( x / r ) * ftmp
-        f[1,1] = ( y / r ) * ftmp
-        exec("self.set_" + cbackprop + "forces(f)")
-        
-        wf = np.zeros((self.numstates,self.length_wf))
-        wf[0,0] = math.sin(theta)
-        wf[0,1] = math.cos(theta)
-        wf[1,0] = math.cos(theta)
-        wf[1,1] = -math.sin(theta)
-        exec("prev_wf = self.get_" + cbackprop + "prev_wf()")
-        # phasing wave funciton to match previous time step
-        W = np.matmul(prev_wf,wf.T)
-        if W[0,0] < 0.0:
-            wf[0,:] = -1.0*wf[0,:]
-            W[:,0] = -1.0 * W[:,0]
-        if W[1,1] < 0.0:
-            wf[1,:] = -1.0*wf[1,:]
-            W[:,1] = -1.0 * W[:,1]
-        # computing NPI derivative coupling
-        tmp=self.compute_tdc(W)
-        tdc = np.zeros(self.numstates)
-        if self.istate == 1:
-            jstate = 0
-        else:
-            jstate = 1
-        tdc[jstate] = tmp
-        exec("self.set_" + cbackprop + "timederivcoups(tdc)")
-        
-        exec("self.set_" + cbackprop + "wf(wf)")
-
-    def init_h5_datasets_pyspawn_cone(self):
-        self.h5_datasets["time"] = 1
-        self.h5_datasets["energies"] = self.numstates
-        self.h5_datasets["positions"] = self.numdims
-        self.h5_datasets["momenta"] = self.numdims
-        self.h5_datasets["forces_i"] = self.numdims
-        self.h5_datasets["wf0"] = self.numstates
-        self.h5_datasets["wf1"] = self.numstates
-        self.h5_datasets_half_step["time_half_step"] = 1
-        self.h5_datasets_half_step["timederivcoups"] = self.numstates
-
-    def get_wf0(self):
-        return self.wf[0,:].copy()
-
-    def get_wf1(self):
-        return self.wf[1,:].copy()
-
-    def get_backprop_wf0(self):
-        return self.backprop_wf[0,:].copy()
-
-    def get_backprop_wf1(self):
-        return self.backprop_wf[1,:].copy()
-
-    #def get_backprop_timederivcoups(self):
-    #    return np.zeros(self.numstates)
-
-###end pyspawn_cone electronic structure section###
-
-#################################################
-### integrators go here #########################
-#################################################
-
-#each integrator requires at least two routines:
-#1) prop_first_, which propagates the first step
-#2) prop_, which propagates all other steps
-#other ancillary routines may be included as well
-
-### velocity Verlet (vv) integrator section ###
-    def prop_first_vv(self,zbackprop):
-        if not zbackprop:
-            cbackprop = ""
-            dt = self.get_timestep()
-        else:
-            cbackprop = "backprop_"
-            dt = -1.0 * self.get_timestep()
-            
-        exec("x_t = self.get_" + cbackprop + "positions()")
-        self.compute_elec_struct(zbackprop)
-        exec("f_t = self.get_" + cbackprop + "forces_i()")
-        exec("p_t = self.get_" + cbackprop + "momenta()")
-        exec("e_t = self.get_" + cbackprop + "energies()")
-        m = self.get_masses()
-        v_t = p_t / m
-        a_t = f_t / m
-        exec("t = self.get_" + cbackprop + "time()")
-        
-        print "t ", t
-        print "x_t ", x_t
-        print "f_t ", f_t
-        print "v_t ", v_t
-        print "a_t ", a_t
-
-        if not zbackprop:
-            self.h5_output(zbackprop, zdont_half_step=True)
-        
-        v_tphdt = v_t + 0.5 * a_t * dt
-        x_tpdt = x_t + v_tphdt * dt
-        
-        exec("self.set_" + cbackprop + "positions(x_tpdt)")
-
-        self.compute_elec_struct(zbackprop)
-        exec("f_tpdt = self.get_" + cbackprop + "forces_i()")
-        exec("e_tpdt = self.get_" + cbackprop + "energies()")
-        
-        a_tpdt = f_tpdt / m
-        v_tpdt = v_tphdt + 0.5 * a_tpdt * dt
-        p_tpdt = v_tpdt * m
-        
-        exec("self.set_" + cbackprop + "momenta(p_tpdt)")
-
-        t_half = t + 0.5 * dt
-        t += dt
-
-        exec("self.set_" + cbackprop + "time(t)")
-        exec("self.set_" + cbackprop + "time_half_step(t_half)")
-
-        print "t ", t
-        print "x_t ", x_tpdt
-        print "f_t ", f_tpdt
-        print "v_t ", v_tpdt
-        print "a_t ", a_tpdt
-
-        self.h5_output(zbackprop)
-     
-        v_tp3hdt = v_tpdt + 0.5 * a_tpdt * dt
-        p_tp3hdt = v_tp3hdt * m
-
-        exec("self.set_" + cbackprop + "momenta(p_tp3hdt)")
-
-        x_tp2dt = x_tpdt + v_tp3hdt * dt
-
-        if not zbackprop:
-            self.set_positions_t(x_t)
-            self.set_positions_tpdt(x_tpdt)
-            self.set_momenta_t(p_t)
-            self.set_momenta_tpdt(p_tpdt)
-            self.set_energies_t(e_t)
-            self.set_energies_tpdt(e_tpdt)
-            
-        exec("self.set_" + cbackprop + "positions(x_tp2dt)")
-        
-    def prop_vv(self,zbackprop):
-        if not zbackprop:
-            cbackprop = ""
-            dt = self.get_timestep()
-        else:
-            cbackprop = "backprop_"
-            dt = -1.0 * self.get_timestep()
-
-        exec("x_tpdt = self.get_" + cbackprop + "positions()")
-        self.compute_elec_struct(zbackprop)
-        exec("f_tpdt = self.get_" + cbackprop + "forces_i()")
-        exec("e_tpdt = self.get_" + cbackprop + "energies()")
-
-        exec("p_tphdt = self.get_" + cbackprop + "momenta()")
-        m = self.get_masses()
-        v_tphdt = p_tphdt / m
-        a_tpdt = f_tpdt / m
-        exec("t = self.get_" + cbackprop + "time()")
-
-        v_tpdt = v_tphdt + 0.5 * a_tpdt * dt
-
-        p_tpdt = v_tpdt * m
-
-        if not zbackprop:
-            self.set_positions_tmdt(self.get_positions_t())
-            self.set_positions_t(self.get_positions_tpdt())
-            self.set_positions_tpdt(x_tpdt)
-            self.set_energies_tmdt(self.get_energies_t())
-            self.set_energies_t(self.get_energies_tpdt())
-            self.set_energies_tpdt(e_tpdt)
-            self.set_momenta_tmdt(self.get_momenta_t())
-            self.set_momenta_t(self.get_momenta_tpdt())
-            self.set_momenta_tpdt(p_tpdt)
-        exec("self.set_" + cbackprop + "momenta(p_tpdt)")
-
-        t_half = t + 0.5 * dt
-        t += dt
-
-        exec("self.set_" + cbackprop + "time(t)")
-        exec("self.set_" + cbackprop + "time_half_step(t_half)")
-
-        print "t ", t
-        print "x_t ", x_tpdt
-        print "f_t ", f_tpdt
-        print "v_t ", v_tpdt
-        print "a_t ", a_tpdt
-
-        self.h5_output(zbackprop)
-
-        v_tp3hdt = v_tpdt + 0.5 * a_tpdt * dt
-
-        p_tp3hdt = v_tp3hdt * m
-
-        exec("self.set_" + cbackprop + "momenta(p_tp3hdt)")
-
-        x_tp2dt = x_tpdt + v_tp3hdt * dt
-
-        exec("self.set_" + cbackprop + "positions(x_tp2dt)")
-### end velocity Verlet (vv) integrator section ###

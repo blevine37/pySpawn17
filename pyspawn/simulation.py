@@ -299,22 +299,6 @@ class simulation(fmsobj):
             self.qm_propagate_step()
             self.h5_output()
 
-    # this routine will call the necessary routines to propagate the amplitudes
-    #def qm_propagate_step(self):
-    #    routine = "self.qm_propagate_step_" + self.get_qm_propagator() + "()"
-    #    exec(routine)
-    #    self.h5_output()
-
-    # build the effective Hamiltonian for the first half of the time step
-#    def build_Heff_first_half(self):
-#        routine = "self.build_Heff_first_half_" + self.get_qm_hamiltonian() + "()"
-#        exec(routine)
-        
-    # build the effective Hamiltonian for the second half of the time step
-#    def build_Heff_second_half(self):
-#        routine = "self.build_Heff_second_half_" + self.get_qm_hamiltonian() + "()"
-#        exec(routine)
-
     # sets the first amplitude to 1.0 and all others to zero
     def init_amplitudes_one(self):
         self.compute_num_traj_qm()
@@ -368,30 +352,7 @@ class simulation(fmsobj):
             print "key2 ", key2, self.traj_map[key2]
             if self.traj_map[key1] < ntraj and self.traj_map[key2] < ntraj:
                 self.centroids[key].get_all_qm_data_at_time_from_h5_half_step(qm_time)
-            
-    # get time derivative couplings from time step t.  This is useful because
-    # NPI TDCs are out of sync with the rest of the computed quantities
-    # by half a time step.
-    #def get_coupling_data_for_time_from_h5(self, t):
-    #    ntraj = self.get_num_traj_qm()
-    #    print "ntraj ", ntraj
-    #    for key in self.traj:
-    #        print "key ", key, self.traj_map[key]
-    #        print "times", t, self.traj[key].get_mintime(),self.traj[key].get_time(), self.traj[key].get_backprop_time()
-    #        if self.traj_map[key] < ntraj:
-    #            print "why am I here?"
-    #            tdc = self.traj[key].get_data_at_time_from_h5(t,"timederivcoups")
-    #            self.traj[key].set_timederivcoups_qm(tdc)
-    #            print "t tdc ", t, tdc
-    #    for key in self.centroids:
-    #        key1, key2 = str.split(key,"_&_")
-    #        print "key1 ", key1, self.traj_map[key1]
-    #        print "key2 ", key2, self.traj_map[key2]
-    #        if self.traj_map[key1] < ntraj and self.traj_map[key2] < ntraj:
-    #            tdc = self.centroids[key].get_data_at_time_from_h5(t,"timederivcoups")
-    #            self.centroids[key].set_timederivcoups_qm(tdc)
-    #            print "t tdc ", t, tdc
-            
+                        
     # build the overlap matrix, S
     def build_S(self):
         ntraj = self.get_num_traj_qm()
@@ -458,11 +419,6 @@ class simulation(fmsobj):
                     E = self.centroids[key].get_energies_qm()[istate]
                     self.V[i,j] = self.S[i,j] * E
                     self.V[j,i] = self.S[j,i] * E
-                #else:
-                #    Sij = cg.overlap_nuc(self.traj[keyi], self.traj[keyj],positions_i="positions_qm",positions_j="positions_qm",momenta_i="momenta_qm",momenta_j="momenta_qm")
-                #    tdc = self.centroids[key].get_timederivcoups_qm()[jstate]
-                #    self.V[i,j] = Sij * cm1i * tdc
-                #    self.V[j,i] = Sij.conjugate() * c1i * tdc
 
         print "V is built"
         print self.V
@@ -474,11 +430,6 @@ class simulation(fmsobj):
         cm1i = (complex(0.0,-1.0))
         ntraj = self.get_num_traj_qm()
         self.tau = np.zeros((ntraj,ntraj),dtype=np.complex128)
-        #for key in self.traj:
-        #    i = self.traj_map[key]
-        #    istate = self.traj[key].get_istate()
-        #    if i < ntraj:
-        #        self.V[i,i] = self.traj[key].get_energies_qm()[istate]
         for key in self.centroids:
             keyi, keyj = str.split(key,"_&_")
             i = self.traj_map[keyi]
@@ -487,10 +438,6 @@ class simulation(fmsobj):
                 istate = self.centroids[key].get_istate()
                 jstate = self.centroids[key].get_jstate()
                 if istate != jstate:
-                #    E = self.centroids[key].get_energies_qm()[istate]
-                #    self.V[i,j] = self.S[i,j] * E
-                #    self.V[j,i] = self.S[j,i] * E
-                #else:
                     Sij = cg.overlap_nuc(self.traj[keyi], self.traj[keyj],positions_i="positions_qm",positions_j="positions_qm",momenta_i="momenta_qm",momenta_j="momenta_qm")
                     tdc = self.centroids[key].get_timederivcoups_qm()[jstate]
                     self.tau[i,j] = Sij * cm1i * tdc
@@ -838,138 +785,5 @@ class simulation(fmsobj):
         self.h5_types["Sdot"] = "complex128"
         self.h5_types["Sinv"] = "complex128"
         self.h5_types["num_traj_qm"] = "int32"
-        
-######################################################
-# adaptive RK2 quantum integrator
-######################################################
-
-#    def qm_propagate_step_RK2(self):
-#        maxcut = 2
-#        c1i = (complex(0.0,1.0))
-#        self.compute_num_traj_qm()
-#        qm_t = self.get_quantum_time()
-#        dt = self.get_timestep()
-#        qm_tpdt = qm_t + dt 
-#        ntraj = self.get_num_traj_qm()
-        
-#        amps_t = self.get_qm_amplitudes()
-#        print "amps_t", amps_t
-
-#        self.build_Heff_first_half()
-
-#        ncut = 0
-        # adaptive integration
-#        while ncut <= maxcut and ncut >= 0:
-#            amps = amps_t
-#            # how many quantum time steps will we take
-#            nstep = 1
-#            for i in range(ncut):
-#                nstep *= 2
-#            dt_small = dt / float(nstep)
-
-#            for istep in range(nstep):
-#                print "istep nstep dt_small ", istep, nstep, dt_small
-#                k1 = (-1.0 * dt_small * c1i) * np.matmul(self.Heff,amps)
-#                print "k1 ", k1
-#                tmp = amps + 0.5 * k1
-#                print "temp ", tmp
-#                k2 = (-1.0 * dt_small * c1i) * np.matmul(self.Heff,tmp)
-#                print "k2 ", k2
-#                amps = amps + k2
-#                print "amps ", amps
-            
-#            if ncut > 0:
-#                diff = amps - amps_save
-#                error = math.sqrt((np.sum(np.absolute(diff * np.conjugate(diff)))/ntraj)) 
-#                if error < 0.0001:
-#                    ncut = -2
-                            
-#            ncut += 1
-#            amps_save = amps
-
-#        if ncut != -1:
-#            print "Problem in quantum integration: error = ", error, "after maximum adaptation!"
-
-#        self.set_quantum_time(qm_tpdt)
-
-#        self.build_Heff_second_half()
-        
-#        ncut = 0
-        # adaptive integration
-#        while ncut <= maxcut and ncut >= 0:
-#            amps = amps_t
-#            # how many quantum time steps will we take
-#            nstep = 1
-#            for i in range(ncut):
-#                nstep *= 2
-#            dt_small = dt / float(nstep)
-
-#            for istep in range(nstep):
-#                k1 = (-1.0 * dt_small * c1i) * np.matmul(self.Heff,amps)
-#                tmp = amps + 0.5 * k1
-#                k2 = (-1.0 * dt_small * c1i) * np.matmul(self.Heff,tmp)
-#                amps = amps + k2
-#            
-#            if ncut > 0:
-#                diff = amps - amps_save
-#                error = math.sqrt((np.sum(np.absolute(diff * np.conjugate(diff)))/ntraj)) 
-#                if error < 0.0001:
-#                    ncut = -2
-                            
-#            ncut += 1
-#            amps_save = amps
-        
-#        if ncut != -1:
-#            print "Problem in quantum integration: error = ", error, "after maximum adaptation!"
-
-#        print "amps_tpdt ", amps
-
-#        self.set_qm_amplitudes(amps)
-        
-#        print "amps saved ", self.get_qm_amplitudes()
-            
-        #self.clean_up_matrices()
-        
-######################################################
-        
-######################################################
-# adiabatic Hamiltonian
-######################################################
-
-    # build Heff for the first half of the time step in the adibatic rep
-    # (with NPI)
-#    def build_Heff_first_half_adiabatic(self):
-#        self.get_qm_data_from_h5()
-        
-#        qm_time = self.get_quantum_time()
-#        dt = self.get_timestep()
-#        t_half = qm_time + 0.5 * dt
-#        self.set_quantum_time_half_step(t_half)
-#        self.get_qm_data_from_h5_half_step()        
-        
-#        self.build_S()
-#        self.invert_S()
-#        self.build_Sdot()
-#        self.build_H()
-
-#        self.build_Heff()
-        
-    # build Heff for the second half of the time step in the adibatic rep
-    # (with NPI)
-#    def build_Heff_second_half_adiabatic(self):
-#        self.get_qm_data_from_h5()
-        
-#        qm_time = self.get_quantum_time()
-#        dt = self.get_timestep()
-#        t_half = qm_time - 0.5 * dt
-#        self.set_quantum_time_half_step(t_half)
-#        self.get_qm_data_from_h5_half_step()        
-        
-#        self.build_S()
-#        self.invert_S()
-#        self.build_Sdot()
-#        self.build_H()
-
-#        self.build_Heff()
         
         
