@@ -1,11 +1,11 @@
 import numpy as np
 import pyspawn        
 
-pyspawn.import_methods.into_simulation(pyspawn.qm_integrator_rk2)
-pyspawn.import_methods.into_simulation(pyspawn.qm_hamiltonian_adiabatic)
+pyspawn.import_methods.into_simulation(pyspawn.qm_integrator.rk2)
+pyspawn.import_methods.into_simulation(pyspawn.qm_hamiltonian.adiabatic)
 
-pyspawn.import_methods.into_traj(pyspawn.potential_test_cone)
-pyspawn.import_methods.into_traj(pyspawn.classical_integrator_vv)
+pyspawn.import_methods.into_traj(pyspawn.potential.test_cone)
+pyspawn.import_methods.into_traj(pyspawn.classical_integrator.vv)
     
 traj1 = pyspawn.traj()
 

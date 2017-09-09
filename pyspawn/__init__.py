@@ -8,11 +8,11 @@ import pyspawn.fms_analysis
 from fafile import fafile
 import pyspawn.import_methods
 
-import pyspawn.qm_integrator_rk2
+import pyspawn.qm_integrator
 
-import pyspawn.qm_hamiltonian_adiabatic
+import pyspawn.qm_hamiltonian
 
-import pyspawn.potential_test_cone
+import pyspawn.potential
 
-import pyspawn.classical_integrator_vv
+import pyspawn.classical_integrator
 

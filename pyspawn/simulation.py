@@ -565,6 +565,7 @@ class simulation(fmsobj):
                 if (time < time1 + 1.0e-6) and time1 > self.traj[key1].get_firsttime() + 1.0e-6:
                     time2 = self.traj[key2].get_time()
                     if (time < time2 + 1.0e-6) and time2 > self.traj[key2].get_firsttime() + 1.0e-6:
+                        print "k1, k2 ", key1, key2
                         pos1 = self.traj[key1].get_data_at_time_from_h5(time, "positions")
                         mom1 = self.traj[key1].get_data_at_time_from_h5(time, "momenta")
                         pos2 = self.traj[key2].get_data_at_time_from_h5(time, "positions")
