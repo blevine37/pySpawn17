@@ -29,24 +29,7 @@ def compute_elec_struct(self,zbackprop):
 
     TC = TCProtobufClient(host='localhost', port=54321)
 
-    base_options = {
-        "method":       'hf',
-        "basis":        '6-31g**',
-        "atoms":        atoms,
-        "charge":       0,
-        "spinmult":     1,
-        "closed_shell": True,
-        "restricted":   True,
-
-        "precision":    "double",
-        "threall":      1.0e-20,
-
-        "casci":        "yes",
-        "fon":          "yes",
-        "closed":       7,
-        "active":       2,
-        "cassinglets":  2
-    }
+    base_options = self.get_tc_options()
 
     TC.update_options(**base_options)
 
@@ -119,5 +102,11 @@ def get_backprop_wf0(self):
 
 def get_backprop_wf1(self):
     return self.backprop_wf[1,:].copy()
+
+def set_tc_options(self, tco):
+    self.tc_options = tco.copy()
+
+def get_tc_options(self):
+    return self.tc_options.copy()
 
 ###end terachem_cas electronic structure section###

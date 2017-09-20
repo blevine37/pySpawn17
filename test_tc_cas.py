@@ -33,6 +33,8 @@ mom = np.zeros(ndims)
 
 wid = 6.0* np.ones(ndims)
 
+atoms = ['C', 'C', 'H', 'H', 'H', 'H']    
+
 m = np.asarray([21864.0, 21864.0, 21864.0,
                 21864.0, 21864.0, 21864.0,
                 1822.0, 1822.0, 1822.0,
@@ -40,9 +42,30 @@ m = np.asarray([21864.0, 21864.0, 21864.0,
                 1822.0, 1822.0, 1822.0,
                 1822.0, 1822.0, 1822.0])
 
+base_options = {
+    "method":       'hf',
+    "basis":        '6-31g**',
+    "atoms":        atoms,
+    "charge":       0,
+    "spinmult":     1,
+    "closed_shell": True,
+    "restricted":   True,
+    
+    "precision":    "double",
+    "threall":      1.0e-20,
+    
+    "casci":        "yes",
+    "fon":          "yes",
+    "closed":       7,
+    "active":       2,
+    "cassinglets":  2
+    }
+
 traj1.init_traj(t0,ndims,pos,mom,wid,m,nstates,istate,"00")
 
 traj1.set_spawnthresh(100.0)
+
+traj1.set_tc_options(base_options)
 
 sim = pyspawn.simulation()
 
