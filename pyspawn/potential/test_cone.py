@@ -8,6 +8,8 @@ import numpy as np
 #each electronic structure method requires at least two routines:
 #1) compute_elec_struct_, which computes energies, forces, and wfs
 #2) init_h5_datasets_, which defines the datasets to be output to hdf5
+#3) potential_specific_traj_copy, which copies data that is potential specific 
+#   from one traj data structure to another 
 #other ancillary routines may be included as well
 
 ### pyspawn_cone electronic structure ###
@@ -75,6 +77,9 @@ def init_h5_datasets(self):
     self.h5_datasets["wf1"] = self.numstates
     self.h5_datasets_half_step["time_half_step"] = 1
     self.h5_datasets_half_step["timederivcoups"] = self.numstates
+
+def potential_specific_traj_copy(self,from_traj):
+    return
 
 def get_wf0(self):
     return self.wf[0,:].copy()

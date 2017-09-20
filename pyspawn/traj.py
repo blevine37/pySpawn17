@@ -466,7 +466,9 @@ class traj(fmsobj):
         z_dont = np.zeros(parent.get_numstates())
         z_dont[parent.get_istate()] = 1.0
         self.set_z_dont_spawn(z_dont)
-        print "init_st mintime0", self.get_mintime()
+        
+        self.potential_specific_traj_copy(parent)
+
 
     def init_centroid(self, existing, child, label):
         ts = child.get_timestep()
@@ -491,6 +493,8 @@ class traj(fmsobj):
         self.set_masses(child.get_masses())
         
         self.set_timestep(ts)
+
+        self.potential_specific_traj_copy(existing)
 
     def rescale_momentum(self, v_parent):
         v_child = self.get_energies()[self.get_istate()]

@@ -9,6 +9,9 @@ from tcpb.tcpb import TCProtobufClient
 #each electronic structure method requires at least two routines:
 #1) compute_elec_struct_, which computes energies, forces, and wfs
 #2) init_h5_datasets_, which defines the datasets to be output to hdf5
+#3) potential_specific_traj_copy, which copies data that is potential specific 
+#   from one traj data structure to another.  This is used when new trajectories
+#   and centroids are spawned.
 #other ancillary routines may be included as well
 
 ### terachem_cas electronic structure ###
@@ -90,6 +93,10 @@ def init_h5_datasets(self):
     self.h5_datasets["wf1"] = 2
     self.h5_datasets_half_step["time_half_step"] = 1
     self.h5_datasets_half_step["timederivcoups"] = self.numstates
+
+def potential_specific_traj_copy(self,from_traj):
+    self.set_tc_options(from_traj.get_tc_options())
+    return
 
 def get_wf0(self):
     return self.wf[0,:].copy()
