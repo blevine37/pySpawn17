@@ -544,10 +544,15 @@ class simulation(fmsobj):
                 if (backprop_time > backprop_time1 - 1.0e-6) and (backprop_time1  < (self.traj[key1].get_firsttime() - 1.0e-6) or backprop_time1  < (self.traj[key1].get_mintime() + 1.0e-6)):
                     backprop_time2 = self.traj[key2].get_backprop_time()
                     if (backprop_time > backprop_time2 - 1.0e-6) and (backprop_time2  < (self.traj[key2].get_firsttime() - 1.0e-6) or backprop_time2  < (self.traj[key2].get_mintime() + 1.0e-6)):
+                        print "k1b, k2b ", key1, key2
                         pos1 = self.traj[key1].get_data_at_time_from_h5(backprop_time, "positions")
                         mom1 = self.traj[key1].get_data_at_time_from_h5(backprop_time, "momenta")
-                        pos2 = self.traj[key2].get_data_at_time_from_h5(backprop_time, "positions")
-                        mom2 = self.traj[key2].get_data_at_time_from_h5(backprop_time, "momenta")
+                        if backprop_time2  < (self.traj[key2].get_mintime() + 1.0e-6):
+                            pos2 = self.traj[key2].get_backprop_positions()
+                            mom2 = self.traj[key2].get_backprop_momenta()
+                        else:
+                            pos2 = self.traj[key2].get_data_at_time_from_h5(backprop_time, "positions")
+                            mom2 = self.traj[key2].get_data_at_time_from_h5(backprop_time, "momenta")
                         #pos2, mom2 = self.traj[key2].get_q_and_p_at_time_from_h5(backprop_time)
                         # this is only write if all basis functions have same
                         # width!!!!  Fix this soon

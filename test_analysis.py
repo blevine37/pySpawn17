@@ -15,4 +15,5 @@ plt.plot(times,N[0,:],"ro",times,N[1,:],"bo",markeredgewidth=0.0)
 plt.xlabel('Time')
 plt.ylabel('Population')
 plt.savefig('N.png')
+plt.show()
 
