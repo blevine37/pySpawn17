@@ -45,6 +45,9 @@ class simulation(fmsobj):
         # quantum amplitudes
         self.qm_amplitudes = np.zeros(0,dtype=np.complex128)
 
+        # energy shift for quantum propagation
+        self.qm_energy_shift = 0.0
+
         # variables to be output to hdf5 mapped to the size of each data point
         self.h5_datasets = dict()
         self.h5_types = dict()
@@ -185,6 +188,12 @@ class simulation(fmsobj):
             
     #def set_qm_hamiltonian(self,ham):
     #    self.qm_hamiltonian = ham
+
+    def get_qm_energy_shift(self):
+        return self.qm_energy_shift
+
+    def set_qm_energy_shift(self, e):
+        self.qm_energy_shift = e
 
     def get_qm_amplitudes(self):
         return self.qm_amplitudes.copy()
@@ -392,7 +401,9 @@ class simulation(fmsobj):
         self.build_V()
         self.build_tau()
         self.build_T()
-        self.H = self.T + self.V + self.tau
+        ntraj = self.get_num_traj_qm()
+        shift = self.get_qm_energy_shift() * np.identity(ntraj)
+        self.H = self.T + self.V + self.tau + shift
         print "H is built"
         print self.H
 

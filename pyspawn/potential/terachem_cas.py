@@ -25,11 +25,11 @@ def compute_elec_struct(self,zbackprop):
         
     exec("self.set_" + cbackprop + "prev_wf(np.identity(2))")
     
-    atoms = ['C', 'C', 'H', 'H', 'H', 'H']    
-
     TC = TCProtobufClient(host='localhost', port=54321)
 
     base_options = self.get_tc_options()
+
+    base_options["castarget"] = istate
 
     TC.update_options(**base_options)
 

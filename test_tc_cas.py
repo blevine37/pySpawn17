@@ -13,7 +13,7 @@ t0 = 0.0
 
 timestep = 10.0
 
-tfinal = 30.0
+tfinal = 400.0
 
 ndims = 18
 
@@ -61,6 +61,8 @@ base_options = {
     "cassinglets":  2
     }
 
+exshift = 78.0
+
 traj1.init_traj(t0,ndims,pos,mom,wid,m,nstates,istate,"00")
 
 traj1.set_spawnthresh(100.0)
@@ -76,6 +78,8 @@ sim.set_timestep_all(timestep)
 sim.set_mintime_all(t0)
 
 sim.set_maxtime_all(tfinal)
+
+sim.set_qm_energy_shift(exshift)
 
 sim.init_amplitudes_one()
 
