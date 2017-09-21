@@ -42,7 +42,7 @@ m = np.asarray([21864.0, 21864.0, 21864.0,
                 1822.0, 1822.0, 1822.0,
                 1822.0, 1822.0, 1822.0])
 
-base_options = {
+tc_options = {
     "method":       'hf',
     "basis":        '6-31g**',
     "atoms":        atoms,
@@ -67,7 +67,7 @@ traj1.init_traj(t0,ndims,pos,mom,wid,m,nstates,istate,"00")
 
 traj1.set_spawnthresh(100.0)
 
-traj1.set_tc_options(base_options)
+traj1.set_tc_options(tc_options)
 
 sim = pyspawn.simulation()
 
