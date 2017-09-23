@@ -841,6 +841,7 @@ class traj(fmsobj):
         trajgrp = h5f.create_group(groupname)
         for key in self.h5_datasets:
             n = self.h5_datasets[key]
+            print "key, n ", key, n
             dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n))
         for key in self.h5_datasets_half_step:
             n = self.h5_datasets_half_step[key]
@@ -956,7 +957,7 @@ class traj(fmsobj):
 
         h5f = h5py.File('hessian.hdf5', 'r')
         
-        pos = h5f['geometry'][:]
+        pos = h5f['geometry'][:].flatten()
 
         print "pos", pos
 
@@ -1025,6 +1026,8 @@ class traj(fmsobj):
 
         self.set_positions(pos)
         self.set_momenta(mom)
+
+        print "pos", self.get_positions()
 
         zpe = np.sum(2.0*alphax)
         ke = np.sum(mom * mom / m)

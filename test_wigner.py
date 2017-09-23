@@ -65,6 +65,8 @@ traj1.set_tc_options(tc_options)
 
 traj1.initial_wigner(seed)
 
+print "pos", traj1.get_positions()
+
 sim = pyspawn.simulation()
 
 sim.add_traj(traj1)
