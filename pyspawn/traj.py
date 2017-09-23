@@ -951,4 +951,86 @@ class traj(fmsobj):
         tdc = 0.5 / h * (np.arccos(W[0,0])*(A+B) + np.arcsin(W[1,0])*(C+D))
         return tdc
 
+    def initial_wigner(self,iseed):
+        ndims = self.get_numdims()
 
+        h5f = h5py.File('hessian.hdf5', 'r')
+        
+        pos = h5f['geometry'][:]
+
+        print "pos", pos
+
+        h = h5f['hessian'][:]
+
+        m = self.get_masses()
+
+        sqrtm = np.sqrt(m)
+
+        #build mass weighted hessian
+        h_mw = np.zeros_like(h)
+
+        for idim in range(ndims):
+            h_mw[idim,:] = h[idim,:] / sqrtm
+
+        for idim in range(ndims):
+            h_mw[:,idim] = h_mw[:,idim] / sqrtm
+
+        # symmetrize mass weighted hessian
+        h_mw = 0.5 * (h_mw + h_mw.T)
+
+        print "h_mw", h_mw
+
+        # diagonalize mass weighted hessian
+        evals, modes = np.linalg.eig(h_mw)
+
+        # sort eigenvectors
+        idx = evals.argsort()[::-1]
+        evals = evals[idx]
+        modes = modes[:,idx]
+
+        print 'modes', modes
+
+        print 'Eigenvalues of the mass-weighted hessian are (a.u.)'
+        print evals
+        
+        # seed random number generator
+        np.random.seed(iseed)
+        
+        alphax = np.sqrt(evals[0:ndims-6])/2.0
+
+        sigx = np.sqrt(1.0 / ( 4.0 * alphax))
+        sigp = np.sqrt(alphax)
+
+        dtheta = 2.0 * np.pi * np.random.rand(ndims-6)
+        dr = np.sqrt( np.random.rand(ndims-6) )
+
+        dx1 = dr * np.sin(dtheta)
+        dx2 = dr * np.cos(dtheta)
+
+        rsq = dx1 * dx1 + dx2 * dx2
+
+        fac = np.sqrt( -2.0 * np.log(rsq) / rsq )
+
+        x1 = dx1 * fac
+        x2 = dx2 * fac
+
+        posvec = np.append(sigx * x1, np.zeros(6))
+        momvec = np.append(sigp * x2, np.zeros(6))
+
+        deltaq = np.matmul(modes,posvec)/sqrtm
+        pos += deltaq
+        mom = np.matmul(modes,momvec)*sqrtm
+
+        print "pos", pos
+
+        self.set_positions(pos)
+        self.set_momenta(mom)
+
+        zpe = np.sum(2.0*alphax)
+        ke = np.sum(mom * mom / m)
+
+        print "ZPE = ", zpe
+        print "Kinetic Energy = ", ke
+
+
+        
