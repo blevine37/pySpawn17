@@ -959,8 +959,6 @@ class traj(fmsobj):
         
         pos = h5f['geometry'][:].flatten()
 
-        print "pos", pos
-
         h = h5f['hessian'][:]
 
         m = self.get_masses()
@@ -979,8 +977,6 @@ class traj(fmsobj):
         # symmetrize mass weighted hessian
         h_mw = 0.5 * (h_mw + h_mw.T)
 
-        print "h_mw", h_mw
-
         # diagonalize mass weighted hessian
         evals, modes = np.linalg.eig(h_mw)
 
@@ -988,8 +984,6 @@ class traj(fmsobj):
         idx = evals.argsort()[::-1]
         evals = evals[idx]
         modes = modes[:,idx]
-
-        print 'modes', modes
 
         print 'Eigenvalues of the mass-weighted hessian are (a.u.)'
         print evals
@@ -1022,15 +1016,11 @@ class traj(fmsobj):
         pos += deltaq
         mom = np.matmul(modes,momvec)*sqrtm
 
-        print "pos", pos
-
         self.set_positions(pos)
         self.set_momenta(mom)
 
-        print "pos", self.get_positions()
-
-        zpe = np.sum(2.0*alphax)
-        ke = np.sum(mom * mom / m)
+        zpe = np.sum(alphax[0:ndims-6])
+        ke = 0.5 * np.sum(mom * mom / m)
 
         print "ZPE = ", zpe
         print "Kinetic Energy = ", ke

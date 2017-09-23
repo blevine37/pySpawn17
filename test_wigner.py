@@ -1,7 +1,7 @@
 import numpy as np
 import pyspawn        
 
-seed=69874
+seed=28396
 
 pyspawn.import_methods.into_simulation(pyspawn.qm_integrator.rk2)
 pyspawn.import_methods.into_simulation(pyspawn.qm_hamiltonian.adiabatic)
@@ -15,13 +15,13 @@ t0 = 0.0
 
 timestep = 10.0
 
-tfinal = 40.0
+tfinal = 10.0
 
 ndims = 18
 
 nstates = 2
 
-istate = 1
+istate = 0
 
 pos = mom = np.zeros(ndims)
 
@@ -47,12 +47,6 @@ tc_options = {
     
     "precision":    "double",
     "threall":      1.0e-20,
-    
-    "casci":        "yes",
-    "fon":          "yes",
-    "closed":       7,
-    "active":       2,
-    "cassinglets":  2
     }
 
 exshift = 78.0
