@@ -1,6 +1,9 @@
 import math
 import numpy as np
-from tcpb.tcpb import TCProtobufClient
+try:
+    from tcpb.tcpb import TCProtobufClient
+except ImportError:
+    pass
 
 #################################################
 ### electronic structure routines go here #######

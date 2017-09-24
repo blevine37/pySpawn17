@@ -9,6 +9,8 @@ from pyspawn.traj import traj
 import os
 import shutil
 import complexgaussian as cg
+import datetime
+import time
 
 class simulation(fmsobj):
     def __init__(self):
@@ -51,6 +53,9 @@ class simulation(fmsobj):
         # variables to be output to hdf5 mapped to the size of each data point
         self.h5_datasets = dict()
         self.h5_types = dict()
+
+        # maximium walltime in seconds
+        self.max_walltime = -1
 
     # convert dict to simulation data structure
     def from_dict(self,**tempdict):
@@ -177,17 +182,17 @@ class simulation(fmsobj):
     def set_timestep(self,h):
         self.timestep = h
 
-    #def get_qm_propagator(self):
-    #    return self.qm_propagator
+    def get_max_walltime(self):
+        return self.max_walltime
             
-    #def set_qm_propagator(self,prop):
-    #    self.qm_propagator = prop
+    def set_max_walltime(self,t):
+        current_t = time.time()
+        self.max_walltime = current_t + t
+        print "Simulation will end after ", t, " second walltime"
 
-    #def get_qm_hamiltonian(self):
-    #    return self.qm_hamiltonian
-            
-    #def set_qm_hamiltonian(self,ham):
-    #    self.qm_hamiltonian = ham
+    def set_max_walltime_formatted(self,s):
+        pt = datetime.datetime.strptime(s,'%H:%M:%S')
+        self.set_max_walltime(pt.second+pt.minute*60+pt.hour*3600)
 
     def get_qm_energy_shift(self):
         return self.qm_energy_shift
@@ -236,6 +241,11 @@ class simulation(fmsobj):
                 print "propagate DONE"
                 return
 
+            # end simulation if walltime has expired
+            if (self.get_max_walltime() < time.time() and self..get_max_walltime() > 0):
+                print "walltime expired.  Ending simulation."
+                return
+            
             # Right now we just run a single task per cycle,
             # but we could parallelize here and send multiple tasks
             # out for simultaneous processing.
