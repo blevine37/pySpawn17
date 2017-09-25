@@ -242,7 +242,7 @@ class simulation(fmsobj):
                 return
 
             # end simulation if walltime has expired
-            if (self.get_max_walltime() < time.time() and self..get_max_walltime() > 0):
+            if (self.get_max_walltime() < time.time() and self.get_max_walltime() > 0):
                 print "walltime expired.  Ending simulation."
                 return
             
@@ -745,7 +745,10 @@ class simulation(fmsobj):
         groupname = "sim"
         if groupname not in h5f.keys():
             self.create_h5_sim(h5f,groupname)
-        grp = h5f.get(groupname)
+            grp = h5f.get(groupname)
+            self.create_new_h5_map(grp)
+        else:
+            grp = h5f.get(groupname)
         znewmap = False
         for key in self.h5_datasets:
             n = self.h5_datasets[key]

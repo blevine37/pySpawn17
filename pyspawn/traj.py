@@ -842,10 +842,10 @@ class traj(fmsobj):
         for key in self.h5_datasets:
             n = self.h5_datasets[key]
             print "key, n ", key, n
-            dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n))
+            dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n), dtype="float64")
         for key in self.h5_datasets_half_step:
             n = self.h5_datasets_half_step[key]
-            dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n))
+            dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n), dtype="float64")
         # add some metadata
         trajgrp.attrs["istate"] = self.istate
         

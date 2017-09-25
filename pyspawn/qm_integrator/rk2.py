@@ -6,7 +6,7 @@ import math
 ######################################################
 
 def qm_propagate_step(self):
-    maxcut = 2
+    maxcut = 16
     c1i = (complex(0.0,1.0))
     self.compute_num_traj_qm()
     qm_t = self.get_quantum_time()

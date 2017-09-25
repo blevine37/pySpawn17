@@ -82,3 +82,11 @@ class fafile(object):
             of.close() 
 
         return times, Nstate
+
+    def write_xyzs(self):
+        times = self.retrieve_times()
+        ntimes = len(times)
+        
+        for key in self.labels:
+            print key
+
