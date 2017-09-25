@@ -84,9 +84,23 @@ class fafile(object):
         return times, Nstate
 
     def write_xyzs(self):
-        times = self.retrieve_times()
-        ntimes = len(times)
-        
         for key in self.labels:
-            print key
+            trajgrp = "traj_" + key
+            times = self.h5file[trajgrp]['time'][()].flatten()
+            ntimes = len(times)
+            pos = self.h5file[trajgrp]['positions'][()]
+            npos = pos.size / ntimes
+            natoms = npos/3
+            print "pos.size, ntimes", pos.size, ntimes
+            print "npos, natoms", npos, natoms
 
+            filename = trajgrp + ".xyz"
+            of = open(filename,"w")
+
+            for itime in range(ntimes):
+                of.write(str(natoms)+"\n")
+                of.write("T = "+str(times[itime])+"\n")
+                for iatom in range(natoms):
+                    of.write("C  "+str(pos[itime,3*iatom])+"  "+str(pos[itime,3*iatom+1])+"  "+str(pos[itime,3*iatom+2])+"\n")
+
+            of.close()
