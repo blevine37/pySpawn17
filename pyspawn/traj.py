@@ -399,6 +399,12 @@ class traj(fmsobj):
     def get_masses(self):
         return self.masses.copy()
 
+    def set_atoms(self,a):
+        self.atoms = a[:]
+
+    def get_atoms(self):
+        return self.atoms.copy()
+
     def set_label(self,lab):
         self.label = lab
 
@@ -459,6 +465,12 @@ class traj(fmsobj):
         self.set_maxtime(parent.get_maxtime())
         self.set_widths(parent.get_widths())
         self.set_masses(parent.get_masses())
+        try:
+            parent.atoms
+        except NameError:
+            pass
+        else:
+            self.set_atoms(parent.get_atoms())
         
         self.set_timestep(parent.get_timestep())
         #self.set_propagator(parent.get_propagator())
@@ -491,6 +503,12 @@ class traj(fmsobj):
         
         self.set_widths(child.get_widths())
         self.set_masses(child.get_masses())
+        try:
+            child.atoms
+        except NameError:
+            pass
+        else:
+            self.set_atoms(child.get_atoms())
         
         self.set_timestep(ts)
 
@@ -848,6 +866,14 @@ class traj(fmsobj):
             dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n), dtype="float64")
         # add some metadata
         trajgrp.attrs["istate"] = self.istate
+        trajgrp.attrs["masses"] = self.masses
+        trajgrp.attrs["widths"] = self.widths
+        try:
+            self.atoms
+        except NameError:
+            pass
+        else:
+            trajgrp.attrs["atoms"] = self.atoms
         
     def get_data_at_time_from_h5(self,t,dset_name):
         h5f = h5py.File("sim.hdf5", "r")

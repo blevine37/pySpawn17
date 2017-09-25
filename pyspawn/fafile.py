@@ -91,8 +91,7 @@ class fafile(object):
             pos = self.h5file[trajgrp]['positions'][()]
             npos = pos.size / ntimes
             natoms = npos/3
-            print "pos.size, ntimes", pos.size, ntimes
-            print "npos, natoms", npos, natoms
+            atoms = self.h5file[trajgrp].attrs['atoms']
 
             filename = trajgrp + ".xyz"
             of = open(filename,"w")
@@ -101,6 +100,31 @@ class fafile(object):
                 of.write(str(natoms)+"\n")
                 of.write("T = "+str(times[itime])+"\n")
                 for iatom in range(natoms):
-                    of.write("C  "+str(pos[itime,3*iatom])+"  "+str(pos[itime,3*iatom+1])+"  "+str(pos[itime,3*iatom+2])+"\n")
+                    of.write(atoms[iatom]+"  "+str(pos[itime,3*iatom])+"  "+str(pos[itime,3*iatom+1])+"  "+str(pos[itime,3*iatom+2])+"\n")
 
             of.close()
+
+    def write_trajectory_energy_files(self):
+        for key in self.labels:
+            trajgrp = "traj_" + key
+            times = self.h5file[trajgrp]['time'][()].flatten()
+            ntimes = len(times)
+            mom = self.h5file[trajgrp]['momenta'][()]
+            nmom = mom.size / ntimes
+            poten = self.h5file[trajgrp]['energies'][()]
+
+            istate = self.h5file[trajgrp].attrs['istate']
+
+            m = self.h5file[trajgrp].attrs['masses']
+
+            filename = trajgrp + ".energy"
+            of = open(filename,"w")
+
+            for itime in range(ntimes):
+                p = mom[itime,:]
+                kinen = 0.5 * np.sum(p * p / m)
+                toten = kinen + poten[itime,istate]
+                of.write(str(times[itime])+"  "+str(poten[itime,istate])+"  "+str(kinen)+"  "+str(toten)+"\n")
+
+            of.close()
+
