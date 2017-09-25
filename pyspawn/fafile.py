@@ -8,6 +8,7 @@ import simulation
 import traj
 import numpy as np
 import h5py
+import math
 
 class fafile(object):
     def __init__(self,h5filename):
@@ -89,6 +90,8 @@ class fafile(object):
             times = self.h5file[trajgrp]['time'][()].flatten()
             ntimes = len(times)
             pos = self.h5file[trajgrp]['positions'][()]
+            # convert to angstrom
+            pos /= 1.8897161646321
             npos = pos.size / ntimes
             natoms = npos/3
             atoms = self.h5file[trajgrp].attrs['atoms']
@@ -128,3 +131,68 @@ class fafile(object):
 
             of.close()
 
+    def write_trajectory_bond_files(self,bonds):
+        for key in self.labels:
+            trajgrp = "traj_" + key
+            times = self.h5file[trajgrp]['time'][()].flatten()
+            ntimes = len(times)
+            pos = self.h5file[trajgrp]['positions'][()]
+            npos = pos.size / ntimes
+
+            nbonds = bonds.size / 2
+
+            filename = trajgrp + ".bonds"
+            of = open(filename,"w")
+
+            for itime in range(ntimes):
+                of.write(str(times[itime])+"  ")
+                for ibond in range(nbonds):
+                    ipos = 3*bonds[ibond,0]
+                    jpos = 3*bonds[ibond,1]
+                    ri = pos[itime,ipos:(ipos+3)]
+                    rj = pos[itime,jpos:(jpos+3)]
+                    r = ri-rj
+                    d = math.sqrt(np.sum(r*r))
+                    of.write(str(d)+"  ")
+                of.write("\n")
+            of.close()
+
+    def write_trajectory_angle_files(self,angles):
+        for key in self.labels:
+            trajgrp = "traj_" + key
+            times = self.h5file[trajgrp]['time'][()].flatten()
+            ntimes = len(times)
+            pos = self.h5file[trajgrp]['positions'][()]
+            npos = pos.size / ntimes
+
+            nangles = angles.size / 3
+
+            filename = trajgrp + ".angles"
+            of = open(filename,"w")
+
+            for itime in range(ntimes):
+                of.write(str(times[itime])+"  ")
+                for iang in range(nangles):
+                    ipos = 3*angles[iang,0]
+                    jpos = 3*angles[iang,1]
+                    kpos = 3*angles[iang,2]
+                    ri = pos[itime,ipos:(ipos+3)]
+                    rj = pos[itime,jpos:(jpos+3)]
+                    rk = pos[itime,kpos:(kpos+3)]
+
+                    rji = ri - rj
+                    rjk = rk - rj
+
+                    dji = math.sqrt(np.sum(rji*rji))
+                    djk = math.sqrt(np.sum(rjk*rjk))
+
+                    rji /= dji
+                    rjk /= djk
+
+                    dot = np.sum(rji * rjk)
+
+                    ang = math.acos(dot) / math.pi * 180.0
+
+                    of.write(str(ang)+"  ")
+                of.write("\n")
+            of.close()
