@@ -115,6 +115,7 @@ class fafile(object):
             mom = self.h5file[trajgrp]['momenta'][()]
             nmom = mom.size / ntimes
             poten = self.h5file[trajgrp]['energies'][()]
+            nstates = poten.size/ntimes
 
             istate = self.h5file[trajgrp].attrs['istate']
 
@@ -127,7 +128,10 @@ class fafile(object):
                 p = mom[itime,:]
                 kinen = 0.5 * np.sum(p * p / m)
                 toten = kinen + poten[itime,istate]
-                of.write(str(times[itime])+"  "+str(poten[itime,istate])+"  "+str(kinen)+"  "+str(toten)+"\n")
+                of.write(str(times[itime])+"  ")
+                for jstate in range(nstates):
+                    of.write(str(poten[itime,jstate])+"  ")
+                of.write(str(kinen)+"  "+str(toten)+"\n")
 
             of.close()
 
