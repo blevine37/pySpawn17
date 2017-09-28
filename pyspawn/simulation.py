@@ -349,7 +349,7 @@ class simulation(fmsobj):
                 print "why am I here?"
                 self.traj[key].get_all_qm_data_at_time_from_h5(qm_time)
         for key in self.centroids:
-            key1, key2 = str.split(key,"_&_")
+            key1, key2 = str.split(key,"_a_")
             print "key1 ", key1, self.traj_map[key1]
             print "key2 ", key2, self.traj_map[key2]
             if self.traj_map[key1] < ntraj and self.traj_map[key2] < ntraj:
@@ -366,7 +366,7 @@ class simulation(fmsobj):
                 print "why am I here?"
                 self.traj[key].get_all_qm_data_at_time_from_h5_half_step(qm_time)
         for key in self.centroids:
-            key1, key2 = str.split(key,"_&_")
+            key1, key2 = str.split(key,"_a_")
             print "key1 ", key1, self.traj_map[key1]
             print "key2 ", key2, self.traj_map[key2]
             if self.traj_map[key1] < ntraj and self.traj_map[key2] < ntraj:
@@ -430,7 +430,7 @@ class simulation(fmsobj):
             if i < ntraj:
                 self.V[i,i] = self.traj[key].get_energies_qm()[istate]
         for key in self.centroids:
-            keyi, keyj = str.split(key,"_&_")
+            keyi, keyj = str.split(key,"_a_")
             i = self.traj_map[keyi]
             j = self.traj_map[keyj]
             if i < ntraj and j < ntraj:
@@ -452,7 +452,7 @@ class simulation(fmsobj):
         ntraj = self.get_num_traj_qm()
         self.tau = np.zeros((ntraj,ntraj),dtype=np.complex128)
         for key in self.centroids:
-            keyi, keyj = str.split(key,"_&_")
+            keyi, keyj = str.split(key,"_a_")
             i = self.traj_map[keyi]
             j = self.traj_map[keyj]
             if i < ntraj and j < ntraj:
@@ -554,7 +554,7 @@ class simulation(fmsobj):
     # can be computed
     def update_centroids(self):
         for key in self.centroids:
-            key1, key2 = str.split(key,"_&_")
+            key1, key2 = str.split(key,"_a_")
             timestep = self.centroids[key].get_timestep()
 
             #update backpropagating centroids
@@ -622,10 +622,10 @@ class simulation(fmsobj):
                 if z[jstate] > 0.5:
                     # create label that indicates parentage
                     # for example:
-                    # a trajectory labeled 00->1->5 means that the initial
+                    # a trajectory labeled 00b1b5 means that the initial
                     # trajectory "00" spawned a trajecory "1" (its
                     # second child) which then spawned another (it's 6th child)
-                    label = str(self.traj[key].get_label() + "->" + str(self.traj[key].get_numchildren()))
+                    label = str(self.traj[key].get_label() + "b" + str(self.traj[key].get_numchildren()))
                     print "Creating new traj, ", label
 
                     # create and initiate new trajectpory structure
@@ -664,8 +664,8 @@ class simulation(fmsobj):
         for label in spawntraj:
             # create new centroid structures
             for key2 in self.traj:
-                # "_&_" marks the centroid labels
-                centkey = str(key2 + "_&_" + label)
+                # "_a_" marks the centroid labels
+                centkey = str(key2 + "_a_" + label)
 
                 # create and initiate the trajectory structures!
                 newcent = traj()

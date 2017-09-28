@@ -802,7 +802,7 @@ class traj(fmsobj):
             cbackprop = ""
         else:
             cbackprop = "backprop_"
-        if "_&_" not in self.get_label():
+        if "_a_" not in self.get_label():
             traj_or_cent = "traj_"
         else:
             traj_or_cent = "cent_"
@@ -877,7 +877,7 @@ class traj(fmsobj):
         
     def get_data_at_time_from_h5(self,t,dset_name):
         h5f = h5py.File("sim.hdf5", "r")
-        if "_&_" not in self.get_label():
+        if "_a_" not in self.get_label():
             traj_or_cent = "traj_"
         else:
             traj_or_cent = "cent_"
@@ -901,7 +901,7 @@ class traj(fmsobj):
 
     def get_all_qm_data_at_time_from_h5(self,t):
         h5f = h5py.File("sim.hdf5", "r")
-        if "_&_" not in self.get_label():
+        if "_a_" not in self.get_label():
             traj_or_cent = "traj_"
         else:
             traj_or_cent = "cent_"
@@ -928,7 +928,7 @@ class traj(fmsobj):
             
     def get_all_qm_data_at_time_from_h5_half_step(self,t):
         h5f = h5py.File("sim.hdf5", "r")
-        if "_&_" not in self.get_label():
+        if "_a_" not in self.get_label():
             traj_or_cent = "traj_"
         else:
             traj_or_cent = "cent_"

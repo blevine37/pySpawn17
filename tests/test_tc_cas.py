@@ -13,7 +13,7 @@ t0 = 0.0
 
 timestep = 10.0
 
-tfinal = 400.0
+tfinal = 8000.0
 
 ndims = 18
 
@@ -24,7 +24,7 @@ istate = 1
 pos =  np.asarray([ 0.0, 0.0, 0.0,
                     0.0, 0.0, 2.7,
                     0.0, 1.5, 3.8,
-                    0.0, 1.5, -1.2,
+                    0.3, 1.4, -1.1,
                     0.0, -1.5, 3.8,
                     0.1, -1.5, -1.1])
 
@@ -44,7 +44,7 @@ m = np.asarray([21864.0, 21864.0, 21864.0,
 
 tc_options = {
     "method":       'hf',
-    "basis":        '6-31g**',
+    "basis":        '6-31g',
     "atoms":        atoms,
     "charge":       0,
     "spinmult":     1,
@@ -58,7 +58,8 @@ tc_options = {
     "fon":          "yes",
     "closed":       7,
     "active":       2,
-    "cassinglets":  2
+    "cassinglets":  2,
+    "cas_energy_labels":    [(0, 1), (1, 1)]
     }
 
 exshift = 78.0
@@ -68,6 +69,8 @@ traj1.init_traj(t0,ndims,pos,mom,wid,m,nstates,istate,"00")
 traj1.set_spawnthresh(100.0)
 
 traj1.set_tc_options(tc_options)
+
+traj1.set_atoms(atoms)
 
 sim = pyspawn.simulation()
 

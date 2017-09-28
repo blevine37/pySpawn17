@@ -4,6 +4,8 @@ try:
     from tcpb.tcpb import TCProtobufClient
 except ImportError:
     pass
+import os
+import errno
 
 #################################################
 ### electronic structure routines go here #######
@@ -22,15 +24,14 @@ def compute_elec_struct(self,zbackprop):
     if not zbackprop:
         cbackprop = ""
     else:
-        cbackprop = "backprop_"
+        cbackprop = "backprop_"    
 
     istate = self.get_istate()
+    nstates = self.get_numstates()
 
     exec("pos = self.get_" + cbackprop + "positions()")
     pos_list = pos.tolist()
         
-    exec("self.set_" + cbackprop + "prev_wf(np.identity(2))")
-    
     TC = TCProtobufClient(host='localhost', port=54321)
 
     base_options = self.get_tc_options()
@@ -49,13 +50,39 @@ def compute_elec_struct(self,zbackprop):
     options = {
         "directci":     "yes",
         "caswritevecs": "yes"
-    }
+        }
+
     results = TC.compute_job_sync("gradient", pos_list, "bohr", **options)
     print results
 
-    e = np.zeros(self.numstates)
-    e[self.istate] = results['energy']
-    f = np.zeros((self.numstates,self.numdims))
+    if hasattr(self,'civecs'):
+        cwd = os.getcwd()
+        civecout = os.path.join(cwd,"CIvecs.Singlet.dat")
+        orbout = os.path.join(cwd,"c0")
+        self.civecs.tofile(civecout)
+        self.orbs.tofile(orbout)
+        print "old civecs",  self.civecs
+        print "old orbs", self.orbs
+        zolaps = True
+    else:
+        zolaps = False
+
+
+    civecfilename = os.path.join(results['job_scr_dir'], "CIvecs.Singlet.dat")
+    self.civecs = np.fromfile(civecfilename)
+    print "new civecs", self.civecs    
+
+    orbfilename = os.path.join(results['job_scr_dir'], "c0")
+    self.orbs = (np.fromfile(orbfilename)).flatten()
+    #self.orbs = results['mo_coeffs'].flatten()
+    print "new orbs", self.orbs
+
+    self.ncivecs = self.civecs.size
+    self.norbs = self.orbs.size
+
+    e = np.zeros(nstates)
+    e[:] = results['energy'][:]
+    f = np.zeros((nstates,self.numdims))
     print "results['gradient'] ", results['gradient']
     print "results['gradient'].flatten() ", results['gradient'].flatten()
     f[self.istate,:] = -1.0 * results['gradient'].flatten()
@@ -63,28 +90,61 @@ def compute_elec_struct(self,zbackprop):
     exec("self.set_" + cbackprop + "energies(e)")
 
     exec("self.set_" + cbackprop + "forces(f)")
-        
-    wf = np.identity(2)
-    exec("prev_wf = self.get_" + cbackprop + "prev_wf()")
-    # phasing wave funciton to match previous time step
-    W = np.matmul(prev_wf,wf.T)
-    if W[0,0] < 0.0:
-        wf[0,:] = -1.0*wf[0,:]
-        W[:,0] = -1.0 * W[:,0]
-    if W[1,1] < 0.0:
-        wf[1,:] = -1.0*wf[1,:]
-        W[:,1] = -1.0 * W[:,1]
-    # computing NPI derivative coupling
-    tmp=self.compute_tdc(W)
-    tdc = np.zeros(self.numstates)
-    if self.istate == 1:
-        jstate = 0
-    else:
-        jstate = 1
-    tdc[jstate] = tmp
-    exec("self.set_" + cbackprop + "timederivcoups(tdc)")
-        
-    exec("self.set_" + cbackprop + "wf(wf)")
+
+    #if False:        
+    if zolaps:
+        exec("pos2 = self.get_" + cbackprop + "prev_wf_positions_in_angstrom()")
+        print 'pos2.tolist()', pos2.tolist()
+        print 'civecfilename', civecfilename
+        print 'civecout', civecout
+        print 'orbfilename', orbfilename
+        print 'orbout', orbout
+        options = {
+            "geom2":        pos2.tolist(),
+            "cvec1file":    civecfilename,
+            "cvec2file":    civecout,
+            "orb1afile":    orbfilename,
+            "orb2afile":    orbout
+            }
+
+        print 'pos_list', pos_list
+        results2 = TC.compute_job_sync("ci_vec_overlap", pos_list, "bohr", **options)
+        print "results2", results2
+        S = results2['ci_overlap']
+        print "S", S
+
+        # phasing electronic overlaps
+        for jstate in range(nstates):
+            if S[jstate,jstate] < 0.0:
+                S[jstate,:] *= -1.0
+
+        W = np.zeros((2,2))
+        W[0,0] = S[istate,istate]
+
+        tdc = np.zeros(nstates)
+
+        for jstate in range(nstates):
+            if istate == jstate:
+                tdc[jstate] = 0.0
+            else:
+                W[1,0] = S[jstate,istate]
+                W[0,1] = S[istate,jstate]
+                W[1,1] = S[jstate,jstate]
+                tdc[jstate] = self.compute_tdc(W)
+                print "tdc", tdc[jstate]
+
+        #tmp=self.compute_tdc(W)
+        #tdc = np.zeros(self.numstates)
+        #if self.istate == 1:
+        #    jstate = 0
+        #else:
+        #    jstate = 1
+        #    tdc[jstate] = tmp
+
+        exec("self.set_" + cbackprop + "timederivcoups(tdc)")    
+    
+    exec("self.set_" + cbackprop + "prev_wf_positions(pos)")
+    exec("self.set_" + cbackprop + "timederivcoups(np.zeros(self.numstates))")
 
 def init_h5_datasets(self):
     self.h5_datasets["time"] = 1
@@ -92,8 +152,8 @@ def init_h5_datasets(self):
     self.h5_datasets["positions"] = self.numdims
     self.h5_datasets["momenta"] = self.numdims
     self.h5_datasets["forces_i"] = self.numdims
-    self.h5_datasets["wf0"] = 2
-    self.h5_datasets["wf1"] = 2
+    self.h5_datasets["civecs"] = self.ncivecs
+    self.h5_datasets["orbs"] = self.norbs
     self.h5_datasets_half_step["time_half_step"] = 1
     self.h5_datasets_half_step["timederivcoups"] = self.numstates
 
@@ -118,5 +178,21 @@ def set_tc_options(self, tco):
 
 def get_tc_options(self):
     return self.tc_options.copy()
+
+def get_prev_wf_positions(self):
+    return self.pref_wf_positions.copy()
+            
+def get_prev_wf_positions_in_angstrom(self):
+    return 0.529177*self.pref_wf_positions
+            
+def set_prev_wf_positions(self,pos):
+    self.pref_wf_positions = pos.copy()
+
+def get_civecs(self):
+    return self.civecs.copy()
+
+def get_orbs(self):
+    return self.orbs.copy()
+
 
 ###end terachem_cas electronic structure section###
