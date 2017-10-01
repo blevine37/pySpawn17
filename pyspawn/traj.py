@@ -403,7 +403,7 @@ class traj(fmsobj):
         self.atoms = a[:]
 
     def get_atoms(self):
-        return self.atoms.copy()
+        return self.atoms[:]
 
     def set_label(self,lab):
         self.label = lab
@@ -465,12 +465,18 @@ class traj(fmsobj):
         self.set_maxtime(parent.get_maxtime())
         self.set_widths(parent.get_widths())
         self.set_masses(parent.get_masses())
-        try:
-            parent.atoms
-        except NameError:
-            pass
-        else:
+        if hasattr(parent,'atoms'):
             self.set_atoms(parent.get_atoms())
+        if hasattr(parent,'civecs'):
+            self.set_civecs(parent.get_civecs())
+            self.set_backprop_civecs(parent.get_civecs())
+        if hasattr(parent,'orbs'):
+            self.set_orbs(parent.get_orbs())
+            self.set_backprop_orbs(parent.get_orbs())
+        if hasattr(parent,'prev_wf_positions'):
+            self.set_prev_wf_positions(parent.get_prev_wf_positions())
+            self.set_backprop_prev_wf_positions(parent.get_prev_wf_positions())
+        
         
         self.set_timestep(parent.get_timestep())
         #self.set_propagator(parent.get_propagator())
@@ -503,12 +509,17 @@ class traj(fmsobj):
         
         self.set_widths(child.get_widths())
         self.set_masses(child.get_masses())
-        try:
-            child.atoms
-        except NameError:
-            pass
-        else:
+        if hasattr(child,'atoms'):
             self.set_atoms(child.get_atoms())
+        if hasattr(child,'civecs'):
+            self.set_civecs(child.get_civecs())
+            self.set_backprop_civecs(child.get_civecs())
+        if hasattr(child,'orbs'):
+            self.set_orbs(child.get_orbs())
+            self.set_backprop_orbs(child.get_orbs())
+        if hasattr(child,'prev_wf_positions'):
+            self.set_prev_wf_positions(child.get_prev_wf_positions())
+            self.set_backprop_prev_wf_positions(child.get_prev_wf_positions())
         
         self.set_timestep(ts)
 

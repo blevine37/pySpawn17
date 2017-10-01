@@ -70,6 +70,7 @@ def compute_elec_struct(self,zbackprop):
     print results
 
     if hasattr(self,'civecs'):
+    #if (self.get_time() < self.get_firsttime()+1.0e-6) and (self.get_time() > self.get_firsttime()-1.0e-6)
         cwd = os.getcwd()
         civecout = os.path.join(cwd,"CIvecs.Singlet.dat")
         orbout = os.path.join(cwd,"c0")
@@ -83,11 +84,11 @@ def compute_elec_struct(self,zbackprop):
 
 
     civecfilename = os.path.join(results['job_scr_dir'], "CIvecs.Singlet.dat")
-    self.civecs = np.fromfile(civecfilename)
+    exec("self.set_" + cbackprop + "civecs(np.fromfile(civecfilename))")
     print "new civecs", self.civecs    
 
     orbfilename = os.path.join(results['job_scr_dir'], "c0")
-    self.orbs = (np.fromfile(orbfilename)).flatten()
+    exec("self.set_" + cbackprop + "orbs((np.fromfile(orbfilename)).flatten())")
     #self.orbs = results['mo_coeffs'].flatten()
     print "new orbs", self.orbs
 
@@ -161,10 +162,12 @@ def compute_elec_struct(self,zbackprop):
         #    jstate = 1
         #    tdc[jstate] = tmp
 
-        exec("self.set_" + cbackprop + "timederivcoups(tdc)")    
+        print "tdc2 ", tdc
+        exec("self.set_" + cbackprop + "timederivcoups(tdc)")
+    else:
+        exec("self.set_" + cbackprop + "timederivcoups(np.zeros(self.numstates))")
     
     exec("self.set_" + cbackprop + "prev_wf_positions(pos)")
-    exec("self.set_" + cbackprop + "timederivcoups(np.zeros(self.numstates))")
 
 def init_h5_datasets(self):
     self.h5_datasets["time"] = 1
@@ -200,19 +203,46 @@ def get_tc_options(self):
     return self.tc_options.copy()
 
 def get_prev_wf_positions(self):
-    return self.pref_wf_positions.copy()
+    return self.prev_wf_positions.copy()
+            
+def get_backprop_prev_wf_positions(self):
+    return self.backprop_prev_wf_positions.copy()
             
 def get_prev_wf_positions_in_angstrom(self):
-    return 0.529177*self.pref_wf_positions
+    return 0.529177*self.prev_wf_positions
+            
+def get_backprop_prev_wf_positions_in_angstrom(self):
+    return 0.529177*self.backprop_prev_wf_positions
             
 def set_prev_wf_positions(self,pos):
-    self.pref_wf_positions = pos.copy()
+    self.prev_wf_positions = pos.copy()
+
+def set_backprop_prev_wf_positions(self,pos):
+    self.backprop_prev_wf_positions = pos.copy()
 
 def get_civecs(self):
     return self.civecs.copy()
 
+def set_civecs(self, v):
+    self.civecs = v.copy()
+
 def get_orbs(self):
     return self.orbs.copy()
+
+def set_orbs(self, v):
+    self.orbs = v.copy()
+
+def get_backprop_civecs(self):
+    return self.backprop_civecs.copy()
+
+def set_backprop_civecs(self, v):
+    self.backprop_civecs = v.copy()
+
+def get_backprop_orbs(self):
+    return self.backprop_orbs.copy()
+
+def set_backprop_orbs(self, v):
+    self.backprop_orbs = v.copy()
 
 
 ###end terachem_cas electronic structure section###
