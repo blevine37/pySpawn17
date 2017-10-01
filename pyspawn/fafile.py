@@ -200,3 +200,22 @@ class fafile(object):
                     of.write(str(ang)+"  ")
                 of.write("\n")
             of.close()
+
+    def write_trajectory_tdc_files(self):
+        for key in self.labels:
+            trajgrp = "traj_" + key
+            times = self.h5file[trajgrp]['time_half_step'][()].flatten()
+            ntimes = len(times)
+            tdc = self.h5file[trajgrp]['timederivcoups'][()]
+            nstates = tdc.size / ntimes
+
+            filename = trajgrp + ".tdc"
+            of = open(filename,"w")
+
+            for itime in range(ntimes):
+                of.write(str(times[itime])+"  ")
+                for jstate in range(nstates):
+                    of.write(str(tdc[itime,jstate])+"  ")
+                of.write("\n")
+
+            of.close()
