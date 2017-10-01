@@ -781,7 +781,7 @@ class traj(fmsobj):
                         z[jstate] = 1.0
                 else:
         #check to see if a trajectory is entering a spawning region
-                    print "consider4 ",tdc[jstate], thresh
+                    print "consider4 ",jstate, tdc, thresh
                     if (abs(tdc[jstate]) > thresh) and (z_dont_spawn[jstate] < 0.5):
                         print "Entered spawning region ", jstate, " at time ", self.get_time()
                         spawnt[jstate] = self.get_time()
@@ -953,7 +953,16 @@ class traj(fmsobj):
             print "dset[ipoint,:] ", dset[ipoint,:]        
         h5f.close()
             
-    def compute_tdc(self,W):
+    def compute_tdc(self,Win):
+        W = Win.copy()
+        if W[0,0] > 1.0 and W[0,0] < 1.01:
+            W[0,0] = 1.0
+        if W[0,0] < -1.0 and W[0,0] > -1.01:
+            W[0,0] = -1.0
+        if W[1,1] > 1.0 and W[1,1] < 1.01:
+            W[1,1] = 1.0
+        if W[1,1] < -1.0 and W[1,1] > -1.01:
+            W[1,1] = -1.0
         Atmp = np.arccos(W[0,0]) - np.arcsin(W[0,1])
         Btmp = np.arccos(W[0,0]) + np.arcsin(W[0,1])
         Ctmp = np.arccos(W[1,1]) - np.arcsin(W[1,0])

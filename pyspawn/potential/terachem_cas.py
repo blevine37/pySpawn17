@@ -29,6 +29,12 @@ def compute_elec_struct(self,zbackprop):
     istate = self.get_istate()
     nstates = self.get_numstates()
 
+    # initialize electronic_phases if not present
+    if not hasattr(self,'electronic_phases'):
+        self.electronic_phases = np.ones(nstates)
+    if not hasattr(self,'backprop_electronic_phases'):
+        self.backprop_electronic_phases = np.ones(nstates)
+
     exec("pos = self.get_" + cbackprop + "positions()")
     pos_list = pos.tolist()
         
@@ -51,6 +57,14 @@ def compute_elec_struct(self,zbackprop):
         "directci":     "yes",
         "caswritevecs": "yes"
         }
+
+    # here we call TC once for energies and once for the gradient
+    # will eventually be replaced by a more efficient interface
+    results = TC.compute_job_sync("energy", pos_list, "bohr", **options)
+    print results
+
+    e = np.zeros(nstates)
+    e[:] = results['energy'][:]
 
     results = TC.compute_job_sync("gradient", pos_list, "bohr", **options)
     print results
@@ -80,8 +94,6 @@ def compute_elec_struct(self,zbackprop):
     self.ncivecs = self.civecs.size
     self.norbs = self.orbs.size
 
-    e = np.zeros(nstates)
-    e[:] = results['energy'][:]
     f = np.zeros((nstates,self.numdims))
     print "results['gradient'] ", results['gradient']
     print "results['gradient'].flatten() ", results['gradient'].flatten()
@@ -111,12 +123,20 @@ def compute_elec_struct(self,zbackprop):
         results2 = TC.compute_job_sync("ci_vec_overlap", pos_list, "bohr", **options)
         print "results2", results2
         S = results2['ci_overlap']
-        print "S", S
+        print "S before phasing ", S
 
-        # phasing electronic overlaps
+        # phasing electronic overlaps 
+        for jstate in range(nstates):
+            S[:,jstate] *= self.electronic_phases[jstate]
+            S[jstate,:] *= self.electronic_phases[jstate]
+
         for jstate in range(nstates):
             if S[jstate,jstate] < 0.0:
+                self.electronic_phases[jstate] *= -1.0
+                # I'm not sure if this line is right, but it seems to be working
                 S[jstate,:] *= -1.0
+                
+        print "S", S
 
         W = np.zeros((2,2))
         W[0,0] = S[istate,istate]
