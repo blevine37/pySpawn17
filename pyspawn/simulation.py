@@ -264,7 +264,7 @@ class simulation(fmsobj):
             print "### propagating quantum amplitudes if we have enough information to do so"
             self.propagate_quantum_as_necessary()
             
-            # print restart output
+            # print restart output - this must be the last line in this loop!
             print "### outputting json file for restart"
             self.json_output()
 

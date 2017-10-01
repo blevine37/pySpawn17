@@ -57,6 +57,13 @@ class fmsobj(object):
                         for i in range(len(tempdict[key])):
                             tempdict[key][i] = eval(tempdict[key][i])
                         tempdict[key] = np.asarray(tempdict[key],dtype=np.complex128)
+#new
+                    if isinstance((tempdict[key])[0],types.UnicodeType) :
+                        for i in range(len(tempdict[key])):
+                            tempdict[key][i]= str(tempdict[key][i])
+#end new
+                            
+                            
                 else:
                     if isinstance((tempdict[key])[0],types.ListType):
                         if isinstance((tempdict[key])[0][0],types.FloatType) :
@@ -67,7 +74,7 @@ class fmsobj(object):
                                 for i in range(len(tempdict[key])):
                                     for j in range(len(tempdict[key][i])):
                                         tempdict[key][i][j] = eval(tempdict[key][i][j][1:])
-                            tempdict[key] = np.asarray(tempdict[key],dtype=np.complex128)
+                                tempdict[key] = np.asarray(tempdict[key],dtype=np.complex128)
         self.__dict__.update(tempdict)
 
     # Write fmsobj structure to disk in json format
