@@ -484,6 +484,7 @@ class traj(fmsobj):
         z_dont = np.zeros(parent.get_numstates())
         z_dont[parent.get_istate()] = 1.0
         self.set_z_dont_spawn(z_dont)
+        self.set_spawnthresh(parent.get_spawnthresh())
         
         self.potential_specific_traj_copy(parent)
 
