@@ -55,7 +55,10 @@ class simulation(fmsobj):
         self.h5_types = dict()
 
         # maximium walltime in seconds
-        self.max_walltime = -1
+        self.max_quantum_time = -1.0
+
+        # maximium walltime in seconds
+        self.max_walltime = -1.0
 
     # convert dict to simulation data structure
     def from_dict(self,**tempdict):
@@ -139,10 +142,12 @@ class simulation(fmsobj):
 
     # set the maximimum simulation time on all trajectories and centroids
     def set_maxtime_all(self,maxtime):
+        self.set_max_quantum_time(maxtime)
+        h = self.get_timestep()
         for key in self.traj:
-            self.traj[key].set_maxtime(maxtime)
+            self.traj[key].set_maxtime(maxtime+h)
         for key in self.centroids:
-            self.centroids[key].set_maxtime(maxtime)
+            self.centroids[key].set_maxtime(maxtime+h)
 
     # set the minimimum simulation time on all trajectories and centroids
     def set_mintime_all(self,mintime):
@@ -179,6 +184,12 @@ class simulation(fmsobj):
             
     def set_timestep(self,h):
         self.timestep = h
+
+    def get_max_quantum_time(self):
+        return self.max_quantum_time
+            
+    def set_max_quantum_time(self,t):
+        self.max_quantum_time = t
 
     def get_max_walltime(self):
         return self.max_walltime
@@ -238,7 +249,8 @@ class simulation(fmsobj):
 
             # if the queue is empty, we're done!
             print "### checking if we are at the end of the simulation"
-            if (self.queue[0] == "END"):
+            #if (self.queue[0] == "END"):
+            if (self.get_quantum_time() + 1.0e-6 > self.get_max_quantum_time()):
                 print "### propagate DONE, simulation ended gracefully!"
                 return
 
@@ -248,13 +260,17 @@ class simulation(fmsobj):
                 print "### wall time expired, simulation ended gracefully!"
                 return
             
-            # Right now we just run a single task per cycle,
-            # but we could parallelize here and send multiple tasks
-            # out for simultaneous processing.
-            current = self.pop_task()
-            print "### starting " + current            
-            eval(current)
-            print "### done with " + current
+            # it is possible for the queue to run empty but for the job not to be done
+            if (self.queue[0] != "END"):            
+                # Right now we just run a single task per cycle,
+                # but we could parallelize here and send multiple tasks
+                # out for simultaneous processing.
+                current = self.pop_task()
+                print "### starting " + current            
+                eval(current)
+                print "### done with " + current
+            else:
+                print "### task queue is empty"
 
             # spawn new trajectories if needed
             print "### now we will spawn new trajectories if necessary"
@@ -550,13 +566,22 @@ class simulation(fmsobj):
                             pos2 = self.traj[key2].get_data_at_time_from_h5(backprop_time, "positions")
                             mom2 = self.traj[key2].get_data_at_time_from_h5(backprop_time, "momenta")
                         #pos2, mom2 = self.traj[key2].get_q_and_p_at_time_from_h5(backprop_time)
+                        absSij = abs(cg.overlap_nuc(self.traj[key1],self.traj[key2], positions_i=pos1, positions_j=pos2, momenta_i=mom1, momenta_j=mom2))
+                        print "absSij", absSij
                         # this is only write if all basis functions have same
                         # width!!!!  Fix this soon
                         pos_cent = 0.5 * ( pos1 + pos2 )
                         mom_cent = 0.5 * ( mom1 + mom2 )
                         self.centroids[key].set_backprop_positions(pos_cent)
                         self.centroids[key].set_backprop_momenta(mom_cent)
-                        self.centroids[key].set_z_compute_me_backprop(True)
+                        if absSij > 0.001:
+                            self.centroids[key].set_z_compute_me_backprop(True)
+                        else:
+                            #hdf5 output here?
+                            self.centroids[key].set_backprop_time(backprop_time)
+                            self.centroids[key].set_backprop_energies(np.zeros(self.centroids[key].get_numstates()))
+                            self.centroids[key].set_backprop_timederivcoups(np.zeros(self.centroids[key].get_numstates()))
+                            self.centroids[key].h5_output(True)
 
             # update forward propagating centroids
             self.centroids[key].set_z_compute_me(False)
@@ -572,13 +597,21 @@ class simulation(fmsobj):
                         mom2 = self.traj[key2].get_data_at_time_from_h5(time, "momenta")
                         #pos1, mom1 = self.traj[key1].get_q_and_p_at_time_from_h5(time)
                         #pos2, mom2 = self.traj[key2].get_q_and_p_at_time_from_h5(time)
+                        absSij = abs(cg.overlap_nuc(self.traj[key1],self.traj[key2], positions_i=pos1, positions_j=pos2, momenta_i=mom1, momenta_j=mom2))
+                        print "absSij", absSij
                         # this is only write if all basis functions have same
                         # width!!!!  Fix this soon
                         pos_cent = 0.5 * ( pos1 + pos2 )
                         mom_cent = 0.5 * ( mom1 + mom2 )
                         self.centroids[key].set_positions(pos_cent)
                         self.centroids[key].set_momenta(mom_cent)
-                        self.centroids[key].set_z_compute_me(True)
+                        if absSij > 0.001:
+                            self.centroids[key].set_z_compute_me(True)
+                        else:
+                            self.centroids[key].set_time(time)
+                            self.centroids[key].set_energies(np.zeros(self.centroids[key].get_numstates()))
+                            self.centroids[key].set_timederivcoups(np.zeros(self.centroids[key].get_numstates()))
+                            self.centroids[key].h5_output(False)
                         
 
     # this is the spawning routine

@@ -470,9 +470,11 @@ class traj(fmsobj):
         if hasattr(parent,'civecs'):
             self.set_civecs(parent.get_civecs())
             self.set_backprop_civecs(parent.get_civecs())
+            self.set_ncivecs(parent.get_ncivecs())
         if hasattr(parent,'orbs'):
             self.set_orbs(parent.get_orbs())
             self.set_backprop_orbs(parent.get_orbs())
+            self.set_norbs(parent.get_norbs())
         if hasattr(parent,'prev_wf_positions'):
             self.set_prev_wf_positions(parent.get_prev_wf_positions())
             self.set_backprop_prev_wf_positions(parent.get_prev_wf_positions())
@@ -515,9 +517,11 @@ class traj(fmsobj):
         if hasattr(child,'civecs'):
             self.set_civecs(child.get_civecs())
             self.set_backprop_civecs(child.get_civecs())
+            self.set_ncivecs(child.get_ncivecs())
         if hasattr(child,'orbs'):
             self.set_orbs(child.get_orbs())
             self.set_backprop_orbs(child.get_orbs())
+            self.set_norbs(child.get_norbs())
         if hasattr(child,'prev_wf_positions'):
             self.set_prev_wf_positions(child.get_prev_wf_positions())
             self.set_backprop_prev_wf_positions(child.get_prev_wf_positions())

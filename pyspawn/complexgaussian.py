@@ -2,6 +2,7 @@
 # now everything is hard coded for adiabatic/diabatic representation, but
 # it shouldn't be hard to modify for DGAS
 
+import types
 import math
 import cmath
 import numpy as np
@@ -18,10 +19,22 @@ def overlap_nuc_elec(ti,tj,positions_i="positions",positions_j="positions",momen
 
 # compute the overlap of two nuclear TBFs (electronic part not included)
 def overlap_nuc(ti,tj,positions_i="positions",positions_j="positions",momenta_i="momenta",momenta_j="momenta"):
-    ri = eval("ti.get_" + positions_i + "()")
-    rj = eval("tj.get_" + positions_j + "()")
-    pi = eval("ti.get_" + momenta_i + "()")
-    pj = eval("tj.get_" + momenta_j + "()")
+    if isinstance(positions_i, types.StringTypes):
+        ri = eval("ti.get_" + positions_i + "()")
+    else:
+        ri = positions_i
+    if isinstance(positions_j, types.StringTypes):
+        rj = eval("tj.get_" + positions_j + "()")
+    else:
+        rj = positions_j
+    if isinstance(momenta_i, types.StringTypes):
+        pi = eval("ti.get_" + momenta_i + "()")
+    else:
+        pi = momenta_i
+    if isinstance(momenta_j, types.StringTypes):
+        pj = eval("tj.get_" + momenta_j + "()")
+    else:
+        pj = momenta_j
         
     widthsi = ti.get_widths()
     widthsj = tj.get_widths()

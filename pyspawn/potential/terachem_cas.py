@@ -226,11 +226,23 @@ def get_civecs(self):
 def set_civecs(self, v):
     self.civecs = v.copy()
 
+def get_ncivecs(self):
+    return self.ncivecs
+
+def set_ncivecs(self, n):
+    self.ncivecs = n
+
 def get_orbs(self):
     return self.orbs.copy()
 
 def set_orbs(self, v):
     self.orbs = v.copy()
+
+def get_norbs(self):
+    return self.norbs
+
+def set_norbs(self, n):
+    self.norbs = n
 
 def get_backprop_civecs(self):
     return self.backprop_civecs.copy()
