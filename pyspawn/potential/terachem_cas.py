@@ -50,13 +50,29 @@ def compute_elec_struct(self,zbackprop):
 
     # Check if the server is available
     avail = TC.is_available()
-    print "TCPB Server available: {}".format(avail)
+    #print "TCPB Server available: {}".format(avail)
+
+    # Write CI vectors and orbitals for initial guess and overlaps
+    cwd = os.getcwd()
+    if hasattr(self,'civecs'):
+        civecout = os.path.join(cwd,"CIvecs.Singlet.old")
+        orbout = os.path.join(cwd,"c0.old")
+        eval("self.get_" + cbackprop + "civecs()").tofile(civecout)
+        eval("self.get_" + cbackprop + "orbs()").tofile(orbout)
+        print "old civecs", eval("self.get_" + cbackprop + "civecs()")
+        print "old orbs", eval("self.get_" + cbackprop + "orbs()")
+        zolaps = True
+        options = {
+            "caswritevecs": "yes",
+            #"casguess":     orbout
+            }
+    else:
+        zolaps = False
+        options = {
+            "caswritevecs": "yes",
+            }
 
     # Gradient calculation
-    options = {
-        "directci":     "yes",
-        "caswritevecs": "yes"
-        }
 
     # here we call TC once for energies and once for the gradient
     # will eventually be replaced by a more efficient interface
@@ -69,35 +85,36 @@ def compute_elec_struct(self,zbackprop):
     results = TC.compute_job_sync("gradient", pos_list, "bohr", **options)
     print results
 
-    if hasattr(self,'civecs'):
-    #if (self.get_time() < self.get_firsttime()+1.0e-6) and (self.get_time() > self.get_firsttime()-1.0e-6)
-        cwd = os.getcwd()
-        civecout = os.path.join(cwd,"CIvecs.Singlet.dat")
-        orbout = os.path.join(cwd,"c0")
-        self.civecs.tofile(civecout)
-        self.orbs.tofile(orbout)
-        print "old civecs",  self.civecs
-        print "old orbs", self.orbs
-        zolaps = True
-    else:
-        zolaps = False
-
 
     civecfilename = os.path.join(results['job_scr_dir'], "CIvecs.Singlet.dat")
     exec("self.set_" + cbackprop + "civecs(np.fromfile(civecfilename))")
     print "new civecs", self.civecs    
 
-    orbfilename = os.path.join(results['job_scr_dir'], "c0")
+    #orbfilename = os.path.join(results['job_scr_dir'], "c0")
+    orbfilename = results['orbfile']
     exec("self.set_" + cbackprop + "orbs((np.fromfile(orbfilename)).flatten())")
-    #self.orbs = results['mo_coeffs'].flatten()
-    print "new orbs", self.orbs
 
-    self.ncivecs = self.civecs.size
-    self.norbs = self.orbs.size
+    self.set_norbs(self.get_orbs().size)
+
+    # BGL transpose hack is temporary
+    n = int(math.floor(math.sqrt(self.get_norbs())))
+    clastchar = orbfilename.strip()[-1]
+    print "n", n
+    print "clastchar", clastchar
+    if clastchar != '0':
+        tmporbs = eval("self.get_" + cbackprop + "orbs()")
+        exec("self.set_" + cbackprop + "orbs(((tmporbs.reshape((n,n))).T).flatten())")
+    # end transpose hack
+
+    print "new orbs", eval("self.get_" + cbackprop + "orbs()")
+    orbout2 = os.path.join(cwd,"c0.new")
+    eval("self.get_" + cbackprop + "orbs()").tofile(orbout2)
+
+    self.set_ncivecs(self.get_civecs().size)
 
     f = np.zeros((nstates,self.numdims))
-    print "results['gradient'] ", results['gradient']
-    print "results['gradient'].flatten() ", results['gradient'].flatten()
+    #print "results['gradient'] ", results['gradient']
+    #print "results['gradient'].flatten() ", results['gradient'].flatten()
     f[self.istate,:] = -1.0 * results['gradient'].flatten()
 
     exec("self.set_" + cbackprop + "energies(e)")
@@ -110,17 +127,19 @@ def compute_elec_struct(self,zbackprop):
         print 'pos2.tolist()', pos2.tolist()
         print 'civecfilename', civecfilename
         print 'civecout', civecout
-        print 'orbfilename', orbfilename
+        #print 'orbfilename', orbfilename
+        print 'orbout2', orbout2
         print 'orbout', orbout
         options = {
             "geom2":        pos2.tolist(),
             "cvec1file":    civecfilename,
             "cvec2file":    civecout,
-            "orb1afile":    orbfilename,
+            #"orb1afile":    orbfilename,
+            "orb1afile":    orbout2,
             "orb2afile":    orbout
             }
 
-        print 'pos_list', pos_list
+        #print 'pos_list', pos_list
         results2 = TC.compute_job_sync("ci_vec_overlap", pos_list, "bohr", **options)
         print "results2", results2
         S = results2['ci_overlap']
@@ -128,12 +147,14 @@ def compute_elec_struct(self,zbackprop):
 
         # phasing electronic overlaps 
         for jstate in range(nstates):
-            S[:,jstate] *= self.electronic_phases[jstate]
-            S[jstate,:] *= self.electronic_phases[jstate]
+            S[:,jstate] *= eval("self.get_" + cbackprop + "electronic_phases()[jstate]")
+            S[jstate,:] *= eval("self.get_" + cbackprop + "electronic_phases()[jstate]")
 
         for jstate in range(nstates):
             if S[jstate,jstate] < 0.0:
-                self.electronic_phases[jstate] *= -1.0
+                ep = eval("self.get_" + cbackprop + "electronic_phases()")
+                ep[jstate] *= -1.0
+                exec("self.set_" + cbackprop + "electronic_phases(ep)")
                 # I'm not sure if this line is right, but it seems to be working
                 S[jstate,:] *= -1.0
                 
@@ -255,6 +276,20 @@ def get_backprop_orbs(self):
 
 def set_backprop_orbs(self, v):
     self.backprop_orbs = v.copy()
+
+def get_electronic_phases(self):
+    return self.electronic_phases.copy()
+
+def set_electronic_phases(self, v):
+    self.electronic_phases = v.copy()
+
+def get_backprop_electronic_phases(self):
+    return self.backprop_electronic_phases.copy()
+
+def set_backprop_electronic_phases(self, v):
+    self.backprop_electronic_phases = v.copy()
+
+
 
 
 ###end terachem_cas electronic structure section###

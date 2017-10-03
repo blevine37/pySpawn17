@@ -478,6 +478,9 @@ class traj(fmsobj):
         if hasattr(parent,'prev_wf_positions'):
             self.set_prev_wf_positions(parent.get_prev_wf_positions())
             self.set_backprop_prev_wf_positions(parent.get_prev_wf_positions())
+        if hasattr(parent,'electronic_phases'):
+            self.set_electronic_phases(parent.get_electronic_phases())
+            self.set_backprop_electronic_phases(parent.get_electronic_phases())
         
         
         self.set_timestep(parent.get_timestep())
@@ -525,7 +528,10 @@ class traj(fmsobj):
         if hasattr(child,'prev_wf_positions'):
             self.set_prev_wf_positions(child.get_prev_wf_positions())
             self.set_backprop_prev_wf_positions(child.get_prev_wf_positions())
-        
+        if hasattr(child,'electronic_phases'):
+            self.set_electronic_phases(child.get_electronic_phases())
+            self.set_backprop_electronic_phases(child.get_electronic_phases())
+
         self.set_timestep(ts)
 
         self.potential_specific_traj_copy(existing)
