@@ -26,11 +26,11 @@ def prop_first_step(self,zbackprop):
     a_t = f_t / m
     exec("t = self.get_" + cbackprop + "time()")
     
-    print "t ", t
-    print "x_t ", x_t
-    print "f_t ", f_t
-    print "v_t ", v_t
-    print "a_t ", a_t
+    #print "t ", t
+    #print "x_t ", x_t
+    #print "f_t ", f_t
+    #print "v_t ", v_t
+    #print "a_t ", a_t
 
     if not zbackprop:
         self.h5_output(zbackprop, zdont_half_step=True)
@@ -56,11 +56,11 @@ def prop_first_step(self,zbackprop):
     exec("self.set_" + cbackprop + "time(t)")
     exec("self.set_" + cbackprop + "time_half_step(t_half)")
 
-    print "t ", t
-    print "x_t ", x_tpdt
-    print "f_t ", f_tpdt
-    print "v_t ", v_tpdt
-    print "a_t ", a_tpdt
+    #print "t ", t
+    #print "x_t ", x_tpdt
+    #print "f_t ", f_tpdt
+    #print "v_t ", v_tpdt
+    #print "a_t ", a_tpdt
     
     self.h5_output(zbackprop)
      
@@ -122,11 +122,11 @@ def prop_not_first_step(self,zbackprop):
     exec("self.set_" + cbackprop + "time(t)")
     exec("self.set_" + cbackprop + "time_half_step(t_half)")
 
-    print "t ", t
-    print "x_t ", x_tpdt
-    print "f_t ", f_tpdt
-    print "v_t ", v_tpdt
-    print "a_t ", a_tpdt
+    #print "t ", t
+    #print "x_t ", x_tpdt
+    #print "f_t ", f_tpdt
+    #print "v_t ", v_tpdt
+    #print "a_t ", a_tpdt
     
     self.h5_output(zbackprop)
 

@@ -91,13 +91,13 @@ def kinetic_nuc(ti,tj,positions_i="positions",positions_j="positions",momenta_i=
     Tij = 0.0
     for idim in range(ndim):
         Ttmp = T1D[idim]
-        print "T1D[idim] ", T1D[idim], Ttmp
+        #print "T1D[idim] ", T1D[idim], Ttmp
         for jdim in range(ndim):
             if jdim != idim:
                 Ttmp *= S1D[jdim]
-                print "S1D[jdim]", S1D[jdim], Ttmp
+                #print "S1D[jdim]", S1D[jdim], Ttmp
         Tij += Ttmp
-        print "Tij ", Tij
+        #print "Tij ", Tij
 
     return Tij
 

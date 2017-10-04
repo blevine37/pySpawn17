@@ -567,7 +567,7 @@ class simulation(fmsobj):
                             mom2 = self.traj[key2].get_data_at_time_from_h5(backprop_time, "momenta")
                         #pos2, mom2 = self.traj[key2].get_q_and_p_at_time_from_h5(backprop_time)
                         absSij = abs(cg.overlap_nuc(self.traj[key1],self.traj[key2], positions_i=pos1, positions_j=pos2, momenta_i=mom1, momenta_j=mom2))
-                        print "absSij", absSij
+                        #print "absSij", absSij
                         # this is only write if all basis functions have same
                         # width!!!!  Fix this soon
                         pos_cent = 0.5 * ( pos1 + pos2 )

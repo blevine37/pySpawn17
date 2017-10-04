@@ -59,8 +59,8 @@ def compute_elec_struct(self,zbackprop):
         orbout = os.path.join(cwd,"c0.old")
         eval("self.get_" + cbackprop + "civecs()").tofile(civecout)
         eval("self.get_" + cbackprop + "orbs()").tofile(orbout)
-        print "old civecs", eval("self.get_" + cbackprop + "civecs()")
-        print "old orbs", eval("self.get_" + cbackprop + "orbs()")
+        #print "old civecs", eval("self.get_" + cbackprop + "civecs()")
+        #print "old orbs", eval("self.get_" + cbackprop + "orbs()")
         zolaps = True
         options = {
             "caswritevecs": "yes",
@@ -77,18 +77,18 @@ def compute_elec_struct(self,zbackprop):
     # here we call TC once for energies and once for the gradient
     # will eventually be replaced by a more efficient interface
     results = TC.compute_job_sync("energy", pos_list, "bohr", **options)
-    print results
+    #print results
 
     e = np.zeros(nstates)
     e[:] = results['energy'][:]
 
     results = TC.compute_job_sync("gradient", pos_list, "bohr", **options)
-    print results
+    #print results
 
 
     civecfilename = os.path.join(results['job_scr_dir'], "CIvecs.Singlet.dat")
     exec("self.set_" + cbackprop + "civecs(np.fromfile(civecfilename))")
-    print "new civecs", self.civecs    
+    #print "new civecs", self.civecs    
 
     #orbfilename = os.path.join(results['job_scr_dir'], "c0")
     orbfilename = results['orbfile']
@@ -99,14 +99,14 @@ def compute_elec_struct(self,zbackprop):
     # BGL transpose hack is temporary
     n = int(math.floor(math.sqrt(self.get_norbs())))
     clastchar = orbfilename.strip()[-1]
-    print "n", n
-    print "clastchar", clastchar
+    #print "n", n
+    #print "clastchar", clastchar
     if clastchar != '0':
         tmporbs = eval("self.get_" + cbackprop + "orbs()")
         exec("self.set_" + cbackprop + "orbs(((tmporbs.reshape((n,n))).T).flatten())")
     # end transpose hack
 
-    print "new orbs", eval("self.get_" + cbackprop + "orbs()")
+    #print "new orbs", eval("self.get_" + cbackprop + "orbs()")
     orbout2 = os.path.join(cwd,"c0.new")
     eval("self.get_" + cbackprop + "orbs()").tofile(orbout2)
 
@@ -124,12 +124,12 @@ def compute_elec_struct(self,zbackprop):
     #if False:        
     if zolaps:
         exec("pos2 = self.get_" + cbackprop + "prev_wf_positions_in_angstrom()")
-        print 'pos2.tolist()', pos2.tolist()
-        print 'civecfilename', civecfilename
-        print 'civecout', civecout
+        #print 'pos2.tolist()', pos2.tolist()
+        #print 'civecfilename', civecfilename
+        #print 'civecout', civecout
         #print 'orbfilename', orbfilename
-        print 'orbout2', orbout2
-        print 'orbout', orbout
+        #print 'orbout2', orbout2
+        #print 'orbout', orbout
         options = {
             "geom2":        pos2.tolist(),
             "cvec1file":    civecfilename,
@@ -141,9 +141,9 @@ def compute_elec_struct(self,zbackprop):
 
         #print 'pos_list', pos_list
         results2 = TC.compute_job_sync("ci_vec_overlap", pos_list, "bohr", **options)
-        print "results2", results2
+        #print "results2", results2
         S = results2['ci_overlap']
-        print "S before phasing ", S
+        #print "S before phasing ", S
 
         # phasing electronic overlaps 
         for jstate in range(nstates):
@@ -158,7 +158,7 @@ def compute_elec_struct(self,zbackprop):
                 # I'm not sure if this line is right, but it seems to be working
                 S[jstate,:] *= -1.0
                 
-        print "S", S
+        #print "S", S
 
         W = np.zeros((2,2))
         W[0,0] = S[istate,istate]
@@ -173,7 +173,7 @@ def compute_elec_struct(self,zbackprop):
                 W[0,1] = S[istate,jstate]
                 W[1,1] = S[jstate,jstate]
                 tdc[jstate] = self.compute_tdc(W)
-                print "tdc", tdc[jstate]
+                #print "tdc", tdc[jstate]
 
         #tmp=self.compute_tdc(W)
         #tdc = np.zeros(self.numstates)
@@ -183,7 +183,7 @@ def compute_elec_struct(self,zbackprop):
         #    jstate = 1
         #    tdc[jstate] = tmp
 
-        print "tdc2 ", tdc
+        #print "tdc2 ", tdc
         exec("self.set_" + cbackprop + "timederivcoups(tdc)")
     else:
         exec("self.set_" + cbackprop + "timederivcoups(np.zeros(self.numstates))")

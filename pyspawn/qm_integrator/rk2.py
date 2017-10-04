@@ -15,7 +15,7 @@ def qm_propagate_step(self):
     ntraj = self.get_num_traj_qm()
     
     amps_t = self.get_qm_amplitudes()
-    print "amps_t", amps_t
+    #print "amps_t", amps_t
     
     self.build_Heff_first_half()
     
@@ -27,30 +27,32 @@ def qm_propagate_step(self):
         nstep = 1
         for i in range(ncut):
             nstep *= 2
+        print "# in adaptive RK integrator, nstep = ", nstep
         dt_small = dt / float(nstep)
 
         for istep in range(nstep):
-            print "istep nstep dt_small ", istep, nstep, dt_small
+            #print "istep nstep dt_small ", istep, nstep, dt_small
             k1 = (-1.0 * dt_small * c1i) * np.matmul(self.Heff,amps)
-            print "k1 ", k1
+                #print "k1 ", k1
             tmp = amps + 0.5 * k1
-            print "temp ", tmp
+                #print "temp ", tmp
             k2 = (-1.0 * dt_small * c1i) * np.matmul(self.Heff,tmp)
-            print "k2 ", k2
+                #print "k2 ", k2
             amps = amps + k2
-            print "amps ", amps
+                #print "amps ", amps
             
         if ncut > 0:
             diff = amps - amps_save
             error = math.sqrt((np.sum(np.absolute(diff * np.conjugate(diff)))/ntraj)) 
             if error < 0.0001:
                 ncut = -2
+                print "# adaptive integration converged, error = ", error
                             
         ncut += 1
         amps_save = amps
 
     if ncut != -1:
-        print "Problem in quantum integration: error = ", error, "after maximum adaptation!"
+        print "# problem in adaptive integration: error = ", error, "after maximum adaptation!"
 
     self.set_quantum_time(qm_tpdt)
 
@@ -64,9 +66,11 @@ def qm_propagate_step(self):
         nstep = 1
         for i in range(ncut):
             nstep *= 2
+        print "# in adaptive RK integrator, nstep = ", nstep
         dt_small = dt / float(nstep)
 
         for istep in range(nstep):
+            #print "istep nstep dt_small ", istep, nstep, dt_small
             k1 = (-1.0 * dt_small * c1i) * np.matmul(self.Heff,amps)
             tmp = amps + 0.5 * k1
             k2 = (-1.0 * dt_small * c1i) * np.matmul(self.Heff,tmp)
@@ -77,6 +81,7 @@ def qm_propagate_step(self):
             error = math.sqrt((np.sum(np.absolute(diff * np.conjugate(diff)))/ntraj)) 
             if error < 0.0001:
                 ncut = -2
+                print "# adaptive integration converged, error = ", error
                             
         ncut += 1
         amps_save = amps

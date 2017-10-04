@@ -49,7 +49,7 @@ This is an ab initio multiple spawning code written in python.  It is designed t
 -  Interface to (a development version of) TeraChem via the tcpb interface. 
 -  An analysis coded for adaptable processing of simulation data.
 
-This code is currently under development.  An example job is provided, but there is currently no documentation and the output is largely for debugging purposes.  A release is forthcoming after these issues are addressed and the code is more rigorously tested.
+This code is currently under development.  An example job is provided, but there is currently no documentation and the output is not completely informative.  A release is forthcoming after these issues are addressed and the code is more rigorously tested.
 
 Interfaces
 ==========

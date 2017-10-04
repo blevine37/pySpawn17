@@ -39,7 +39,7 @@ nstates = 2
 istate = 1
 
 # energy shift for QM propagation
-exshift = 78.0
+exshift = 77.6
 
 # initial positions and momenta are all set to zero, later replaced by Wigner initial conditions
 pos = mom = np.zeros(ndims)

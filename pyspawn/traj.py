@@ -452,13 +452,13 @@ class traj(fmsobj):
         self.set_energies(e)
 
         mintime = float(parent.get_spawntimes()[istate])
-        print "init_st mintime", mintime
+        #print "init_st mintime", mintime
         self.set_mintime(mintime)
-        print "init_st time", time
+        #print "init_st time", time
         self.set_backprop_time(time)
         self.set_backprop_positions(pos)
         self.set_backprop_momenta(mom)
-        print "init_st mintime2", self.get_mintime()
+        #print "init_st mintime2", self.get_mintime()
 
         self.set_firsttime(time)
 
@@ -537,8 +537,8 @@ class traj(fmsobj):
 
     def rescale_momentum(self, v_parent):
         v_child = self.get_energies()[self.get_istate()]
-        print "rescale v_child ", v_child
-        print "rescale v_parent ", v_parent
+        #print "rescale v_child ", v_child
+        #print "rescale v_parent ", v_parent
         # computing kinetic energy of parent.  Remember that, at this point,
         # the child's momentum is still that of the parent, so we compute
         # t_parent from the child's momentum
@@ -547,18 +547,18 @@ class traj(fmsobj):
         t_parent = 0.0
         for idim in range(self.get_numdims()):
             t_parent += 0.5 * p_parent[idim] * p_parent[idim] / m[idim]
-        print "rescale t_parent ", t_parent
+        #print "rescale t_parent ", t_parent
         factor = ( ( v_parent + t_parent - v_child ) / t_parent )
         if factor < 0.0:
-            print "Aborting spawn because child does not have"
-            print "enough energy for momentum adjustment"
+            print "# Aborting spawn because child does not have"
+            print "# enough energy for momentum adjustment"
             return False
-        print "rescale factor ", factor
+        #print "# rescaling momentum by factor ", factor
         factor = math.sqrt(factor)
-        print "rescale factor ", factor
+        print "# rescaling momentum by factor ", factor
         p_child = factor * p_parent
-        print "rescale p_child ", p_child
-        print "rescale p_parent ", p_parent
+        #print "rescale p_child ", p_child
+        #print "rescale p_parent ", p_parent
         self.set_momenta(p_child)
         return True
 
@@ -789,22 +789,22 @@ class traj(fmsobj):
         z = self.get_z_spawn_now()
         
         for jstate in range(self.numstates):
-            print "consider1 ", jstate, self.get_istate()
+            #print "consider1 ", jstate, self.get_istate()
             if (jstate != self.get_istate()):
-                print "consider2 ",spawnt[jstate]
+                #print "consider2 ",spawnt[jstate]
                 if spawnt[jstate] > -1.0e-6:
         #check to see if a trajectory in a spawning region is ready to spawn
-                    print "consider3 ",tdc[jstate], lasttdc[jstate]
+                    #print "consider3 ",tdc[jstate], lasttdc[jstate]
                     if abs(tdc[jstate]) < abs(lasttdc[jstate]):
-                        print "Spawning to state ", jstate, " at time ", self.get_time()
+                        #print "Spawning to state ", jstate, " at time ", self.get_time()
                         # setting z_spawn_now indicates that
                         # this trajectory should spawn to jstate
                         z[jstate] = 1.0
                 else:
         #check to see if a trajectory is entering a spawning region
-                    print "consider4 ",jstate, tdc, thresh
+                    #print "consider4 ",jstate, tdc, thresh
                     if (abs(tdc[jstate]) > thresh) and (z_dont_spawn[jstate] < 0.5):
-                        print "Entered spawning region ", jstate, " at time ", self.get_time()
+                        print "## trajectory " + self.get_label() + "entering spawning region ", jstate, " at time ", self.get_time()
                         spawnt[jstate] = self.get_time()
                     else:
                         if (abs(tdc[jstate]) < (0.9*thresh)) and (z_dont_spawn[jstate] > 0.5):
@@ -856,7 +856,7 @@ class traj(fmsobj):
             all_datasets.update(self.h5_datasets_half_step)
         for key in all_datasets:
             n = all_datasets[key]
-            print "key", key
+            #print "key", key
             dset = trajgrp.get(key)
             l = dset.len()
             dset.resize(l+1,axis=0)
@@ -866,7 +866,7 @@ class traj(fmsobj):
                 ipos=0
                 dset[1:(l+1),0:n] = dset[0:(l),0:n]
             getcom = "self.get_" + cbackprop + key + "()"
-            print getcom
+            #print getcom
             tmp = eval(getcom)
             if n!=1:
                 dset[ipos,0:n] = tmp[0:n]
@@ -880,7 +880,7 @@ class traj(fmsobj):
         trajgrp = h5f.create_group(groupname)
         for key in self.h5_datasets:
             n = self.h5_datasets[key]
-            print "key, n ", key, n
+            #print "key, n ", key, n
             dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n), dtype="float64")
         for key in self.h5_datasets_half_step:
             n = self.h5_datasets_half_step[key]
@@ -906,17 +906,17 @@ class traj(fmsobj):
         filename = "sim.hdf5"
         trajgrp = h5f.get(groupname)
         dset_time = trajgrp["time"][:]
-        print "size", dset_time.size
+        #print "size", dset_time.size
         ipoint = -1
         for i in range(len(dset_time)):
             if (dset_time[i] < t+1.0e-6) and (dset_time[i] > t-1.0e-6):
                 ipoint = i
-                print "dset_time[i] ", dset_time[i]
-                print "i ", i
+                #print "dset_time[i] ", dset_time[i]
+                #print "i ", i
         dset = trajgrp[dset_name][:]            
         data = np.zeros(len(dset[ipoint,:]))
         data = dset[ipoint,:]
-        print "dset[ipoint,:] ", dset[ipoint,:]        
+        #print "dset[ipoint,:] ", dset[ipoint,:]        
         h5f.close()
         return data
 
@@ -930,21 +930,21 @@ class traj(fmsobj):
         filename = "sim.hdf5"
         trajgrp = h5f.get(groupname)
         dset_time = trajgrp["time"][:]
-        print "size", dset_time.size
+        #print "size", dset_time.size
         ipoint = -1
         for i in range(len(dset_time)):
             if (dset_time[i] < t+1.0e-6) and (dset_time[i] > t-1.0e-6):
                 ipoint = i
-                print "dset_time[i] ", dset_time[i]
-                print "i ", i
+                #print "dset_time[i] ", dset_time[i]
+                #print "i ", i
         for dset_name in self.h5_datasets:
             dset = trajgrp[dset_name][:]            
             data = np.zeros(len(dset[ipoint,:]))
             data = dset[ipoint,:]
             comm = "self." + dset_name + "_qm = data"
             exec(comm)
-            print "comm ", comm
-            print "dset[ipoint,:] ", dset[ipoint,:]        
+            #print "comm ", comm
+            #print "dset[ipoint,:] ", dset[ipoint,:]        
         h5f.close()
             
     def get_all_qm_data_at_time_from_h5_half_step(self,t):
@@ -957,21 +957,21 @@ class traj(fmsobj):
         filename = "sim.hdf5"
         trajgrp = h5f.get(groupname)
         dset_time = trajgrp["time_half_step"][:]
-        print "size", dset_time.size
+        #print "size", dset_time.size
         ipoint = -1
         for i in range(len(dset_time)):
             if (dset_time[i] < t+1.0e-6) and (dset_time[i] > t-1.0e-6):
                 ipoint = i
-                print "dset_time[i] ", dset_time[i]
-                print "i ", i
+                #print "dset_time[i] ", dset_time[i]
+                #print "i ", i
         for dset_name in self.h5_datasets_half_step:
             dset = trajgrp[dset_name][:]            
             data = np.zeros(len(dset[ipoint,:]))
             data = dset[ipoint,:]
             comm = "self." + dset_name + "_qm = data"
             exec(comm)
-            print "comm ", comm
-            print "dset[ipoint,:] ", dset[ipoint,:]        
+            #print "comm ", comm
+            #print "dset[ipoint,:] ", dset[ipoint,:]        
         h5f.close()
             
     def compute_tdc(self,Win):
@@ -1009,6 +1009,7 @@ class traj(fmsobj):
         return tdc
 
     def initial_wigner(self,iseed):
+        print "## randomly selecting Wigner initial conditions"
         ndims = self.get_numdims()
 
         h5f = h5py.File('hessian.hdf5', 'r')
@@ -1041,7 +1042,7 @@ class traj(fmsobj):
         evals = evals[idx]
         modes = modes[:,idx]
 
-        print 'Eigenvalues of the mass-weighted hessian are (a.u.)'
+        print '# eigenvalues of the mass-weighted hessian are (a.u.)'
         print evals
         
         # seed random number generator
@@ -1078,8 +1079,8 @@ class traj(fmsobj):
         zpe = np.sum(alphax[0:ndims-6])
         ke = 0.5 * np.sum(mom * mom / m)
 
-        print "ZPE = ", zpe
-        print "Kinetic Energy = ", ke
+        print "# ZPE = ", zpe
+        print "# kinetic energy = ", ke
 
 
         
