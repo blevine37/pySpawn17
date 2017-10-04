@@ -43,7 +43,23 @@ See LICENSE file
 Features
 ========
 
-This program is under construction!  Right now it does not work and there is no documentation.  This document will be updated once this is a functional software package.  
+This is an ab initio multiple spawning code written in python.  It is designed to be rather minimalistic, but easily extensible.  Right now, it has the following features:
+
+-  Runs in the adiabatic representation with derivative couplings computed via NPI.
+-  Interface to (a development version of) TeraChem via the tcpb interface. 
+-  An analysis coded for adaptable processing of simulation data.
+
+This code is currently under development.  An example job is provided, but there is currently no documentation and the output is largely for debugging purposes.  A release is forthcoming after these issues are addressed and the code is more rigorously tested.
+
+Interfaces
+==========
+
+At present only an interface for (a development version of) TeraChem is provided, but pySpawn is designed to be readily interfaced with other codes.
+
+Contact
+=======
+
+pySpawn is developed and maintained primarily by Benjamin G. Levine, levine@chemistry.msu.edu.
 
 
 
