@@ -482,7 +482,6 @@ class traj(fmsobj):
             self.set_electronic_phases(parent.get_electronic_phases())
             self.set_backprop_electronic_phases(parent.get_electronic_phases())
         
-        
         self.set_timestep(parent.get_timestep())
         #self.set_propagator(parent.get_propagator())
 

@@ -579,6 +579,8 @@ class simulation(fmsobj):
                         else:
                             #hdf5 output here?
                             self.centroids[key].set_backprop_time(backprop_time)
+                            dt = self.centroids[key].get_timestep()
+                            self.centroids[key].set_backprop_time_half_step(backprop_time + 0.5 * dt)
                             self.centroids[key].set_backprop_energies(np.zeros(self.centroids[key].get_numstates()))
                             self.centroids[key].set_backprop_timederivcoups(np.zeros(self.centroids[key].get_numstates()))
                             self.centroids[key].h5_output(True)
@@ -609,6 +611,8 @@ class simulation(fmsobj):
                             self.centroids[key].set_z_compute_me(True)
                         else:
                             self.centroids[key].set_time(time)
+                            dt = self.centroids[key].get_timestep()
+                            self.centroids[key].set_time_half_step(time - 0.5 * dt)
                             self.centroids[key].set_energies(np.zeros(self.centroids[key].get_numstates()))
                             self.centroids[key].set_timederivcoups(np.zeros(self.centroids[key].get_numstates()))
                             self.centroids[key].h5_output(False)
