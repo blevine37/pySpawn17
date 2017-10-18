@@ -829,23 +829,24 @@ class traj(fmsobj):
             traj_or_cent = "cent_"
         if len(self.h5_datasets) == 0:
             self.init_h5_datasets()
-        extensions = [3,2,1,0]
-        for i in extensions :
-            if i==0:
-                ext = ""
-            else:
-                ext = str(i) + "."
-            filename = "sim." + ext + "hdf5"
-            if os.path.isfile(filename):
-                if (i == extensions[0]):
-                    os.remove(filename)
-                else:
-                    ext = str(i+1) + "."
-                    filename2 = "sim." + ext + "hdf5"
-                    if (i == extensions[-1]):
-                        shutil.copy2(filename, filename2)
-                    else:
-                        shutil.move(filename, filename2)
+        filename = "working.hdf5"
+        #extensions = [3,2,1,0]
+        #for i in extensions :
+        #    if i==0:
+        #        ext = ""
+        #    else:
+        #        ext = str(i) + "."
+        #    filename = "sim." + ext + "hdf5"
+        #    if os.path.isfile(filename):
+        #        if (i == extensions[0]):
+        #            os.remove(filename)
+        #        else:
+        #            ext = str(i+1) + "."
+        #            filename2 = "sim." + ext + "hdf5"
+        #            if (i == extensions[-1]):
+        #                shutil.copy2(filename, filename2)
+        #            else:
+        #                shutil.move(filename, filename2)
         h5f = h5py.File(filename, "a")
         groupname = traj_or_cent + self.label
         if groupname not in h5f.keys():

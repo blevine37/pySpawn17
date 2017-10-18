@@ -281,8 +281,8 @@ class simulation(fmsobj):
             self.propagate_quantum_as_necessary()
             
             # print restart output - this must be the last line in this loop!
-            print "### outputting json file for restart"
-            self.json_output()
+            print "### updating restart output"
+            self.restart_output()
 
     # here we will propagate the quantum amplitudes if we have
     # the necessary information to do so
@@ -710,7 +710,8 @@ class simulation(fmsobj):
     # The json file is meant to represent the *current* state of the
     # simulation.  There is a separate hdf5 file that stores the history of
     # the simulation.  Both are needed for restart.
-    def json_output(self):
+    def restart_output(self):
+        print "## creating new sim.json" 
         # we keep copies of the last 3 json files just to be safe
         extensions = [3,2,1,0]
         for i in extensions :
@@ -732,6 +733,27 @@ class simulation(fmsobj):
                         
         # now we write the current json file
         self.write_to_file("sim.json")
+        print "## synchronizing sim.hdf5"
+        extensions = [3,2,1,0]
+        for i in extensions :
+            if i==0:
+                ext = ""
+            else:
+                ext = str(i) + "."
+            filename = "sim." + ext + "hdf5"
+            if os.path.isfile(filename):
+                if (i == extensions[0]):
+                    os.remove(filename)
+                else:
+                    ext = str(i+1) + "."
+                    filename2 = "sim." + ext + "hdf5"
+                    if (i == extensions[-1]):
+                        shutil.copy2(filename, filename2)
+                    else:
+                        shutil.move(filename, filename2)
+        shutil.copy2("working.hdf5", "sim.hdf5")
+        print "## hdf5 and json output are synchronized"
+        
 
     def h5_output(self):
         self.init_h5_datasets()
