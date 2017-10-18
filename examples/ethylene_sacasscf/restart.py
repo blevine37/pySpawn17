@@ -13,7 +13,7 @@ tfinal = 8000.0
 
 sim = pyspawn.simulation()
 
-sim.read_from_file("sim.json")
+sim.restart_from_file("sim.json","sim.hdf5")
 
 sim.set_maxtime_all(tfinal)
 

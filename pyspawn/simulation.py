@@ -559,12 +559,12 @@ class simulation(fmsobj):
                     if (backprop_time > backprop_time2 - 1.0e-6) and (backprop_time2  < (self.traj[key2].get_firsttime() - 1.0e-6) or backprop_time2  < (self.traj[key2].get_mintime() + 1.0e-6)):
                         pos1 = self.traj[key1].get_data_at_time_from_h5(backprop_time, "positions")
                         mom1 = self.traj[key1].get_data_at_time_from_h5(backprop_time, "momenta")
-                        if backprop_time2  < (self.traj[key2].get_mintime() + 1.0e-6):
-                            pos2 = self.traj[key2].get_backprop_positions()
-                            mom2 = self.traj[key2].get_backprop_momenta()
-                        else:
-                            pos2 = self.traj[key2].get_data_at_time_from_h5(backprop_time, "positions")
-                            mom2 = self.traj[key2].get_data_at_time_from_h5(backprop_time, "momenta")
+                        #if backprop_time2  < (self.traj[key2].get_mintime() + 1.0e-6):
+                        #    pos2 = self.traj[key2].get_backprop_positions()
+                        #    mom2 = self.traj[key2].get_backprop_momenta()
+                        #else:
+                        pos2 = self.traj[key2].get_data_at_time_from_h5(backprop_time, "positions")
+                        mom2 = self.traj[key2].get_data_at_time_from_h5(backprop_time, "momenta")
                         #pos2, mom2 = self.traj[key2].get_q_and_p_at_time_from_h5(backprop_time)
                         absSij = abs(cg.overlap_nuc(self.traj[key1],self.traj[key2], positions_i=pos1, positions_j=pos2, momenta_i=mom1, momenta_j=mom2))
                         #print "absSij", absSij
@@ -600,7 +600,7 @@ class simulation(fmsobj):
                         #pos1, mom1 = self.traj[key1].get_q_and_p_at_time_from_h5(time)
                         #pos2, mom2 = self.traj[key2].get_q_and_p_at_time_from_h5(time)
                         absSij = abs(cg.overlap_nuc(self.traj[key1],self.traj[key2], positions_i=pos1, positions_j=pos2, momenta_i=mom1, momenta_j=mom2))
-                        print "absSij", absSij
+                        #print "absSij", absSij
                         # this is only write if all basis functions have same
                         # width!!!!  Fix this soon
                         pos_cent = 0.5 * ( pos1 + pos2 )
@@ -705,6 +705,11 @@ class simulation(fmsobj):
             if not z_add_traj:
                 print "# aborting spawn due to large overlap with existing trajectory"
         return z_add_traj
+
+    # restarts from the current json file and copies the simulation data into working.hdf5
+    def restart_from_file(self,json_file,h5_file):
+        self.read_from_file(json_file)
+        shutil.copy2(h5_file,"working.hdf5")
         
     # output json restart file
     # The json file is meant to represent the *current* state of the
@@ -757,23 +762,24 @@ class simulation(fmsobj):
 
     def h5_output(self):
         self.init_h5_datasets()
-        extensions = [3,2,1,0]
-        for i in extensions :
-            if i==0:
-                ext = ""
-            else:
-                ext = str(i) + "."
-            filename = "sim." + ext + "hdf5"
-            if os.path.isfile(filename):
-                if (i == extensions[0]):
-                    os.remove(filename)
-                else:
-                    ext = str(i+1) + "."
-                    filename2 = "sim." + ext + "hdf5"
-                    if (i == extensions[-1]):
-                        shutil.copy2(filename, filename2)
-                    else:
-                        shutil.move(filename, filename2)
+        filename = "working.hdf5"
+        #extensions = [3,2,1,0]
+        #for i in extensions :
+        #    if i==0:
+        #        ext = ""
+        #    else:
+        #        ext = str(i) + "."
+        #    filename = "sim." + ext + "hdf5"
+        #    if os.path.isfile(filename):
+        #        if (i == extensions[0]):
+        #            os.remove(filename)
+        #        else:
+        #            ext = str(i+1) + "."
+        #            filename2 = "sim." + ext + "hdf5"
+        #            if (i == extensions[-1]):
+        #                shutil.copy2(filename, filename2)
+        #            else:
+        #                shutil.move(filename, filename2)
         h5f = h5py.File(filename, "a")
         groupname = "sim"
         if groupname not in h5f.keys():

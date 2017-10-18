@@ -898,13 +898,13 @@ class traj(fmsobj):
             trajgrp.attrs["atoms"] = self.atoms
         
     def get_data_at_time_from_h5(self,t,dset_name):
-        h5f = h5py.File("sim.hdf5", "r")
+        h5f = h5py.File("working.hdf5", "r")
         if "_a_" not in self.get_label():
             traj_or_cent = "traj_"
         else:
             traj_or_cent = "cent_"
         groupname = traj_or_cent + self.label
-        filename = "sim.hdf5"
+        filename = "working.hdf5"
         trajgrp = h5f.get(groupname)
         dset_time = trajgrp["time"][:]
         #print "size", dset_time.size
@@ -922,13 +922,13 @@ class traj(fmsobj):
         return data
 
     def get_all_qm_data_at_time_from_h5(self,t):
-        h5f = h5py.File("sim.hdf5", "r")
+        h5f = h5py.File("working.hdf5", "r")
         if "_a_" not in self.get_label():
             traj_or_cent = "traj_"
         else:
             traj_or_cent = "cent_"
         groupname = traj_or_cent + self.label
-        filename = "sim.hdf5"
+        filename = "working.hdf5"
         trajgrp = h5f.get(groupname)
         dset_time = trajgrp["time"][:]
         #print "size", dset_time.size
@@ -949,13 +949,13 @@ class traj(fmsobj):
         h5f.close()
             
     def get_all_qm_data_at_time_from_h5_half_step(self,t):
-        h5f = h5py.File("sim.hdf5", "r")
+        h5f = h5py.File("working.hdf5", "r")
         if "_a_" not in self.get_label():
             traj_or_cent = "traj_"
         else:
             traj_or_cent = "cent_"
         groupname = traj_or_cent + self.label
-        filename = "sim.hdf5"
+        filename = "working.hdf5"
         trajgrp = h5f.get(groupname)
         dset_time = trajgrp["time_half_step"][:]
         #print "size", dset_time.size
