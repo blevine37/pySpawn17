@@ -89,11 +89,11 @@ def qm_propagate_step(self):
     if ncut != -1:
         print "Problem in quantum integration: error = ", error, "after maximum adaptation!"
 
-    print "amps_tpdt ", amps
+    #print "amps_tpdt ", amps
 
     self.set_qm_amplitudes(amps)
         
-    print "amps saved ", self.get_qm_amplitudes()
+    #print "amps saved ", self.get_qm_amplitudes()
             
     #self.clean_up_matrices()
         
