@@ -57,14 +57,16 @@ def compute_elec_struct(self,zbackprop):
     if hasattr(self,'civecs'):
         civecout = os.path.join(cwd,"CIvecs.Singlet.old")
         orbout = os.path.join(cwd,"c0.old")
+        orbout_t = os.path.join(cwd,"c0_t.old")
         eval("self.get_" + cbackprop + "civecs()").tofile(civecout)
         eval("self.get_" + cbackprop + "orbs()").tofile(orbout)
+        (eval("self.get_" + cbackprop + "orbs()").T).tofile(orbout_t)
         #print "old civecs", eval("self.get_" + cbackprop + "civecs()")
         #print "old orbs", eval("self.get_" + cbackprop + "orbs()")
         zolaps = True
         options = {
             "caswritevecs": "yes",
-            #"casguess":     orbout
+            #"casguess":     orbout_t
             }
     else:
         zolaps = False

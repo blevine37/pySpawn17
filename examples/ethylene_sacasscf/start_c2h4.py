@@ -27,6 +27,12 @@ ts = 10.0
 # final simulation time
 tfinal = 8000.0
 
+# number of dimensions                                                                                           
+numdims = 18
+
+# number of electronic states                                                                                                                    
+numstates = 2
+
 # TeraChem job options                                                                                    
 tc_options = {
     "method":       'hf',
@@ -58,10 +64,6 @@ traj_params = {
     "maxtime": tfinal,
     # coupling threshhold
     "spawnthresh": (0.5 * np.pi) / ts / 20.0,
-    # number of dimensions
-    "numdims": 18,
-    # number of electronic states
-    "numstates": 2,
     # initial electronic state (indexed such that 0 is the ground state)
     "istate": 1,
     # Gaussian widths
@@ -108,6 +110,8 @@ pyspawn.general.check_files()
 
 # set up first trajectory
 traj1 = pyspawn.traj()
+traj1.set_numstates(numstates)
+traj1.set_numdims(numdims)
 traj1.set_parameters(traj_params)
 
 # sample initial position and momentum from Wigner distribution (requires hessian.hdf5)
