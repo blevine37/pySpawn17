@@ -213,11 +213,11 @@ class simulation(fmsobj):
         return self.qm_amplitudes.copy()
             
     def set_qm_amplitudes(self,amp):
-        if amp.shape == self.qm_amplitudes.shape:
-            self.qm_amplitudes = amp.copy()
-        else:
-            print "! error in set_qm_amplitudes"
-            sys.exit
+        #if amp.shape == self.qm_amplitudes.shape:
+        self.qm_amplitudes = amp.copy()
+        #else:
+        #    print "! error in set_qm_amplitudes"
+        #    sys.exit
 
     def get_H(self):
         return self.H.copy()
