@@ -1,6 +1,7 @@
 # this script starts a new AIMS calculation.  Ethylene, SA2-CASSCF(2/2).
 import numpy as np
 import pyspawn        
+import pyspawn.general
 
 # random number seed
 seed=28396
@@ -96,18 +97,28 @@ sim_params = {
     "qm_energy_shift": 77.6,
 }
 
-# and off to the races...
+# import routines needed for propagation
 exec("pyspawn.import_methods.into_simulation(pyspawn.qm_integrator." + qm_prop + ")")
 exec("pyspawn.import_methods.into_simulation(pyspawn.qm_hamiltonian." + qm_ham + ")")
 exec("pyspawn.import_methods.into_traj(pyspawn.potential." + potential + ")")
 exec("pyspawn.import_methods.into_traj(pyspawn.classical_integrator." + clas_prop + ")")
-    
+
+# check for the existence of files from a past run
+pyspawn.general.check_files()    
+
+# set up first trajectory
 traj1 = pyspawn.traj()
 traj1.set_parameters(traj_params)
+
+# sample initial position and momentum from Wigner distribution (requires hessian.hdf5)
 traj1.initial_wigner(seed)
+
+# set up simulation 
 sim = pyspawn.simulation()
 sim.add_traj(traj1)
 sim.set_parameters(sim_params)
+
+# begin propagation
 sim.propagate()
 
 

@@ -8,6 +8,7 @@ from pyspawn.simulation import simulation
 import pyspawn.fms_analysis
 from fafile import fafile
 import pyspawn.import_methods
+import pyspawn.general
 
 import pyspawn.qm_integrator
 

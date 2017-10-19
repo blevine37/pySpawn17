@@ -6,6 +6,7 @@ import numpy as np
 import h5py
 from pyspawn.fmsobj import fmsobj
 from pyspawn.traj import traj
+import general as gen
 import os
 import shutil
 import complexgaussian as cg
@@ -237,6 +238,7 @@ class simulation(fmsobj):
 
     # this is the main propagation loop for the simulation
     def propagate(self):
+        gen.print_splash()
         while True:
             # compute centroid positions and mark those centroids that
             # can presently be computed
