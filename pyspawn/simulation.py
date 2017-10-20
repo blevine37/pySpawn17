@@ -533,8 +533,9 @@ class simulation(fmsobj):
                 self.insert_task(task_tmp,tasktime_tmp, tasktimes)
                 
         print "##", (len(self.queue)-1), "task(s) in queue:"
-        for task in self.queue:
-            print task
+        for i in range(len(self.queue)-1):
+            print self.queue[i] + ", time = " + str(tasktimes[i])
+        print "END"
 
     # add a task to the queue
     def insert_task(self,task,tt,tasktimes):
@@ -559,33 +560,42 @@ class simulation(fmsobj):
                 if (backprop_time > backprop_time1 - 1.0e-6) and (backprop_time1  < (self.traj[key1].get_firsttime() - 1.0e-6) or backprop_time1  < (self.traj[key1].get_mintime() + 1.0e-6)):
                     backprop_time2 = self.traj[key2].get_backprop_time()
                     if (backprop_time > backprop_time2 - 1.0e-6) and (backprop_time2  < (self.traj[key2].get_firsttime() - 1.0e-6) or backprop_time2  < (self.traj[key2].get_mintime() + 1.0e-6)):
-                        pos1 = self.traj[key1].get_data_at_time_from_h5(backprop_time, "positions")
-                        mom1 = self.traj[key1].get_data_at_time_from_h5(backprop_time, "momenta")
-                        #if backprop_time2  < (self.traj[key2].get_mintime() + 1.0e-6):
-                        #    pos2 = self.traj[key2].get_backprop_positions()
-                        #    mom2 = self.traj[key2].get_backprop_momenta()
-                        #else:
-                        pos2 = self.traj[key2].get_data_at_time_from_h5(backprop_time, "positions")
-                        mom2 = self.traj[key2].get_data_at_time_from_h5(backprop_time, "momenta")
-                        #pos2, mom2 = self.traj[key2].get_q_and_p_at_time_from_h5(backprop_time)
-                        absSij = abs(cg.overlap_nuc(self.traj[key1],self.traj[key2], positions_i=pos1, positions_j=pos2, momenta_i=mom1, momenta_j=mom2))
-                        #print "absSij", absSij
-                        # this is only write if all basis functions have same
-                        # width!!!!  Fix this soon
-                        pos_cent = 0.5 * ( pos1 + pos2 )
-                        mom_cent = 0.5 * ( mom1 + mom2 )
-                        self.centroids[key].set_backprop_positions(pos_cent)
-                        self.centroids[key].set_backprop_momenta(mom_cent)
-                        if absSij > 0.001:
-                            self.centroids[key].set_z_compute_me_backprop(True)
-                        else:
-                            #hdf5 output here?
-                            self.centroids[key].set_backprop_time(backprop_time)
-                            dt = self.centroids[key].get_timestep()
-                            self.centroids[key].set_backprop_time_half_step(backprop_time + 0.5 * dt)
-                            self.centroids[key].set_backprop_energies(np.zeros(self.centroids[key].get_numstates()))
-                            self.centroids[key].set_backprop_timederivcoups(np.zeros(self.centroids[key].get_numstates()))
-                            self.centroids[key].h5_output(True)
+                        time1 = self.traj[key1].get_time()
+                        time2 = self.traj[key2].get_time()
+                        # this if takes care of the special case where we try to compute the backpropagating centroid at firsttime before
+                        # forward propagation has begun
+                        if (backprop_time + 1.0e-6 < time1) and (backprop_time + 1.0e-6 < time2):
+                            pos1 = self.traj[key1].get_data_at_time_from_h5(backprop_time, "positions")
+                            mom1 = self.traj[key1].get_data_at_time_from_h5(backprop_time, "momenta")
+                            #if backprop_time2  < (self.traj[key2].get_mintime() + 1.0e-6):
+                            #    pos2 = self.traj[key2].get_backprop_positions()
+                            #    mom2 = self.traj[key2].get_backprop_momenta()
+                            #else:
+                            pos2 = self.traj[key2].get_data_at_time_from_h5(backprop_time, "positions")
+                            mom2 = self.traj[key2].get_data_at_time_from_h5(backprop_time, "momenta")
+                            #pos2, mom2 = self.traj[key2].get_q_and_p_at_time_from_h5(backprop_time)
+                            absSij = abs(cg.overlap_nuc(self.traj[key1],self.traj[key2], positions_i=pos1, positions_j=pos2, momenta_i=mom1, momenta_j=mom2))
+                            #print "absSij", absSij
+                            # this definition of mom is only right if all basis functions have same
+                            # width!!!!  I don't think the momentum is every used but still we 
+                            # shoudl fix this soon.
+                            width1 = self.traj[key1].get_widths()
+                            width2 = self.traj[key2].get_widths()
+                            pos_cent = ( width1 * pos1 + width2 * pos2 ) / (width1 + width2)
+                            mom_cent = 0.5 * ( mom1 + mom2 )
+                            self.centroids[key].set_backprop_positions(pos_cent)
+                            self.centroids[key].set_backprop_momenta(mom_cent)
+                            if absSij > 0.001:
+                                self.centroids[key].set_z_compute_me_backprop(True)
+                            else:
+                                self.centroids[key].set_backprop_time(backprop_time)
+                                dt = self.centroids[key].get_timestep()
+                                self.centroids[key].set_backprop_time_half_step(backprop_time + 0.5 * dt)
+                                self.centroids[key].set_backprop_energies(np.zeros(self.centroids[key].get_numstates()))
+                                self.centroids[key].set_backprop_timederivcoups(np.zeros(self.centroids[key].get_numstates()))
+                                firsttime = self.centroids[key].get_firsttime()
+                                if abs(backprop_time - firsttime) > 1.0e-6:
+                                    self.centroids[key].h5_output(True)
 
             # update forward propagating centroids
             self.centroids[key].set_z_compute_me(False)
@@ -603,9 +613,12 @@ class simulation(fmsobj):
                         #pos2, mom2 = self.traj[key2].get_q_and_p_at_time_from_h5(time)
                         absSij = abs(cg.overlap_nuc(self.traj[key1],self.traj[key2], positions_i=pos1, positions_j=pos2, momenta_i=mom1, momenta_j=mom2))
                         #print "absSij", absSij
-                        # this is only write if all basis functions have same
-                        # width!!!!  Fix this soon
-                        pos_cent = 0.5 * ( pos1 + pos2 )
+                        # this definion of mom is only correct if all basis functions have same
+                        # width!!!!  I don't think that the centroid momentum is ever used, but
+                        # we should still fix this soon
+                        width1 = self.traj[key1].get_widths()
+                        width2 = self.traj[key2].get_widths()
+                        pos_cent = ( width1 * pos1 + width2 * pos2 ) / ( width1 + width2)
                         mom_cent = 0.5 * ( mom1 + mom2 )
                         self.centroids[key].set_positions(pos_cent)
                         self.centroids[key].set_momenta(mom_cent)
@@ -617,8 +630,11 @@ class simulation(fmsobj):
                             self.centroids[key].set_time_half_step(time - 0.5 * dt)
                             self.centroids[key].set_energies(np.zeros(self.centroids[key].get_numstates()))
                             self.centroids[key].set_timederivcoups(np.zeros(self.centroids[key].get_numstates()))
-                            self.centroids[key].h5_output(False)
-                        
+                            firsttime = self.centroids[key].get_firsttime()
+                            if abs(time - firsttime) > 1.0e-6:
+                                self.centroids[key].h5_output(False)
+                            else:
+                                self.centroids[key].h5_output(False,zdont_half_step=True)
 
     # this is the spawning routine
     def spawn_as_necessary(self):
