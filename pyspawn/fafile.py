@@ -12,10 +12,15 @@ import math
 
 class fafile(object):
     def __init__(self,h5filename):
+        self.datasets = {}
         self.h5file = h5py.File(h5filename, "r")
-        self.num_traj = len(self.retrieve_amplitudes()[0][:])
         self.labels = self.h5file["sim"].attrs["labels"]
         self.istates = self.h5file["sim"].attrs["istates"]
+        self.retrieve_num_traj_qm()
+        self.retrieve_quantum_times()
+        self.retrieve_qm_amplitudes()
+        self.num_traj = len(self.datasets["qm_amplitudes"][0][:])
+        self.retrieve_S()
 
     def __del__(self):
         self.h5file.close()
@@ -42,38 +47,50 @@ class fafile(object):
             expec = expec.real
         return expec
     
-    def retrieve_amplitudes(self):
+    def retrieve_qm_amplitudes(self):
         c = self.h5file["sim/qm_amplitudes"][()]
-        return c
+        self.datasets["qm_amplitudes"] = c
         
-    def retrieve_Ss(self):
+    def retrieve_S(self):
         S = self.h5file["sim/S"][()]
-        return S
+        self.datasets["S"] = S
 
     def retrieve_num_traj_qm(self):
-        ntraj = np.ndarray.flatten(self.h5file["sim/num_traj_qm"][()])
-        return ntraj
+        self.ntraj = np.ndarray.flatten(self.h5file["sim/num_traj_qm"][()])
         
-    def retrieve_times(self):
+    def retrieve_quantum_times(self):
         times = np.ndarray.flatten(self.h5file["sim/quantum_time"][()])
-        return times
+        self.datasets["quantum_times"] = times
         
-    def compute_norms(self,column_filename=None):
+    def get_amplitude_vector(self,i):
+        nt = self.ntraj[i]
+        c_t = self.datasets["qm_amplitudes"][i][0:nt]
+        return c_t
+
+    def get_overlap_matrix(self,i):
+        nt = self.ntraj[i]
+        nt2 = nt*nt
+        S_t = self.datasets["S"][i][0:nt2].reshape((nt,nt))
+        return S_t
+
+    def compute_electronic_state_populations(self,column_filename=None):
         if column_filename != None:
             of = open(column_filename, 'w')
         
-        times = self.retrieve_times()
+        #self.retrieve_quantum_times()
+        times = self.datasets["quantum_times"]
         ntimes = len(times)
-        c = self.retrieve_amplitudes()
-        S = self.retrieve_Ss()
-        ntraj = self.retrieve_num_traj_qm()
+        #c = self.datasets["qm_amplitudes"]
+        #S = self.datasets["S"]
         maxstates = self.get_max_state()
         Nstate = np.zeros((maxstates+1,ntimes))
         for i in range(ntimes):
-            nt = ntraj[i]
-            c_t = c[i][0:nt]
-            nt2 = nt*nt
-            S_t = S[i][0:nt2].reshape((nt,nt))
+            nt = self.ntraj[i]
+            c_t = self.get_amplitude_vector(i)
+            #c_t = c[i][0:nt]
+            #nt2 = nt*nt
+            S_t = self.get_overlap_matrix(i)
+            #S_t = S[i][0:nt2].reshape((nt,nt))
             for ist in range(maxstates):
                 Nstate[ist,i] =  self.compute_expec_istate_not_normalized(S_t,c_t,ist)
             Nstate[maxstates,i] = self.compute_expec(S_t,c_t)
@@ -81,8 +98,9 @@ class fafile(object):
                 of.write(str(times[i])+ " "+" ".join(map(str,Nstate[:,i]))+"\n")
         if column_filename != None:
             of.close() 
-
-        return times, Nstate
+        self.datasets["electronic_state_populations"] = Nstate
+            
+        return 
 
     def write_xyzs(self):
         for key in self.labels:
