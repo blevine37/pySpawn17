@@ -21,6 +21,7 @@ class fafile(object):
         self.retrieve_qm_amplitudes()
         self.num_traj = len(self.datasets["qm_amplitudes"][0][:])
         self.retrieve_S()
+        self.retrieve_traj_time()
 
     def __del__(self):
         self.h5file.close()
@@ -61,6 +62,13 @@ class fafile(object):
     def retrieve_quantum_times(self):
         times = np.ndarray.flatten(self.h5file["sim/quantum_time"][()])
         self.datasets["quantum_times"] = times
+
+    def retrieve_traj_time(self):
+        for key in self.labels:
+            trajgrp = "traj_" + key
+            time = self.h5file[trajgrp]['time'][()].flatten()
+            key2 = key + "_time"
+            self.datasets[key2] = time
         
     def get_amplitude_vector(self,i):
         nt = self.ntraj[i]
@@ -73,24 +81,34 @@ class fafile(object):
         S_t = self.datasets["S"][i][0:nt2].reshape((nt,nt))
         return S_t
 
+    def get_traj_data_from_h5(self,label,key):
+        trajgrp = "traj_" + label
+        return self.h5file[trajgrp][key][()]
+
+    def get_traj_attr_from_h5(self,label,key):
+        trajgrp = "traj_" + label
+        return self.h5file[trajgrp].attrs[key]
+
+    def get_traj_dataset(self,label,key):
+        return self.datasets[label + "_" + key]
+
+    def get_traj_num_times(self,label):
+        key = label + "_time"
+        return len(self.datasets[key])
+
+
     def compute_electronic_state_populations(self,column_filename=None):
         if column_filename != None:
             of = open(column_filename, 'w')
         
-        #self.retrieve_quantum_times()
         times = self.datasets["quantum_times"]
         ntimes = len(times)
-        #c = self.datasets["qm_amplitudes"]
-        #S = self.datasets["S"]
         maxstates = self.get_max_state()
         Nstate = np.zeros((maxstates+1,ntimes))
         for i in range(ntimes):
             nt = self.ntraj[i]
             c_t = self.get_amplitude_vector(i)
-            #c_t = c[i][0:nt]
-            #nt2 = nt*nt
             S_t = self.get_overlap_matrix(i)
-            #S_t = S[i][0:nt2].reshape((nt,nt))
             for ist in range(maxstates):
                 Nstate[ist,i] =  self.compute_expec_istate_not_normalized(S_t,c_t,ist)
             Nstate[maxstates,i] = self.compute_expec(S_t,c_t)
@@ -104,17 +122,18 @@ class fafile(object):
 
     def write_xyzs(self):
         for key in self.labels:
-            trajgrp = "traj_" + key
-            times = self.h5file[trajgrp]['time'][()].flatten()
-            ntimes = len(times)
-            pos = self.h5file[trajgrp]['positions'][()]
+            #trajgrp = "traj_" + key
+            #times = self.h5file[trajgrp]['time'][()].flatten()
+            times = self.get_traj_dataset(key,"time")
+            ntimes = self.get_traj_num_times(key)
+            pos = self.get_traj_data_from_h5(key,"positions")
             # convert to angstrom
             pos /= 1.8897161646321
             npos = pos.size / ntimes
             natoms = npos/3
-            atoms = self.h5file[trajgrp].attrs['atoms']
+            atoms = self.get_traj_attr_from_h5(key,"atoms")
 
-            filename = trajgrp + ".xyz"
+            filename = "traj_" + key + ".xyz"
             of = open(filename,"w")
 
             for itime in range(ntimes):
