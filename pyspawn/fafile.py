@@ -96,6 +96,24 @@ class fafile(object):
         key = label + "_time"
         return len(self.datasets[key])
 
+    def list_datasets(self):
+        for key in self.datasets:
+            print key
+
+    def write_columnar_data_file(self,times,dsets,filename):
+        of = open(filename,"w")
+        t = self.datasets[times][:]
+        for i in range(len(t)):
+            of.write(str(t[i]) + " ")
+            for iset in range(len(dsets)):
+                dat = self.datasets[dsets[iset]][i,:]
+                for j in range(len(dat)):
+                    of.write(str(dat[j]) + " ")
+            of.write("\n")
+        of.close()
+        
+             
+            
 
     def compute_electronic_state_populations(self,column_filename=None):
         if column_filename != None:
@@ -104,16 +122,16 @@ class fafile(object):
         times = self.datasets["quantum_times"]
         ntimes = len(times)
         maxstates = self.get_max_state()
-        Nstate = np.zeros((maxstates+1,ntimes))
+        Nstate = np.zeros((ntimes,maxstates+1))
         for i in range(ntimes):
             nt = self.ntraj[i]
             c_t = self.get_amplitude_vector(i)
             S_t = self.get_overlap_matrix(i)
             for ist in range(maxstates):
-                Nstate[ist,i] =  self.compute_expec_istate_not_normalized(S_t,c_t,ist)
-            Nstate[maxstates,i] = self.compute_expec(S_t,c_t)
+                Nstate[i,ist] =  self.compute_expec_istate_not_normalized(S_t,c_t,ist)
+            Nstate[i,maxstates] = self.compute_expec(S_t,c_t)
             if column_filename != None:
-                of.write(str(times[i])+ " "+" ".join(map(str,Nstate[:,i]))+"\n")
+                of.write(str(times[i])+ " "+" ".join(map(str,Nstate[i,:]))+"\n")
         if column_filename != None:
             of.close() 
         self.datasets["electronic_state_populations"] = Nstate
@@ -144,33 +162,42 @@ class fafile(object):
 
             of.close()
 
-    def write_trajectory_energy_files(self):
+    def compute_trajectory_energies(self):
         for key in self.labels:
-            trajgrp = "traj_" + key
-            times = self.h5file[trajgrp]['time'][()].flatten()
-            ntimes = len(times)
-            mom = self.h5file[trajgrp]['momenta'][()]
+            #trajgrp = "traj_" + key
+            #times = self.h5file[trajgrp]['time'][()].flatten()
+            times =  self.get_traj_dataset(key,"time")
+            ntimes = self.get_traj_num_times(key)
+            #mom = self.h5file[trajgrp]['momenta'][()]
+            mom = self.get_traj_data_from_h5(key,"momenta")
             nmom = mom.size / ntimes
-            poten = self.h5file[trajgrp]['energies'][()]
+            poten = self.get_traj_data_from_h5(key,"energies")
+            #poten = self.h5file[trajgrp]['energies'][()]
             nstates = poten.size/ntimes
 
-            istate = self.h5file[trajgrp].attrs['istate']
+            istate = self.get_traj_attr_from_h5(key,'istate')
 
-            m = self.h5file[trajgrp].attrs['masses']
+            m = self.get_traj_attr_from_h5(key, 'masses')
 
-            filename = trajgrp + ".energy"
-            of = open(filename,"w")
+            #filename = trajgrp + ".energy"
+            #of = open(filename,"w")
+
+            kinen = np.zeros((ntimes,1))
+            toten = np.zeros((ntimes,1))
 
             for itime in range(ntimes):
                 p = mom[itime,:]
-                kinen = 0.5 * np.sum(p * p / m)
-                toten = kinen + poten[itime,istate]
-                of.write(str(times[itime])+"  ")
-                for jstate in range(nstates):
-                    of.write(str(poten[itime,jstate])+"  ")
-                of.write(str(kinen)+"  "+str(toten)+"\n")
+                kinen[itime,0] = 0.5 * np.sum(p * p / m)
+                toten[itime,0] = kinen[itime,0] + poten[itime,istate]
+                #of.write(str(times[itime])+"  ")
+                #for jstate in range(nstates):
+                #    of.write(str(poten[itime,jstate])+"  ")
+                #of.write(str(kinen)+"  "+str(toten)+"\n")
 
-            of.close()
+            #of.close()
+            self.datasets[key + "_poten"] = poten
+            self.datasets[key + "_toten"] = toten
+            self.datasets[key + "_kinen"] = kinen
 
     def write_trajectory_bond_files(self,bonds):
         for key in self.labels:
