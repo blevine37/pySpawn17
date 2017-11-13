@@ -309,6 +309,52 @@ class fafile(object):
                 self.write_columnar_data_file(key+"_time",[dset_diheds],column_filename)
 
 
+    def fill_trajectory_pyramidalizations(self,pyrs,column_file_prefix):
+        for key in self.labels:
+            times = self.get_traj_dataset(key,"time")
+            ntimes = self.get_traj_num_times(key)
+            pos = self.get_traj_data_from_h5(key,"positions")
+            npos = pos.size / ntimes
+            npyrs = pyrs.size / 4
+
+            pyr = np.zeros((ntimes,npyrs))
+
+            for itime in range(ntimes):
+                for ipyr in range(npyrs):
+                    ipos = 3*pyrs[ipyr,0]
+                    jpos = 3*pyrs[ipyr,1]
+                    kpos = 3*pyrs[ipyr,2]
+                    lpos = 3*pyrs[ipyr,3]
+                    ri = pos[itime,ipos:(ipos+3)]
+                    rj = pos[itime,jpos:(jpos+3)]
+                    rk = pos[itime,kpos:(kpos+3)]
+                    rl = pos[itime,lpos:(lpos+3)]
+
+                    rij = rj - ri
+                    rik = rk - ri
+                    ril = rl - ri
+
+                    rikcrossril = np.cross(rik,ril)
+
+                    normikil = math.sqrt(np.sum(rikcrossril*rikcrossril))
+                    normij = math.sqrt(np.sum(rij*rij))
+
+                    rikil = rikcrossril / normikil
+                    rij /= normij
+
+                    dot = np.sum(rikil * rij)
+
+                    pyr[itime,ipyr] = math.asin(math.fabs(dot)) / math.pi * 180.0
+
+            dset_pyrs = key + "_pyrs"
+
+            self.datasets[dset_pyrs] = pyr
+
+            if column_file_prefix != None:
+                column_filename = column_file_prefix + "_" + key + ".dat"
+                self.write_columnar_data_file(key+"_time",[dset_pyrs],column_filename)
+
+
     def fill_trajectory_tdcs(self,column_file_prefix=None):
         for key in self.labels:
             times =  self.get_traj_dataset(key,"time_half_step")
