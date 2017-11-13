@@ -9,10 +9,13 @@ import numpy as np
 an = pyspawn.fafile("sim.hdf5")
 
 # create N.dat and store the data in times and N
-times, N = an.compute_norms(column_filename = "N.dat")
+an.fill_electronic_state_populations(column_filename = "N.dat")
+
+times = an.datasets["quantum_times"]
+N = an.datasets["electronic_state_populations"]
 
 # make population (N.dat) plot in png format
-plt.plot(times,N[0,:],"ro",times,N[1,:],"bs",markeredgewidth=0.0)
+plt.plot(times,N[:,0],"ro",times,N[:,1],"bs",markeredgewidth=0.0)
 plt.xlabel('Time')
 plt.ylabel('Population')
 plt.savefig('N.png')
@@ -23,10 +26,10 @@ plt.savefig('N.png')
 an.write_xyzs()
 
 # write files with energy data for each trajectory
-an.write_trajectory_energy_files()
+an.fill_trajectory_energies(column_file_prefix="E")
 
 # write file with time derivative couplings for each trajectory
-an.write_trajectory_tdc_files()
+an.fill_trajectory_tdcs(column_file_prefix="tdc")
 
 # write files with geometric data for each trajectory
 bonds = np.array([[0,1],
@@ -40,5 +43,8 @@ angles = np.array([[0,1,2],
                    [1,0,4],
                    [1,0,5]])
 
-an.write_trajectory_bond_files(bonds)
-an.write_trajectory_angle_files(angles)
+an.fill_trajectory_bonds(bonds,column_file_prefix="bonds")
+an.fill_trajectory_angles(angles,column_file_prefix="angles")
+
+an.list_datasets()
+
