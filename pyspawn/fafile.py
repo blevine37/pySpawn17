@@ -141,12 +141,9 @@ class fafile(object):
 
     def write_xyzs(self):
         for key in self.labels:
-            #trajgrp = "traj_" + key
-            #times = self.h5file[trajgrp]['time'][()].flatten()
             times = self.get_traj_dataset(key,"time")
             ntimes = self.get_traj_num_times(key)
             pos = self.get_traj_data_from_h5(key,"positions")
-            # convert to angstrom
             pos /= 1.8897161646321
             npos = pos.size / ntimes
             natoms = npos/3
@@ -163,7 +160,7 @@ class fafile(object):
 
             of.close()
 
-    def fill_trajectory_energies(self,column_prefix=None):
+    def fill_trajectory_energies(self,column_file_prefix=None):
         for key in self.labels:
             times =  self.get_traj_dataset(key,"time")
             ntimes = self.get_traj_num_times(key)
@@ -192,51 +189,48 @@ class fafile(object):
             self.datasets[dset_toten] = toten
             self.datasets[dset_kinen] = kinen
 
-            if column_prefix != None:
-                column_filename = column_prefix + "_" + key + ".dat"
+            if column_file_prefix != None:
+                column_filename = column_file_prefix + "_" + key + ".dat"
                 self.write_columnar_data_file(key+"_time",[dset_poten,dset_kinen,dset_toten],column_filename)
 
-    def write_trajectory_bond_files(self,bonds):
+    def fill_trajectory_bonds(self,bonds,column_file_prefix):
         for key in self.labels:
-            trajgrp = "traj_" + key
-            times = self.h5file[trajgrp]['time'][()].flatten()
-            ntimes = len(times)
-            pos = self.h5file[trajgrp]['positions'][()]
+            times = self.get_traj_dataset(key,"time")
+            ntimes = self.get_traj_num_times(key)
+            pos = self.get_traj_data_from_h5(key,"positions")
             npos = pos.size / ntimes
-
             nbonds = bonds.size / 2
 
-            filename = trajgrp + ".bonds"
-            of = open(filename,"w")
+            d = np.zeros((ntimes,nbonds))
 
             for itime in range(ntimes):
-                of.write(str(times[itime])+"  ")
                 for ibond in range(nbonds):
                     ipos = 3*bonds[ibond,0]
                     jpos = 3*bonds[ibond,1]
                     ri = pos[itime,ipos:(ipos+3)]
                     rj = pos[itime,jpos:(jpos+3)]
                     r = ri-rj
-                    d = math.sqrt(np.sum(r*r))
-                    of.write(str(d)+"  ")
-                of.write("\n")
-            of.close()
+                    d[itime,ibond] = math.sqrt(np.sum(r*r))
 
-    def write_trajectory_angle_files(self,angles):
+            dset_bonds = key + "_bonds"
+
+            self.datasets[dset_bonds] = d
+
+            if column_file_prefix != None:
+                column_filename = column_file_prefix + "_" + key + ".dat"
+                self.write_columnar_data_file(key+"_time",[dset_bonds],column_filename)
+
+    def fill_trajectory_angles(self,angles,column_file_prefix):
         for key in self.labels:
-            trajgrp = "traj_" + key
-            times = self.h5file[trajgrp]['time'][()].flatten()
-            ntimes = len(times)
-            pos = self.h5file[trajgrp]['positions'][()]
+            times = self.get_traj_dataset(key,"time")
+            ntimes = self.get_traj_num_times(key)
+            pos = self.get_traj_data_from_h5(key,"positions")
             npos = pos.size / ntimes
-
             nangles = angles.size / 3
 
-            filename = trajgrp + ".angles"
-            of = open(filename,"w")
+            ang = np.zeros((ntimes,nangles))
 
             for itime in range(ntimes):
-                of.write(str(times[itime])+"  ")
                 for iang in range(nangles):
                     ipos = 3*angles[iang,0]
                     jpos = 3*angles[iang,1]
@@ -256,13 +250,18 @@ class fafile(object):
 
                     dot = np.sum(rji * rjk)
 
-                    ang = math.acos(dot) / math.pi * 180.0
+                    ang[itime,iang] = math.acos(dot) / math.pi * 180.0
 
-                    of.write(str(ang)+"  ")
-                of.write("\n")
-            of.close()
+            dset_angles = key + "_angles"
 
-    def fill_trajectory_tdc_files(self,column_prefix=None):
+            self.datasets[dset_angles] = ang
+
+            if column_file_prefix != None:
+                column_filename = column_file_prefix + "_" + key + ".dat"
+                self.write_columnar_data_file(key+"_time",[dset_angles],column_filename)
+
+
+    def fill_trajectory_tdcs(self,column_file_prefix=None):
         for key in self.labels:
             times =  self.get_traj_dataset(key,"time_half_step")
             ntimes = self.get_traj_num_times_half_step(key)
@@ -277,6 +276,6 @@ class fafile(object):
 
             self.datasets[dset_tdc] = tdc
 
-            if column_prefix != None:
-                column_filename = column_prefix + "_" + key + ".dat"
+            if column_file_prefix != None:
+                column_filename = column_file_prefix + "_" + key + ".dat"
                 self.write_columnar_data_file(key+"_time_half_step",[dset_tdc],column_filename)
