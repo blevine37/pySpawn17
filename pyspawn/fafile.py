@@ -261,6 +261,54 @@ class fafile(object):
                 self.write_columnar_data_file(key+"_time",[dset_angles],column_filename)
 
 
+    def fill_trajectory_diheds(self,diheds,column_file_prefix):
+        for key in self.labels:
+            times = self.get_traj_dataset(key,"time")
+            ntimes = self.get_traj_num_times(key)
+            pos = self.get_traj_data_from_h5(key,"positions")
+            npos = pos.size / ntimes
+            ndiheds = diheds.size / 4
+
+            dih = np.zeros((ntimes,ndiheds))
+
+            for itime in range(ntimes):
+                for idih in range(ndiheds):
+                    ipos = 3*diheds[idih,0]
+                    jpos = 3*diheds[idih,1]
+                    kpos = 3*diheds[idih,2]
+                    lpos = 3*diheds[idih,3]
+                    ri = pos[itime,ipos:(ipos+3)]
+                    rj = pos[itime,jpos:(jpos+3)]
+                    rk = pos[itime,kpos:(kpos+3)]
+                    rl = pos[itime,lpos:(lpos+3)]
+
+                    rji = ri - rj
+                    rkj = rj - rk
+                    rjk = -1.0 * rkj
+                    rkl = rl - rk
+
+                    rjicrossrjk = np.cross(rji,rjk)
+                    rkjcrossrkl = np.cross(rkj,rkl)
+
+                    normjijk = math.sqrt(np.sum(rjicrossrjk*rjicrossrjk))
+                    normkjkl = math.sqrt(np.sum(rkjcrossrkl*rkjcrossrkl))
+
+                    rjijk = rjicrossrjk / normjijk
+                    rkjkl = rkjcrossrkl / normkjkl
+
+                    dot = np.sum(rjijk * rkjkl)
+
+                    dih[itime,idih] = math.acos(dot) / math.pi * 180.0
+
+            dset_diheds = key + "_diheds"
+
+            self.datasets[dset_diheds] = dih
+
+            if column_file_prefix != None:
+                column_filename = column_file_prefix + "_" + key + ".dat"
+                self.write_columnar_data_file(key+"_time",[dset_diheds],column_filename)
+
+
     def fill_trajectory_tdcs(self,column_file_prefix=None):
         for key in self.labels:
             times =  self.get_traj_dataset(key,"time_half_step")
