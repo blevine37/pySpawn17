@@ -309,6 +309,57 @@ class fafile(object):
                 self.write_columnar_data_file(key+"_time",[dset_diheds],column_filename)
 
 
+    def fill_trajectory_twists(self,twists,column_file_prefix):
+        for key in self.labels:
+            times = self.get_traj_dataset(key,"time")
+            ntimes = self.get_traj_num_times(key)
+            pos = self.get_traj_data_from_h5(key,"positions")
+            npos = pos.size / ntimes
+            ntwists = twists.size / 6
+
+            twi = np.zeros((ntimes,ntwists))
+
+            for itime in range(ntimes):
+                for itwi in range(ntwists):
+                    ipos = 3*twists[itwi,0]
+                    jpos = 3*twists[itwi,1]
+                    kpos = 3*twists[itwi,2]
+                    lpos = 3*twists[itwi,3]
+                    mpos = 3*twists[itwi,4]
+                    npos = 3*twists[itwi,5]
+                    ri = pos[itime,ipos:(ipos+3)]
+                    rj = pos[itime,jpos:(jpos+3)]
+                    rk = pos[itime,kpos:(kpos+3)]
+                    rl = pos[itime,lpos:(lpos+3)]
+                    rm = pos[itime,mpos:(mpos+3)]
+                    rn = pos[itime,npos:(npos+3)]
+
+                    rji = ri - rj
+                    rkl = rl - rk
+                    rmn = rn - rm
+
+                    rjicrossrkl = np.cross(rji,rkl)
+                    rjicrossrmn = np.cross(rji,rmn)
+
+                    normjikl = math.sqrt(np.sum(rjicrossrkl*rjicrossrkl))
+                    normjimn = math.sqrt(np.sum(rjicrossrmn*rjicrossrmn))
+
+                    rjikl = rjicrossrkl / normjikl
+                    rjimn = rjicrossrmn / normjimn
+
+                    dot = np.sum(rjikl * rjimn)
+
+                    twi[itime,itwi] = math.acos(dot) / math.pi * 180.0
+
+            dset_twists = key + "_twists"
+
+            self.datasets[dset_twists] = twi
+
+            if column_file_prefix != None:
+                column_filename = column_file_prefix + "_" + key + ".dat"
+                self.write_columnar_data_file(key+"_time",[dset_twists],column_filename)
+
+
     def fill_trajectory_pyramidalizations(self,pyrs,column_file_prefix):
         for key in self.labels:
             times = self.get_traj_dataset(key,"time")

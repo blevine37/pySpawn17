@@ -43,8 +43,21 @@ angles = np.array([[0,1,2],
                    [1,0,4],
                    [1,0,5]])
 
+diheds = np.array([[4,0,1,2],
+                   [5,0,1,3],
+                   [4,0,1,3],
+                   [5,0,1,2]])
+
+pyrs = np.array([[0,1,4,5],
+                 [1,0,2,3]])
+
+twists = np.array([[0,1,2,3,4,5]])
+
 an.fill_trajectory_bonds(bonds,column_file_prefix="bonds")
 an.fill_trajectory_angles(angles,column_file_prefix="angles")
+an.fill_trajectory_diheds(diheds,column_file_prefix="diheds")
+an.fill_trajectory_pyramidalizations(pyrs,column_file_prefix="pyrs")
+an.fill_trajectory_twists(twists,column_file_prefix="twists")
 
 an.list_datasets()
 
