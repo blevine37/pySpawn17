@@ -17,11 +17,11 @@ class fafile(object):
         self.labels = self.h5file["sim"].attrs["labels"]
         self.istates = self.h5file["sim"].attrs["istates"]
         self.retrieve_num_traj_qm()
-        self.retrieve_quantum_times()
-        self.retrieve_qm_amplitudes()
+        self.fill_quantum_times()
+        self.fill_qm_amplitudes()
         self.num_traj = len(self.datasets["qm_amplitudes"][0][:])
-        self.retrieve_S()
-        self.retrieve_traj_time()
+        self.fill_S()
+        self.fill_traj_time()
 
     def __del__(self):
         self.h5file.close()
@@ -48,28 +48,32 @@ class fafile(object):
             expec = expec.real
         return expec
     
-    def retrieve_qm_amplitudes(self):
+    def fill_qm_amplitudes(self):
         c = self.h5file["sim/qm_amplitudes"][()]
         self.datasets["qm_amplitudes"] = c
         
-    def retrieve_S(self):
+    def fill_S(self):
         S = self.h5file["sim/S"][()]
         self.datasets["S"] = S
 
     def retrieve_num_traj_qm(self):
         self.ntraj = np.ndarray.flatten(self.h5file["sim/num_traj_qm"][()])
         
-    def retrieve_quantum_times(self):
+    def fill_quantum_times(self):
         times = np.ndarray.flatten(self.h5file["sim/quantum_time"][()])
         self.datasets["quantum_times"] = times
 
-    def retrieve_traj_time(self):
+    def fill_traj_time(self):
         for key in self.labels:
             trajgrp = "traj_" + key
             time = self.h5file[trajgrp]['time'][()].flatten()
             key2 = key + "_time"
             self.datasets[key2] = time
+            time = self.h5file[trajgrp]['time_half_step'][()].flatten()
+            key3 = key + "_time_half_step"
+            self.datasets[key3] = time
         
+
     def get_amplitude_vector(self,i):
         nt = self.ntraj[i]
         c_t = self.datasets["qm_amplitudes"][i][0:nt]
@@ -96,6 +100,10 @@ class fafile(object):
         key = label + "_time"
         return len(self.datasets[key])
 
+    def get_traj_num_times_half_step(self,label):
+        key = label + "_time_half_step"
+        return len(self.datasets[key])
+
     def list_datasets(self):
         for key in self.datasets:
             print key
@@ -112,13 +120,7 @@ class fafile(object):
             of.write("\n")
         of.close()
         
-             
-            
-
-    def compute_electronic_state_populations(self,column_filename=None):
-        if column_filename != None:
-            of = open(column_filename, 'w')
-        
+    def fill_electronic_state_populations(self,column_filename=None):
         times = self.datasets["quantum_times"]
         ntimes = len(times)
         maxstates = self.get_max_state()
@@ -130,12 +132,11 @@ class fafile(object):
             for ist in range(maxstates):
                 Nstate[i,ist] =  self.compute_expec_istate_not_normalized(S_t,c_t,ist)
             Nstate[i,maxstates] = self.compute_expec(S_t,c_t)
-            if column_filename != None:
-                of.write(str(times[i])+ " "+" ".join(map(str,Nstate[i,:]))+"\n")
-        if column_filename != None:
-            of.close() 
         self.datasets["electronic_state_populations"] = Nstate
             
+        if column_filename != None:
+            self.write_columnar_data_file("quantum_times",["electronic_state_populations"],column_filename)
+
         return 
 
     def write_xyzs(self):
@@ -162,25 +163,18 @@ class fafile(object):
 
             of.close()
 
-    def compute_trajectory_energies(self):
+    def fill_trajectory_energies(self,column_prefix=None):
         for key in self.labels:
-            #trajgrp = "traj_" + key
-            #times = self.h5file[trajgrp]['time'][()].flatten()
             times =  self.get_traj_dataset(key,"time")
             ntimes = self.get_traj_num_times(key)
-            #mom = self.h5file[trajgrp]['momenta'][()]
             mom = self.get_traj_data_from_h5(key,"momenta")
             nmom = mom.size / ntimes
             poten = self.get_traj_data_from_h5(key,"energies")
-            #poten = self.h5file[trajgrp]['energies'][()]
             nstates = poten.size/ntimes
 
             istate = self.get_traj_attr_from_h5(key,'istate')
 
             m = self.get_traj_attr_from_h5(key, 'masses')
-
-            #filename = trajgrp + ".energy"
-            #of = open(filename,"w")
 
             kinen = np.zeros((ntimes,1))
             toten = np.zeros((ntimes,1))
@@ -189,15 +183,18 @@ class fafile(object):
                 p = mom[itime,:]
                 kinen[itime,0] = 0.5 * np.sum(p * p / m)
                 toten[itime,0] = kinen[itime,0] + poten[itime,istate]
-                #of.write(str(times[itime])+"  ")
-                #for jstate in range(nstates):
-                #    of.write(str(poten[itime,jstate])+"  ")
-                #of.write(str(kinen)+"  "+str(toten)+"\n")
 
-            #of.close()
-            self.datasets[key + "_poten"] = poten
-            self.datasets[key + "_toten"] = toten
-            self.datasets[key + "_kinen"] = kinen
+            dset_poten = key + "_poten"
+            dset_toten = key + "_toten"
+            dset_kinen = key + "_kinen"
+
+            self.datasets[dset_poten] = poten
+            self.datasets[dset_toten] = toten
+            self.datasets[dset_kinen] = kinen
+
+            if column_prefix != None:
+                column_filename = column_prefix + "_" + key + ".dat"
+                self.write_columnar_data_file(key+"_time",[dset_poten,dset_kinen,dset_toten],column_filename)
 
     def write_trajectory_bond_files(self,bonds):
         for key in self.labels:
@@ -265,21 +262,21 @@ class fafile(object):
                 of.write("\n")
             of.close()
 
-    def write_trajectory_tdc_files(self):
+    def fill_trajectory_tdc_files(self,column_prefix=None):
         for key in self.labels:
-            trajgrp = "traj_" + key
-            times = self.h5file[trajgrp]['time_half_step'][()].flatten()
-            ntimes = len(times)
-            tdc = self.h5file[trajgrp]['timederivcoups'][()]
-            nstates = tdc.size / ntimes
+            times =  self.get_traj_dataset(key,"time_half_step")
+            ntimes = self.get_traj_num_times_half_step(key)
+            mom = self.get_traj_data_from_h5(key,"momenta")
+            nmom = mom.size / ntimes
+            tdc = self.get_traj_data_from_h5(key,"timederivcoups")
+            nstates = tdc.size/ntimes
 
-            filename = trajgrp + ".tdc"
-            of = open(filename,"w")
+            istate = self.get_traj_attr_from_h5(key,'istate')
 
-            for itime in range(ntimes):
-                of.write(str(times[itime])+"  ")
-                for jstate in range(nstates):
-                    of.write(str(tdc[itime,jstate])+"  ")
-                of.write("\n")
+            dset_tdc = key + "_tdc"
 
-            of.close()
+            self.datasets[dset_tdc] = tdc
+
+            if column_prefix != None:
+                column_filename = column_prefix + "_" + key + ".dat"
+                self.write_columnar_data_file(key+"_time_half_step",[dset_tdc],column_filename)
