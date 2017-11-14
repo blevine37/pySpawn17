@@ -72,7 +72,6 @@ class fafile(object):
             time = self.h5file[trajgrp]['time_half_step'][()].flatten()
             key3 = key + "_time_half_step"
             self.datasets[key3] = time
-        
 
     def get_amplitude_vector(self,i):
         nt = self.ntraj[i]
@@ -120,6 +119,28 @@ class fafile(object):
             of.write("\n")
         of.close()
         
+    def fill_mulliken_populations(self,column_filename=None):
+        times = self.datasets["quantum_times"]
+        ntimes = len(times)
+        ntraj = self.get_num_traj()
+
+        mull = np.zeros((ntimes,ntraj))
+
+        for itime in range(ntimes):
+            nt = self.ntraj[itime]
+            c_t = self.get_amplitude_vector(itime)
+            S_t = self.get_overlap_matrix(itime)
+            for i in range(nt):
+                for j in range(nt):
+                    tmp = 0.5 * np.real(c_t[i] * np.conj(c_t[j]) * S_t[i,j])
+                    mull[itime,i] += tmp
+                    mull[itime,j] += tmp
+        self.datasets["mulliken_populations"] = mull
+        if column_filename != None:
+            self.write_columnar_data_file("quantum_times",["mulliken_populations"],column_filename)
+
+        return 
+
     def fill_electronic_state_populations(self,column_filename=None):
         times = self.datasets["quantum_times"]
         ntimes = len(times)
