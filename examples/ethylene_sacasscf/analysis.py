@@ -59,5 +59,12 @@ an.fill_trajectory_diheds(diheds,column_file_prefix="diheds")
 an.fill_trajectory_pyramidalizations(pyrs,column_file_prefix="pyrs")
 an.fill_trajectory_twists(twists,column_file_prefix="twists")
 
+# compute Mulliken population of each trajectory
+an.fill_mulliken_populations(column_filename="mull.dat")
+
+# compute expectation value of bond lengths in mulliken population approximation
+an.fill_expec_mulliken("bonds",column_filename="expec_bonds.dat")
+
+# list all datasets
 an.list_datasets()
 
