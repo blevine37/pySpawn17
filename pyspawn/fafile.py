@@ -57,19 +57,19 @@ class fafile(object):
         self.datasets["S"] = S
 
     def retrieve_num_traj_qm(self):
-        self.ntraj = np.ndarray.flatten(self.h5file["sim/num_traj_qm"][()])
+        self.ntraj = self.h5file["sim/num_traj_qm"][()].flatten()
         
     def fill_quantum_times(self):
-        times = np.ndarray.flatten(self.h5file["sim/quantum_time"][()])
+        times = self.h5file["sim/quantum_time"][()]
         self.datasets["quantum_times"] = times
 
     def fill_traj_time(self):
         for key in self.labels:
             trajgrp = "traj_" + key
-            time = self.h5file[trajgrp]['time'][()].flatten()
+            time = self.h5file[trajgrp]['time'][()]
             key2 = key + "_time"
             self.datasets[key2] = time
-            time = self.h5file[trajgrp]['time_half_step'][()].flatten()
+            time = self.h5file[trajgrp]['time_half_step'][()]
             key3 = key + "_time_half_step"
             self.datasets[key3] = time
 
@@ -109,7 +109,7 @@ class fafile(object):
 
     def write_columnar_data_file(self,times,dsets,filename):
         of = open(filename,"w")
-        t = self.datasets[times][:]
+        t = self.datasets[times][:,0]
         for i in range(len(t)):
             of.write(str(t[i]) + " ")
             for iset in range(len(dsets)):
@@ -120,7 +120,7 @@ class fafile(object):
         of.close()
         
     def fill_mulliken_populations(self,column_filename=None):
-        times = self.datasets["quantum_times"]
+        times = self.datasets["quantum_times"][:,0]
         ntimes = len(times)
         ntraj = self.get_num_traj()
 
@@ -141,8 +141,59 @@ class fafile(object):
 
         return 
 
+    def fill_expec_mulliken(self,dset_name,column_filename=None):
+        times = self.datasets["quantum_times"][:,0]
+        ntimes = len(times)
+        ntraj = self.get_num_traj()
+        
+        ncol = self.datasets[self.labels[0] + "_" + dset_name].shape[1]
+
+        if "mulliken_populations" not in self.datasets:
+            self.fill_mulliken_populations()
+        mull = self.datasets["mulliken_populations"]
+
+        x = np.zeros((ntimes,ncol))
+
+        denom = mull.sum(axis=1)
+
+        for itraj in range(ntraj):
+            key = self.labels[itraj]
+            dset_x = key + "_" + dset_name
+            xk = self.datasets[dset_x]
+
+            dset_t = key + "_time"
+            trajtimes = self.datasets[dset_t][:,0]
+            firsttime = trajtimes[0]
+            lasttime = times[-1]
+            ntrajtimes = self.datasets[dset_t].size
+
+            for itime in range(ntimes):
+                #print times[itime], firsttime
+                if ((times[itime]-1e-6) < firsttime) and ((times[itime]+1e-6) > firsttime):
+                    ifirsttime = itime
+
+            for itime in range(ntrajtimes):
+                #print times[itime], firsttime
+                if ((trajtimes[itime]-1e-6) < lasttime) and ((trajtimes[itime]+1e-6) > lasttime):
+                    ilasttime = itime+1
+
+
+            for icol in range(ncol):
+                x[ifirsttime:ifirsttime+ilasttime,icol] += xk[0:ilasttime,icol] * mull[ifirsttime:ifirsttime+ilasttime,itraj]
+                
+        for icol in range(ncol):
+            x[:,icol] = x[:,icol] / denom
+
+        dset_expec = "expec_mull_" + dset_name
+
+        self.datasets[dset_expec] = x
+
+        if column_filename != None:
+            self.write_columnar_data_file("quantum_times",[dset_expec],column_filename)
+
+
     def fill_electronic_state_populations(self,column_filename=None):
-        times = self.datasets["quantum_times"]
+        times = self.datasets["quantum_times"][:,0]
         ntimes = len(times)
         maxstates = self.get_max_state()
         Nstate = np.zeros((ntimes,maxstates+1))
@@ -162,7 +213,7 @@ class fafile(object):
 
     def write_xyzs(self):
         for key in self.labels:
-            times = self.get_traj_dataset(key,"time")
+            times = self.get_traj_dataset(key,"time")[:,0]
             ntimes = self.get_traj_num_times(key)
             pos = self.get_traj_data_from_h5(key,"positions")
             pos /= 1.8897161646321
@@ -183,7 +234,7 @@ class fafile(object):
 
     def fill_trajectory_energies(self,column_file_prefix=None):
         for key in self.labels:
-            times =  self.get_traj_dataset(key,"time")
+            times =  self.get_traj_dataset(key,"time")[:,0]
             ntimes = self.get_traj_num_times(key)
             mom = self.get_traj_data_from_h5(key,"momenta")
             nmom = mom.size / ntimes
@@ -216,7 +267,7 @@ class fafile(object):
 
     def fill_trajectory_bonds(self,bonds,column_file_prefix):
         for key in self.labels:
-            times = self.get_traj_dataset(key,"time")
+            times = self.get_traj_dataset(key,"time")[:,0]
             ntimes = self.get_traj_num_times(key)
             pos = self.get_traj_data_from_h5(key,"positions")
             npos = pos.size / ntimes
@@ -243,7 +294,7 @@ class fafile(object):
 
     def fill_trajectory_angles(self,angles,column_file_prefix):
         for key in self.labels:
-            times = self.get_traj_dataset(key,"time")
+            times = self.get_traj_dataset(key,"time")[:,0]
             ntimes = self.get_traj_num_times(key)
             pos = self.get_traj_data_from_h5(key,"positions")
             npos = pos.size / ntimes
@@ -284,7 +335,7 @@ class fafile(object):
 
     def fill_trajectory_diheds(self,diheds,column_file_prefix):
         for key in self.labels:
-            times = self.get_traj_dataset(key,"time")
+            times = self.get_traj_dataset(key,"time")[:,0]
             ntimes = self.get_traj_num_times(key)
             pos = self.get_traj_data_from_h5(key,"positions")
             npos = pos.size / ntimes
@@ -332,7 +383,7 @@ class fafile(object):
 
     def fill_trajectory_twists(self,twists,column_file_prefix):
         for key in self.labels:
-            times = self.get_traj_dataset(key,"time")
+            times = self.get_traj_dataset(key,"time")[:,0]
             ntimes = self.get_traj_num_times(key)
             pos = self.get_traj_data_from_h5(key,"positions")
             npos = pos.size / ntimes
@@ -383,7 +434,7 @@ class fafile(object):
 
     def fill_trajectory_pyramidalizations(self,pyrs,column_file_prefix):
         for key in self.labels:
-            times = self.get_traj_dataset(key,"time")
+            times = self.get_traj_dataset(key,"time")[:,0]
             ntimes = self.get_traj_num_times(key)
             pos = self.get_traj_data_from_h5(key,"positions")
             npos = pos.size / ntimes
@@ -429,7 +480,7 @@ class fafile(object):
 
     def fill_trajectory_tdcs(self,column_file_prefix=None):
         for key in self.labels:
-            times =  self.get_traj_dataset(key,"time_half_step")
+            times =  self.get_traj_dataset(key,"time_half_step")[:,0]
             ntimes = self.get_traj_num_times_half_step(key)
             mom = self.get_traj_data_from_h5(key,"momenta")
             nmom = mom.size / ntimes

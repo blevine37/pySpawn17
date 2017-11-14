@@ -333,8 +333,13 @@ class simulation(fmsobj):
 
         # now, if we have the necessary info, we propagate
         while max_info_time > (self.get_quantum_time() + 1.0e-6):
-            print "## propagating quantum amplitudes at time", self.get_quantum_time()
-            self.qm_propagate_step()
+            if self.get_quantum_time() > 1.0e-6:
+                print "## propagating quantum amplitudes at time", self.get_quantum_time()
+                self.qm_propagate_step()
+            else:
+                print "## propagating quantum amplitudes at time", self.get_quantum_time(), " (first step)"
+                self.qm_propagate_step(zoutput_first_step=True)
+                
             print "## outputing quantum information to hdf5"
             self.h5_output()
 
@@ -822,6 +827,7 @@ class simulation(fmsobj):
             dset.resize(l+1,axis=0)
             ipos=l
             getcom = "self.get_" + key + "()"
+            print getcom
             tmp = eval(getcom)
             if type(tmp).__module__ == np.__name__:
                 tmp = np.ndarray.flatten(tmp)

@@ -94,7 +94,7 @@ sim_params = {
     # final simulation time
     "max_quantum_time": traj_params["maxtime"],
     # initial qm amplitudes
-    "qm_amplitudes": np.ones(1),
+    "qm_amplitudes": np.ones(1,dtype=np.complex128),
     # energy shift used in quantum propagation
     "qm_energy_shift": 77.6,
 }

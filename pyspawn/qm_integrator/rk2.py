@@ -5,7 +5,7 @@ import math
 # adaptive RK2 quantum integrator
 ######################################################
 
-def qm_propagate_step(self):
+def qm_propagate_step(self,zoutput_first_step=False):
     maxcut = 16
     c1i = (complex(0.0,1.0))
     self.compute_num_traj_qm()
@@ -19,6 +19,10 @@ def qm_propagate_step(self):
     
     self.build_Heff_first_half()
     
+    # output the first step before propagating
+    if zoutput_first_step:
+        self.h5_output()
+
     ncut = 0
     # adaptive integration
     while ncut <= maxcut and ncut >= 0:
