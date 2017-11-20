@@ -395,6 +395,7 @@ class simulation(fmsobj):
                     if j < ntraj:
                         self.S[i,j] = cg.overlap_nuc_elec(self.traj[keyi], self.traj[keyj],positions_i="positions_qm",positions_j="positions_qm",momenta_i="momenta_qm",momenta_j="momenta_qm")
 
+    # build the right-acting time derivative operator
     def build_Sdot(self):
         ntraj = self.get_num_traj_qm()
         self.Sdot = np.zeros((ntraj,ntraj), dtype=np.complex128)
