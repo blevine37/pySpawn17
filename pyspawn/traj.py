@@ -921,7 +921,7 @@ class traj(fmsobj):
         h5f.close()
         return data
 
-    def get_all_qm_data_at_time_from_h5(self,t):
+    def get_all_qm_data_at_time_from_h5(self,t,suffix=""):
         h5f = h5py.File("working.hdf5", "r")
         if "_a_" not in self.get_label():
             traj_or_cent = "traj_"
@@ -942,7 +942,7 @@ class traj(fmsobj):
             dset = trajgrp[dset_name][:]            
             data = np.zeros(len(dset[ipoint,:]))
             data = dset[ipoint,:]
-            comm = "self." + dset_name + "_qm = data"
+            comm = "self." + dset_name + "_qm" + suffix + " = data"
             exec(comm)
             #print "comm ", comm
             #print "dset[ipoint,:] ", dset[ipoint,:]        

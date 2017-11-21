@@ -192,6 +192,39 @@ def compute_elec_struct(self,zbackprop):
     
     exec("self.set_" + cbackprop + "prev_wf_positions(pos)")
 
+def compute_electronic_overlap(self,pos1,civec1,orbs1,pos2,civec2,orbs2):
+    orbout1 = os.path.join(cwd,"c0.1")
+    orbs1.tofile(orbout1)
+    orbout2 = os.path.join(cwd,"c0.2")
+    orbs2.tofile(orbout2)
+
+    civecout1 = os.path.join(cwd,"civec.1")
+    civec1.tofile(civecout1)
+    civecout2 = os.path.join(cwd,"civec.2")
+    civec2.tofile(civecout2)
+    
+    TC = TCProtobufClient(host='localhost', port=54321)
+    base_options = self.get_tc_options()
+    TC.update_options(**base_options)
+    TC.connect()
+    # Check if the server is available
+    avail = TC.is_available()
+
+    options = {
+        "geom2":        (0.529177*pos2).tolist(),
+        "cvec1file":    civecfilename,
+        "cvec2file":    civecout,
+        #"orb1afile":    orbfilename,
+        "orb1afile":    orbout2,
+        "orb2afile":    orbout
+        }
+
+    results2 = TC.compute_job_sync("ci_vec_overlap", pos1.tolist(), "bohr", **options)
+
+    S = results2['ci_overlap']
+    
+    return S
+
 def init_h5_datasets(self):
     self.h5_datasets["time"] = 1
     self.h5_datasets["energies"] = self.numstates
