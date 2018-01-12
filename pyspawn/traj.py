@@ -682,6 +682,18 @@ class traj(fmsobj):
     def get_backprop_timederivcoups(self):
         return self.backprop_timederivcoups.copy()
     
+    def set_S_elec_flat(self,S):
+        self.S_elec_flat = S.copy()
+    
+    def get_S_elec_flat(self):
+        return self.S_elec_flat.copy()
+    
+    def set_backprop_S_elec_flat(self,S):
+        self.backprop_S_elec_flat = S.copy()
+    
+    def get_backprop_S_elec_flat(self):
+        return self.backprop_S_elec_flat.copy()
+    
     def set_timederivcoups_qm(self,t):
         if t.shape == self.timederivcoups_qm.shape:
             self.timederivcoups_qm = t.copy()

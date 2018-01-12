@@ -161,6 +161,7 @@ def compute_elec_struct(self,zbackprop):
                 S[jstate,:] *= -1.0
                 
         #print "S", S
+        exec("self.set_" + cbackprop + "S_elec_flat(S.flatten())")
 
         W = np.zeros((2,2))
         W[0,0] = S[istate,istate]
@@ -235,6 +236,7 @@ def init_h5_datasets(self):
     self.h5_datasets["orbs"] = self.norbs
     self.h5_datasets_half_step["time_half_step"] = 1
     self.h5_datasets_half_step["timederivcoups"] = self.numstates
+    self.h5_datasets_half_step["S_elec_flat"] = self.numstates*self.numstates
 
 def potential_specific_traj_copy(self,from_traj):
     self.set_tc_options(from_traj.get_tc_options())
