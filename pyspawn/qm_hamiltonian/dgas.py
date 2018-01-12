@@ -81,6 +81,7 @@ def build_DGAS_coeffs(self):
     #    if i < ntraj:
     #        self.dgas_coeffs[i,:] = dc[keyi]
     self.dgas_coeffs = np.zeros((ntraj,ntraj,nstat))
+    self.dgas_coeffs_next_time = np.zeros((ntraj,ntraj,nstat))
     for keycent in self.centroids:
         keyi, keyj = str.split(keycent,"_a_")
         i = self.traj_map[keyi]
@@ -95,6 +96,12 @@ def build_DGAS_coeffs(self):
             dc = np.zeros(nstat)
             dc[jst] = 1.0
             self.dgas_coeffs[j,i,:] = dc
+            dc = np.zeros(nstat)
+            dc[ist] = 1.0
+            self.dgas_coeffs_next_time[i,j,:] = dc
+            dc = np.zeros(nstat)
+            dc[jst] = 1.0
+            self.dgas_coeffs_next_time[j,i,:] = dc
     #for keycent in self.centroids:
     #    keyi, keyj = str.split(keycent,"_a_")
     #    i = self.traj_map[keyi]
@@ -149,8 +156,38 @@ def build_Sdot_nuc_DGAS(self):
                     self.Sdot_nuc[i,j] = cg.Sdot_nuc(self.traj[keyi], self.traj[keyj],positions_i="positions_qm",positions_j="positions_qm",momenta_i="momenta_qm",momenta_j="momenta_qm",forces_j="forces_i_qm") * self.S_elec[i,j]
 
 def build_Sdot_elec_DGAS(self):
-    ntraj = self.get_num_traj_qm()
-    self.Sdot_elec = np.zeros((ntraj,ntraj))
+    ntraj = self.get_num_traj_qm()    
+    nstat = self.traj.itervalues().next().get_numstates()
+    self.Sdot_elec = np.zeros((ntraj,ntraj), dtype=np.complex128)    
+    for keycent in self.centroids:
+        keyi, keyj = str.split(keycent,"_a_")
+        i = self.traj_map[keyi]
+        j = self.traj_map[keyj]
+        if i < ntraj and j < ntraj:
+            # calculate NPI derivative coupling (as defined in the DGAS paper)
+            S_ad = self.centroids[keycent].get_S_elec_flat().reshape((nstat,nstat))
+            sii = np.dot(self.dgas_coeffs[i,j,:],np.matmul(S_ad,self.dgas_coeffs_next_time[i,j,:]))
+            sjj = np.dot(self.dgas_coeffs[j,i,:],np.matmul(S_ad,self.dgas_coeffs_next_time[j,i,:]))
+            sij = np.dot(self.dgas_coeffs[i,j,:],np.matmul(S_ad,self.dgas_coeffs_next_time[j,i,:]))
+            sji = np.dot(self.dgas_coeffs[j,i,:],np.matmul(S_ad,self.dgas_coeffs_next_time[i,j,:]))
+            xixj = np.dat(self.dgas_coeffs[i,j,:],self.dgas_coeffs[j,i,:])
+            xivj = sij - xixj * sjj
+            vixj = sji - xixj * sii
+            xixj_next = np.dat(self.dgas_coeffs_next_time[i,j,:],self.dgas_coeffs_next_time[j,i,:])
+            vivj = xixj_next - sii*sij - sji*sjj + sii*xixj*sjj
+
+            acii = np.arccos(sii)
+            acjj = np.arccos(sii)
+
+            A = xixj * acjj * (np.sqrt((1.0-sii*sii)*(1.0-sjj*sjj))*acii + (sii*sjj-1.0)*acjj) / (acjj*acjj-acii*acii)
+            B = 0.5 * xivj * acjj * (sin(acii-acjj)/(acii-acjj) + sin(acii+acjj)/(acii+acjj))
+            C = -0.5 * vixj * acjj * (sin(acii-acjj)/(acii-acjj) + sin(acii+acjj)/(acii+acjj))
+            D = vivj * acjj * np.sqrt((1.0-sii*sii)*(1.0-sjj*sjj))*acjj + (xii*xjj - 1.0)*acii / (acjj*acjj - acii*acii)
+
+            h = self.traj[keyi].get_timestep()
+
+            Sdot_tmp = 1.0 / h * ( A + B + C + D ) 
+            self.Sdot_elec[i,j] = self.S_nuc[i,j] * Sdot_tmp
     
 
 def build_Sdot_DGAS(self):
