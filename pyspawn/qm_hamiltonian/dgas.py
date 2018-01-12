@@ -170,10 +170,10 @@ def build_Sdot_elec_DGAS(self):
             sjj = np.dot(self.dgas_coeffs[j,i,:],np.matmul(S_ad,self.dgas_coeffs_next_time[j,i,:]))
             sij = np.dot(self.dgas_coeffs[i,j,:],np.matmul(S_ad,self.dgas_coeffs_next_time[j,i,:]))
             sji = np.dot(self.dgas_coeffs[j,i,:],np.matmul(S_ad,self.dgas_coeffs_next_time[i,j,:]))
-            xixj = np.dat(self.dgas_coeffs[i,j,:],self.dgas_coeffs[j,i,:])
+            xixj = np.dot(self.dgas_coeffs[i,j,:],self.dgas_coeffs[j,i,:])
             xivj = sij - xixj * sjj
             vixj = sji - xixj * sii
-            xixj_next = np.dat(self.dgas_coeffs_next_time[i,j,:],self.dgas_coeffs_next_time[j,i,:])
+            xixj_next = np.dot(self.dgas_coeffs_next_time[i,j,:],self.dgas_coeffs_next_time[j,i,:])
             vivj = xixj_next - sii*sij - sji*sjj + sii*xixj*sjj
 
             acii = np.arccos(sii)
