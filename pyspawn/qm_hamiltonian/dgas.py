@@ -66,19 +66,44 @@ def get_qm_data_from_h5_next_time(self):
 # build DGAS coefficients
 def build_DGAS_coeffs(self):
     ntraj = self.get_num_traj_qm()
-    dc = dict()
-    for keyi in self.traj:
+    nstat = self.traj.itervalues().next().get_numstates()
+    #dc = dict()
+    #for keyi in self.traj:
+    #    i = self.traj_map[keyi]
+    #    if i < ntraj:
+    #        nstat = self.traj[keyi].get_numstates()
+    #        ist = self.traj[keyi].get_istate()
+    #        dc[keyi] = np.zeros(nstat)
+    #        dc[keyi][ist] = 1.0
+    #self.dgas_coeffs = np.zeros((ntraj,nstat))
+    #for keyi in self.traj:
+    #    i = self.traj_map[keyi]
+    #    if i < ntraj:
+    #        self.dgas_coeffs[i,:] = dc[keyi]
+    self.dgas_coeffs = np.zeros((ntraj,ntraj,nstat))
+    for keycent in self.centroids:
+        keyi, keyj = str.split(keycent,"_a_")
         i = self.traj_map[keyi]
-        if i < ntraj:
-            nstat = self.traj[keyi].get_numstates()
+        j = self.traj_map[keyj]
+        if i < ntraj and j < ntraj:
+            #nstat = self.traj[keyi].get_numstates()
             ist = self.traj[keyi].get_istate()
-            dc[keyi] = np.zeros(nstat)
-            dc[keyi][ist] = 1.0
-    self.dgas_coeffs = np.zeros((ntraj,nstat))
-    for keyi in self.traj:
-        i = self.traj_map[keyi]
-        if i < ntraj:
-            self.dgas_coeffs[i,:] = dc[keyi]
+            jst = self.traj[keyj].get_istate()
+            dc = np.zeros(nstat)
+            dc[ist] = 1.0
+            self.dgas_coeffs[i,j,:] = dc
+            dc = np.zeros(nstat)
+            dc[jst] = 1.0
+            self.dgas_coeffs[j,i,:] = dc
+    #for keycent in self.centroids:
+    #    keyi, keyj = str.split(keycent,"_a_")
+    #    i = self.traj_map[keyi]
+    #    j = self.traj_map[keyj]
+    #    if i < ntraj and j < ntraj:
+            # self.dgas_coeffs[i,j,:] is the DGAS coefficient vector for 
+            # the elec wf of trajectory i at centroid i,j.  Thus, 
+            # self.dgas_coeffs[i,j,:] /= self.dgas_coeffs[j,i,:]
+    #        self.dgas_coeffs[i,j,:] = dc[keyi]
     
 
 # build matrix of electronic overlaps
@@ -91,8 +116,11 @@ def build_S_elec_DGAS(self):
             for keyj in self.traj:
                 j = self.traj_map[keyj]
                 if j < ntraj:
-                    Stmp = np.dot(self.dgas_coeffs[i,:],self.dgas_coeffs[j,:])
-                    self.S_elec[i,j] = Stmp
+                    if i == j:
+                        self.S_elec[i,j] = 1.0
+                    else:
+                        Stmp = np.dot(self.dgas_coeffs[i,j,:],self.dgas_coeffs[j,i,:])
+                        self.S_elec[i,j] = Stmp
 
 # build the overlap matrix, S
 def build_S_DGAS(self):
@@ -122,7 +150,7 @@ def build_Sdot_nuc_DGAS(self):
 
 def build_Sdot_elec_DGAS(self):
     ntraj = self.get_num_traj_qm()
-    self.Sdot_elect = np.zeros((ntraj,ntraj))
+    self.Sdot_elec = np.zeros((ntraj,ntraj))
     
 
 def build_Sdot_DGAS(self):
@@ -167,7 +195,7 @@ def build_V_DGAS(self):
             #BGL this is not correct and must be fixed later
             E = self.centroids[key].get_energies_qm()
             for ist in range(nstates):
-                Etmp = self.dgas_coeffs[i,ist] * self.dgas_coeffs[j,ist] * E[ist]
+                Etmp = self.dgas_coeffs[i,j,ist] * self.dgas_coeffs[j,i,ist] * E[ist]
                 self.V[i,j] += Etmp * self.S_nuc[i,j]
                 self.V[j,i] += Etmp * self.S_nuc[j,i]
 
