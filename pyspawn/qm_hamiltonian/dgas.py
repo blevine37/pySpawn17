@@ -179,10 +179,14 @@ def build_Sdot_elec_DGAS(self):
             acii = np.arccos(sii)
             acjj = np.arccos(sii)
 
+            ADtmp = acjj*acjj-acii*acii
+            BCtmp1 = acii-acjj
+            BCtmp2 = acii+acjj
+
             A = xixj * acjj * (np.sqrt((1.0-sii*sii)*(1.0-sjj*sjj))*acii + (sii*sjj-1.0)*acjj) / (acjj*acjj-acii*acii)
-            B = 0.5 * xivj * acjj * (sin(acii-acjj)/(acii-acjj) + sin(acii+acjj)/(acii+acjj))
-            C = -0.5 * vixj * acjj * (sin(acii-acjj)/(acii-acjj) + sin(acii+acjj)/(acii+acjj))
-            D = vivj * acjj * np.sqrt((1.0-sii*sii)*(1.0-sjj*sjj))*acjj + (xii*xjj - 1.0)*acii / (acjj*acjj - acii*acii)
+            B = 0.5 * xivj * acjj * (np.sin(acii-acjj)/(acii-acjj) + np.sin(acii+acjj)/(acii+acjj))
+            C = -0.5 * vixj * acjj * (np.sin(acii-acjj)/(acii-acjj) + np.sin(acii+acjj)/(acii+acjj))
+            D = vivj * acjj * np.sqrt((1.0-sii*sii)*(1.0-sjj*sjj))*acjj + (sii*sjj - 1.0)*acii / (acjj*acjj - acii*acii)
 
             h = self.traj[keyi].get_timestep()
 
