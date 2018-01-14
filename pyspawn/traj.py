@@ -1001,19 +1001,19 @@ class traj(fmsobj):
         Btmp = np.arccos(W[0,0]) + np.arcsin(W[0,1])
         Ctmp = np.arccos(W[1,1]) - np.arcsin(W[1,0])
         Dtmp = np.arccos(W[1,1]) + np.arcsin(W[1,0])
-        if Atmp < 1.0e-6:
+        if np.absolute(Atmp) < 1.0e-6:
             A = -1.0
         else:
             A = -1.0 * np.sin(Atmp) / Atmp
-        if Btmp < 1.0e-6:
+        if np.absolute(Btmp) < 1.0e-6:
             B = 1.0
         else:
             B = np.sin(Btmp) / Btmp
-        if Ctmp < 1.0e-6:
+        if np.absolute(Ctmp) < 1.0e-6:
             C = 1.0
         else:
             C = np.sin(Ctmp) / Ctmp
-        if Dtmp < 1.0e-6:
+        if np.absolute(Dtmp) < 1.0e-6:
             D = 1.0
         else:
             D = np.sin(Dtmp) / Dtmp
