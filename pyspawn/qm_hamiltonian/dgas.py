@@ -166,18 +166,33 @@ def build_Sdot_elec_DGAS(self):
         if i < ntraj and j < ntraj:
             # calculate NPI derivative coupling (as defined in the DGAS paper)
             S_ad = self.centroids[keycent].get_S_elec_flat().reshape((nstat,nstat))
+            print "S_ad", S_ad
             sii = np.dot(self.dgas_coeffs[i,j,:],np.matmul(S_ad,self.dgas_coeffs_next_time[i,j,:]))
             sjj = np.dot(self.dgas_coeffs[j,i,:],np.matmul(S_ad,self.dgas_coeffs_next_time[j,i,:]))
             sij = np.dot(self.dgas_coeffs[i,j,:],np.matmul(S_ad,self.dgas_coeffs_next_time[j,i,:]))
             sji = np.dot(self.dgas_coeffs[j,i,:],np.matmul(S_ad,self.dgas_coeffs_next_time[i,j,:]))
+            print "sii", sii, sij, sji, sjj
+            vinorm = np.sqrt(1.0 - sii*sii)
+            vjnorm = np.sqrt(1.0 - sjj*sjj)
             xixj = np.dot(self.dgas_coeffs[i,j,:],self.dgas_coeffs[j,i,:])
-            xivj = sij - xixj * sjj
-            vixj = sji - xixj * sii
+            if vjnorm < 1.0e-6:
+                xivj = 0.0
+            else:
+                xivj = (sij - xixj * sjj) / vjnorm
+            if vinorm < 1.0e-6:
+                vixj = 0.0
+            else:
+                vixj = (sji - xixj * sii) / vinorm
             xixj_next = np.dot(self.dgas_coeffs_next_time[i,j,:],self.dgas_coeffs_next_time[j,i,:])
-            vivj = xixj_next - sii*sij - sji*sjj + sii*xixj*sjj
+            if vjnorm >= 1.0e-6 and vinorm >= 1.0e-6:
+                vivj = (xixj_next - sii*sij - sji*sjj + sii*xixj*sjj) / (vinorm*vjnorm)
+            else:
+                vivj = 0.0
+            print "xixj", xixj, xivj, vixj, vivj
 
             acii = np.arccos(sii)
             acjj = np.arccos(sjj)
+            print "acii, acjj", acii, acjj
 
             #ADtmp = acjj*acjj-acii*acii
             BCtmp1 = acii-acjj
@@ -202,10 +217,14 @@ def build_Sdot_elec_DGAS(self):
                 D = vivj * acjj * (np.sqrt((1.0-sii*sii)*(1.0-sjj*sjj))*acjj + (sii*sjj-1.0)*acii) / (acjj*acjj-acii*acii)
 
             h = self.traj[keyi].get_timestep()
+            print "ABCDh", A, B, C, D, h
 
-            Sdot_tmp = 1.0 / h * ( A + B + C + D ) 
+            Sdot_tmp = 1.0 / h * ( A + B + C + D )  
             self.Sdot_elec[i,j] = self.S_nuc[i,j] * Sdot_tmp
+            print "self.Sdot_elec[i,j]", i, j, self.Sdot_elec[i,j]
     
+            # THIS IS NOT CORRECT!
+            self.Sdot_elec[j,i] = -1.0*self.Sdot_elec[i,j]
 
 def build_Sdot_DGAS(self):
     self.Sdot = self.Sdot_nuc + self.Sdot_elec

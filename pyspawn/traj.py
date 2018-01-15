@@ -1019,7 +1019,7 @@ class traj(fmsobj):
         else:
             D = np.sin(Dtmp) / Dtmp
         if Wlj < 1.0e-6:
-            Wlj = 0.0
+            E = 0.0
         else:
             Wlk = -1.0 * (W[0,1]*W[0,0]+W[1,1]*W[1,0]) / Wlj
             sWlj = np.sin(Wlj)
