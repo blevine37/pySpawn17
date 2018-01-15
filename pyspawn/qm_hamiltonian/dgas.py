@@ -177,7 +177,7 @@ def build_Sdot_elec_DGAS(self):
             vivj = xixj_next - sii*sij - sji*sjj + sii*xixj*sjj
 
             acii = np.arccos(sii)
-            acjj = np.arccos(sii)
+            acjj = np.arccos(sjj)
 
             #ADtmp = acjj*acjj-acii*acii
             BCtmp1 = acii-acjj
@@ -194,9 +194,9 @@ def build_Sdot_elec_DGAS(self):
             B = 0.5 * xivj * acjj * (BCtmp3 + BCtmp4)
             C = -0.5 * vixj * acjj * (BCtmp3 + BCtmp4)
 
-            if np.absolute(acjj) < 1.0e-6:
-                A = 0.0
-                D = 0.0
+            if np.absolute(sjj-sii) < 1.0e-6:
+                A = xixj * acjj * (sii*sjj-1.0)
+                D = vivj * acjj * (sii*sjj-1.0)
             else:
                 A = xixj * acjj * (np.sqrt((1.0-sii*sii)*(1.0-sjj*sjj))*acii + (sii*sjj-1.0)*acjj) / (acjj*acjj-acii*acii)
                 D = vivj * acjj * (np.sqrt((1.0-sii*sii)*(1.0-sjj*sjj))*acjj + (sii*sjj-1.0)*acii) / (acjj*acjj-acii*acii)
