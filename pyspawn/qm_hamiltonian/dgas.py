@@ -224,8 +224,67 @@ def build_Sdot_elec_DGAS(self):
             print "self.Sdot_elec[i,j]", i, j, self.Sdot_elec[i,j], self.Sdot_nuc[i,j]
     
             # THIS IS NOT CORRECT!
-            self.Sdot_elec[j,i] = -1.0*np.conj(self.Sdot_elec[i,j])
-            print "self.Sdot_elec[j,i]", i, j, self.Sdot_elec[j,i], self.Sdot_nuc[i,j]
+            #self.Sdot_elec[j,i] = -1.0*np.conj(self.Sdot_elec[i,j])
+            #print "self.Sdot_elec[j,i]", i, j, self.Sdot_elec[j,i], self.Sdot_nuc[i,j]
+
+            # Compute [j,i] elements correctly!
+            stmp = sii
+            sii = sjj
+            sjj = stmp
+            stmp = sij
+            sij = sji
+            sji = stmp
+            print "sii", sii, sij, sji, sjj
+            vinorm = np.sqrt(1.0 - sii*sii)
+            vjnorm = np.sqrt(1.0 - sjj*sjj)
+            xixj = np.dot(self.dgas_coeffs[j,i,:],self.dgas_coeffs[i,j,:])
+            if vjnorm < 1.0e-6:
+                xivj = 0.0
+            else:
+                xivj = (sij - xixj * sjj) / vjnorm
+            if vinorm < 1.0e-6:
+                vixj = 0.0
+            else:
+                vixj = (sji - xixj * sii) / vinorm
+            xixj_next = np.dot(self.dgas_coeffs_next_time[j,i,:],self.dgas_coeffs_next_time[i,j,:])
+            if vjnorm >= 1.0e-6 and vinorm >= 1.0e-6:
+                vivj = (xixj_next - sii*sij - sji*sjj + sii*xixj*sjj) / (vinorm*vjnorm)
+            else:
+                vivj = 0.0
+            print "xixj", xixj, xivj, vixj, vivj
+
+            acii = np.arccos(sii)
+            acjj = np.arccos(sjj)
+            print "acii, acjj", acii, acjj
+
+            #ADtmp = acjj*acjj-acii*acii
+            BCtmp1 = acii-acjj
+            BCtmp2 = acii+acjj
+
+            if np.absolute(BCtmp1) < 1.0e-6:
+                BCtmp3 = 1.0
+            else:
+                BCtmp3 = np.sin(BCtmp1) / BCtmp1
+            if np.absolute(BCtmp2) < 1.0e-6:
+                BCtmp4 = 1.0
+            else:
+                BCtmp4 = np.sin(BCtmp2) / BCtmp2
+            B = 0.5 * xivj * acjj * (BCtmp3 + BCtmp4)
+            C = -0.5 * vixj * acjj * (BCtmp3 + BCtmp4)
+
+            if np.absolute(sjj-sii) < 1.0e-6:
+                A = xixj * acjj * (sii*sjj-1.0)
+                D = vivj * acjj * (sii*sjj-1.0)
+            else:
+                A = xixj * acjj * (np.sqrt((1.0-sii*sii)*(1.0-sjj*sjj))*acii + (sii*sjj-1.0)*acjj) / (acjj*acjj-acii*acii)
+                D = vivj * acjj * (np.sqrt((1.0-sii*sii)*(1.0-sjj*sjj))*acjj + (sii*sjj-1.0)*acii) / (acjj*acjj-acii*acii)
+
+            h = self.traj[keyi].get_timestep()
+            print "ABCDh", A, B, C, D, h
+
+            Sdot_tmp = 1.0 / h * ( A + B + C + D )  
+            self.Sdot_elec[j,i] = self.S_nuc[j,i] * Sdot_tmp
+            print "self.Sdot_elec[j,i]", i, j, self.Sdot_elec[j,i], self.Sdot_nuc[j,i]
 
 def build_Sdot_DGAS(self):
     self.Sdot = self.Sdot_nuc + self.Sdot_elec
