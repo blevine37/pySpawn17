@@ -512,7 +512,7 @@ class simulation(fmsobj):
         
         # forward propagation tasks
         for key in self.traj:
-            if (self.traj[key].get_maxtime()-1.0e-6) > self.traj[key].get_time():
+            if (self.traj[key].get_maxtime()+1.0e-6) > self.traj[key].get_time():
                 task_tmp = "self.traj[\"" + key  + "\"].propagate_step()"
                 tasktime_tmp = self.traj[key].get_time()
                 self.insert_task(task_tmp,tasktime_tmp, tasktimes)
@@ -606,7 +606,7 @@ class simulation(fmsobj):
             # update forward propagating centroids
             self.centroids[key].set_z_compute_me(False)
             time = self.centroids[key].get_time() + timestep
-            if (self.centroids[key].get_maxtime()+1.0e-6) > time:
+            if (self.centroids[key].get_maxtime()+timestep+1.0e-6) > time:
                 time1 = self.traj[key1].get_time()
                 if (time < time1 + 1.0e-6) and time1 > self.traj[key1].get_firsttime() + 1.0e-6:
                     time2 = self.traj[key2].get_time()

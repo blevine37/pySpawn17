@@ -902,11 +902,7 @@ class traj(fmsobj):
         trajgrp.attrs["istate"] = self.istate
         trajgrp.attrs["masses"] = self.masses
         trajgrp.attrs["widths"] = self.widths
-        try:
-            self.atoms
-        except NameError:
-            pass
-        else:
+        if hasattr(self,"atoms"):
             trajgrp.attrs["atoms"] = self.atoms
         
     def get_data_at_time_from_h5(self,t,dset_name):
@@ -997,11 +993,15 @@ class traj(fmsobj):
             W[1,1] = 1.0
         if W[1,1] < -1.0 and W[1,1] > -1.01:
             W[1,1] = -1.0
+        print "W", W
         Atmp = np.arccos(W[0,0]) - np.arcsin(W[0,1])
         Btmp = np.arccos(W[0,0]) + np.arcsin(W[0,1])
         Ctmp = np.arccos(W[1,1]) - np.arcsin(W[1,0])
         Dtmp = np.arccos(W[1,1]) + np.arcsin(W[1,0])
         Wlj = np.sqrt(1-W[0,0]*W[0,0]-W[1,0]*W[1,0])
+        if Wlj != Wlj:
+            Wlj = 0.0
+        print "ABDCtmp Wlj ", Atmp, Btmp, Ctmp, Dtmp, Wlj
         if np.absolute(Atmp) < 1.0e-6:
             A = -1.0
         else:
@@ -1027,8 +1027,10 @@ class traj(fmsobj):
             Etmp = np.sqrt((1-Wlj*Wlj)*(1-Wlk*Wlk))
             denom = sWlj*sWlj - sWlk*sWlk
             E = 2.0 * Wlj * (Wlj*Wlk*sWlj + (Etmp - 1.0) * sWlk) / denom
+        print "ABCDE", A, B, C, D, E
         h = self.get_timestep()
         tdc = 0.5 / h * (np.arccos(W[0,0])*(A+B) + np.arcsin(W[1,0])*(C+D) + E)
+        print "tdc", tdc
         return tdc
 
     def initial_wigner(self,iseed):
