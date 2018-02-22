@@ -498,17 +498,6 @@ class simulation(fmsobj):
         c1i = (complex(0.0,1.0))
         self.Heff = np.matmul(self.Sinv, (self.H - c1i * self.Sdot))
         
-    # delete matrices
-    #def clean_up_matrices(self):
-    #    del self.S
-    #    del self.Sinv
-    #    del self.Sdot
-    #    del self.T
-    #    del self.V
-    #    del self.tau
-    #    del self.H
-    #    del self.Heff
-        
     # pop the task from the top of the queue
     def pop_task(self):
         return self.queue.pop(0)

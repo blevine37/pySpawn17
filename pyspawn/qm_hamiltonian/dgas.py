@@ -221,10 +221,11 @@ def build_Sdot_elec_DGAS(self):
 
             Sdot_tmp = 1.0 / h * ( A + B + C + D )  
             self.Sdot_elec[i,j] = self.S_nuc[i,j] * Sdot_tmp
-            print "self.Sdot_elec[i,j]", i, j, self.Sdot_elec[i,j]
+            print "self.Sdot_elec[i,j]", i, j, self.Sdot_elec[i,j], self.Sdot_nuc[i,j]
     
             # THIS IS NOT CORRECT!
-            self.Sdot_elec[j,i] = -1.0*self.Sdot_elec[i,j]
+            self.Sdot_elec[j,i] = -1.0*np.conj(self.Sdot_elec[i,j])
+            print "self.Sdot_elec[j,i]", i, j, self.Sdot_elec[j,i], self.Sdot_nuc[i,j]
 
 def build_Sdot_DGAS(self):
     self.Sdot = self.Sdot_nuc + self.Sdot_elec
