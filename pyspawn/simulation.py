@@ -294,7 +294,7 @@ class simulation(fmsobj):
         max_info_time = 1.0e10
         # first check centroids
         for key in self.traj:
-            print "traj key", key
+            #print "traj key", key
             # if a trajectory is spawning, we can only propagate to the
             # spawntime
             timestep = self.traj[key].get_timestep()
@@ -302,29 +302,29 @@ class simulation(fmsobj):
             for i in range(len(spawntimes)):
                 if (spawntimes[i] - timestep) < max_info_time and spawntimes[i] > 0.0 :
                     max_info_time = spawntimes[i] - timestep
-                    print "i spawntimes[i] max_info_time", i, spawntimes[i], max_info_time
+                    #print "i spawntimes[i] max_info_time", i, spawntimes[i], max_info_time
             # if a trajectory is backpropagating, we can only propagate to
             # its mintime
             mintime = self.traj[key].get_mintime()
-            print "mintime, backproptime", mintime, self.traj[key].get_backprop_time()
+            #print "mintime, backproptime", mintime, self.traj[key].get_backprop_time()
             if (mintime + 1.0e-6) < self.traj[key].get_backprop_time():
                 if (mintime - timestep) < max_info_time:
                     max_info_time = mintime - timestep
-                    print "mintime max_info_time", mintime, max_info_time
+                    #print "mintime max_info_time", mintime, max_info_time
             # if a trajectory is neither spawning nor backpropagating, we can
             # only propagate to its current forward propagation time
             time = self.traj[key].get_time()
             if (time - timestep) < max_info_time:
                 max_info_time = time - timestep
-                print "time max_info_time", time, max_info_time
+                #print "time max_info_time", time, max_info_time
         # now centroids
         for key in self.centroids:
-            print "centroid key", key
+            #print "centroid key", key
             # if a centroid is backpropagating, we can only propagate to
             # its mintime
             timestep = self.centroids[key].get_timestep()
             mintime = self.centroids[key].get_mintime()
-            print "mintime, backprop_time", mintime, self.centroids[key].get_backprop_time()
+            #print "mintime, backprop_time", mintime, self.centroids[key].get_backprop_time()
             if (mintime + 1.0e-6) < self.centroids[key].get_backprop_time():
                 if (mintime - timestep) < max_info_time:
                     max_info_time = mintime - timestep
@@ -336,7 +336,7 @@ class simulation(fmsobj):
                 # we subtract two timesteps because the spawning procedure
                 # can take is back in time in a subsequent step
                 max_info_time = time - timestep
-                print "time max_info_time", time, max_info_time
+                #print "time max_info_time", time, max_info_time
 
         print "## we have enough information to propagate to time ", max_info_time
 
@@ -367,8 +367,7 @@ class simulation(fmsobj):
         self.set_num_traj_qm(n)
         while n > len(self.get_qm_amplitudes()):
             self.qm_amplitudes = np.append(self.qm_amplitudes,0.0)
-        print "in compute_num_traj_qm", qm_time, n
-        
+                
         
     # get the necessary geometries and energies from hdf5
     def get_qm_data_from_h5(self):
