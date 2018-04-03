@@ -51,7 +51,8 @@ tc_options = {
     "active":       2,
     "cassinglets":  2,
     "castargetmult": 1,
-    "cas_energy_labels":    [(0, 1), (1, 1)]
+    "cas_energy_states": [0, 1],
+    "cas_energy_mults": [1, 1],
     }
 
 # trajectory parameters
