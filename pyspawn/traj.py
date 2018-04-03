@@ -36,6 +36,7 @@ class traj(fmsobj):
         self.energies = np.zeros(self.numstates)
         self.forces = np.zeros((self.numstates,self.numdims))
         self.timederivcoups = np.zeros(self.numstates)
+        self.S_elec_flat = np.zeros(self.numstates*self.numstates)
 
         self.backprop_time = 0.0
         self.backprop_time_half_step = 0.0
@@ -46,6 +47,7 @@ class traj(fmsobj):
         self.backprop_wf = np.zeros((self.numstates,self.length_wf))
         self.backprop_prev_wf = np.zeros((self.numstates,self.length_wf))
         self.backprop_timederivcoups = np.zeros(self.numstates)
+        self.backprop_S_elec_flat = np.zeros(self.numstates*self.numstates)
 
         self.spawntimes = -1.0 * np.ones(self.numstates)
         self.spawnthresh = 0.0
