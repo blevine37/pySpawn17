@@ -4,7 +4,7 @@ import pyspawn
 import pyspawn.general
 
 # random number seed
-seed=28396
+seed=87061
 
 # Velocity Verlet classical propagator
 clas_prop = "vv"
