@@ -841,8 +841,9 @@ class simulation(fmsobj):
         labels = np.empty(ntraj,dtype="S512")
         istates = np.zeros(ntraj,dtype=np.int32)
         for key in self.traj_map:
-            labels[self.traj_map[key]] = key
-            istates[self.traj_map[key]] = self.traj[key].get_istate()
+            if self.traj_map[key] < ntraj:
+                labels[self.traj_map[key]] = key
+                istates[self.traj_map[key]] = self.traj[key].get_istate()
         grp.attrs["labels"] = labels
         grp.attrs["istates"] = istates
         
