@@ -509,7 +509,8 @@ class traj(fmsobj):
 
         self.set_label(label)
         
-        self.set_mintime(child.get_mintime())
+        mintime = max(child.get_mintime(),existing.get_mintime())
+        self.set_mintime(mintime)
         self.set_backprop_time(time + ts)
         self.set_firsttime(time)
         self.set_maxtime(child.get_maxtime())
