@@ -7,7 +7,7 @@ import pyspawn.general
 clas_prop = "vv"
 
 # adapative 2nd-order Runge-Kutta quantum propagator
-qm_prop = "rk2"
+qm_prop = "fulldiag"
 
 # adiabtic NPI quantum Hamiltonian
 qm_ham = "adiabatic"
@@ -19,10 +19,10 @@ potential = "test_cone"
 t0 = 0.0
 
 # time step
-ts = 1.0
+ts = 0.1
 
 # final simulation time
-tfinal = 80.0
+tfinal = 8.0
 
 # number of dimensions                                                                                           
 numdims = 2
@@ -47,9 +47,9 @@ traj_params = {
     # nuclear masses (in a.u)    
     "masses": np.asarray([1822.0, 1822.0]),
     # initial positions
-    "positions": np.asarray([1.0,1.1]),
+    "positions": np.asarray([0.45,0.0]),
     # inition momenta
-    "momenta": np.asarray([0.0,0.01]),
+    "momenta": np.asarray([-200.0,0.0]),
     }
 
 sim_params = {
