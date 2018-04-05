@@ -19,7 +19,7 @@ def qm_propagate_step(self,zoutput_first_step=False):
     
     self.build_Heff_first_half()
     
-    print "rk2 Heff ", self.Heff
+    #print "rk2 Heff ", self.Heff
 
     # output the first step before propagating
     if zoutput_first_step:
@@ -36,8 +36,8 @@ def qm_propagate_step(self,zoutput_first_step=False):
         print "# in adaptive RK integrator, nstep = ", nstep
         #dt_small = dt / float(nstep)
         dt_small = 0.5 * dt / float(nstep)
-        print "rk2 nstep2", nstep
-        print "rk2 dt_small", dt_small
+        #print "rk2 nstep2", nstep
+        #print "rk2 dt_small", dt_small
         
         for istep in range(nstep):
             #print "istep nstep dt_small ", istep, nstep, dt_small
@@ -69,7 +69,7 @@ def qm_propagate_step(self,zoutput_first_step=False):
 
     self.build_Heff_second_half()
         
-    print "rk2 Heff2 ", self.Heff
+    #print "rk2 Heff2 ", self.Heff
 
     ncut = 0
     # adaptive integration
@@ -82,8 +82,8 @@ def qm_propagate_step(self,zoutput_first_step=False):
         print "# in adaptive RK integrator, nstep = ", nstep
         #dt_small = dt / float(nstep)
         dt_small = 0.5 * dt / float(nstep)
-        print "rk2 nstep2", nstep
-        print "rk2 dt_small2", dt_small
+        #print "rk2 nstep2", nstep
+        #print "rk2 dt_small2", dt_small
         
         for istep in range(nstep):
             #print "istep nstep dt_small ", istep, nstep, dt_small
