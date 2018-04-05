@@ -31,8 +31,10 @@ def qm_propagate_step(self,zoutput_first_step=False):
  
     W,L,R = la.eig(iHdt,left=True)
 
+    LH = L.conj().T
+    
     print "fulldiag W", W
-    print "fulldiag L", L
+    print "fulldiag LH", LH
     print "fulldiag R", R
     
     X = np.exp( W )
@@ -40,24 +42,50 @@ def qm_propagate_step(self,zoutput_first_step=False):
     print "fulldiag X", X
     
     amps = amps_t
+
+    print "fulldiag amps", amps
+    
     tmp1 = la.solve(R,amps)
     tmp2 = X*tmp1 # elementwise multiplication
-    amps = la.solve(L,tmp2)
+    amps = la.solve(LH,tmp2)
+    
+    print "fulldiag amps2", amps
     
     self.set_quantum_time(qm_tpdt)
 
     self.build_Heff_second_half()
         
+    print "fulldiag Heff2", self.Heff
+ 
     iHdt = (-0.5 * dt * c1i) * self.Heff
 
+    print "fulldiag iHdt2", iHdt
+ 
     W,L,R = la.eig(iHdt,left=True)
+
+    LH = L.conj().T
+    
+    print "fulldiag W2", W
+    print "fulldiag LH2", LH
+    print "fulldiag R2", R
     
     X = np.exp( W )
 
-    amps = amps_t
+    print "fulldiag X2", X
+
+    #iHdt = (-0.5 * dt * c1i) * self.Heff
+
+    #W,L,R = la.eig(iHdt,left=True)
+    
+    #X = np.exp( W )
+
+    print "fulldiag amps3", amps
+    
     tmp1 = la.solve(R,amps)
     tmp2 = X*tmp1 # elementwise multiplication
-    amps = la.solve(L,tmp2)
+    amps = la.solve(LH,tmp2)
+    
+    print "fulldiag amps4", amps
     
     self.set_qm_amplitudes(amps)
                 
