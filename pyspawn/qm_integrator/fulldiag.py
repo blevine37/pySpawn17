@@ -1,5 +1,5 @@
 import numpy as np
-import scipy.linalg as la
+import numpy.linalg as la
 import math
 
 ######################################################
@@ -29,9 +29,9 @@ def qm_propagate_step(self,zoutput_first_step=False):
 
     #print "fulldiag iHdt", iHdt
  
-    W,L,R = la.eig(iHdt,left=True)
+    W,R = la.eig(iHdt)
 
-    LH = L.conj().T
+    #LH = L.conj().T
     
     #print "fulldiag W", W
     #print "fulldiag LH", LH
@@ -47,8 +47,9 @@ def qm_propagate_step(self,zoutput_first_step=False):
     
     tmp1 = la.solve(R,amps)
     tmp2 = X*tmp1 # elementwise multiplication
-    amps = la.solve(LH,tmp2)
-    
+    #amps = la.solve(LH,tmp2)
+    amps = np.matmul(R,tmp2)
+
     #print "fulldiag amps2", amps
     
     self.set_quantum_time(qm_tpdt)
@@ -61,9 +62,9 @@ def qm_propagate_step(self,zoutput_first_step=False):
 
     #print "fulldiag iHdt2", iHdt
  
-    W,L,R = la.eig(iHdt,left=True)
+    W,R = la.eig(iHdt)
 
-    LH = L.conj().T
+    #LH = L.conj().T
     
     #print "fulldiag W2", W
     #print "fulldiag LH2", LH
@@ -77,8 +78,9 @@ def qm_propagate_step(self,zoutput_first_step=False):
     
     tmp1 = la.solve(R,amps)
     tmp2 = X*tmp1 # elementwise multiplication
-    amps = la.solve(LH,tmp2)
-    
+    #amps = la.solve(LH,tmp2)
+    amps = np.matmul(R,tmp2)
+
     #print "fulldiag amps4", amps
     
     self.set_qm_amplitudes(amps)
