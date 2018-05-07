@@ -60,13 +60,20 @@ def compute_elec_struct(self,zbackprop):
         orbout_t = os.path.join(cwd,"c0_t.old")
         eval("self.get_" + cbackprop + "civecs()").tofile(civecout)
         eval("self.get_" + cbackprop + "orbs()").tofile(orbout)
-        (eval("self.get_" + cbackprop + "orbs()").T).tofile(orbout_t)
+        n = int(math.floor(math.sqrt(self.get_norbs())))
+        ((np.resize(eval("self.get_" + cbackprop + "orbs()"),(n,n)).T).flatten()).tofile(orbout_t)
         #print "old civecs", eval("self.get_" + cbackprop + "civecs()")
         #print "old orbs", eval("self.get_" + cbackprop + "orbs()")
         zolaps = True
-        options = {
-            "caswritevecs": "yes",
-            #"casguess":     orbout_t
+        if (self.tc_options["casscf"]=="yes"):
+            options = {
+                "caswritevecs": "yes",
+                "casguess":     orbout_t
+            }
+        else:
+            options = {
+                "caswritevecs": "yes",
+                "guess":     orbout_t
             }
     else:
         zolaps = False
