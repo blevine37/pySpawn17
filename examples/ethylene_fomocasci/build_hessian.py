@@ -40,12 +40,14 @@ tc_options = {
     "precision":    "double",
     "threall":      1.0e-20,
 
-    "casscf":        "yes",
+    "casci":        "yes",
+    "fon":          "yes",
     "closed":       7,
     "active":       2,
     "cassinglets":  2,
     "castargetmult": 1,
-    "cas_energy_labels":    [(0, 1), (1, 1)]
+    "cas_energy_states": [0, 1],
+    "cas_energy_mults": [1, 1],
     }
 
 # build a dictionary containing all options
