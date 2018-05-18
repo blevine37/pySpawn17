@@ -3,6 +3,9 @@ import numpy.linalg as la
 import math
 
 def qm_propagate_step(self,zoutput_first_step=False):
+    
+    
+    
     """Split symplectic integrator, NOT DONE YET"""
     c1i = (complex(0.0,1.0))
     self.compute_num_traj_qm()
