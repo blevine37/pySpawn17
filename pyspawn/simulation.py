@@ -18,6 +18,8 @@ class simulation(fmsobj):
         # traj is a dictionary of trajectory basis functions (TBFs)
         self.traj = dict()
 
+        self.ehrenfest = True
+
         # centroids is a dictionary of TBFs representing the centroids
         # between the basis functions
         self.centroids = dict()
@@ -426,13 +428,17 @@ class simulation(fmsobj):
         print "# building potential energy matrix"
         self.build_V()
         print "# building NAC matrix"
-        self.build_tau()
+        #self.build_tau()
         print "# building kinetic energy matrix"
         self.build_T()
         ntraj = self.get_num_traj_qm()
         shift = self.get_qm_energy_shift() * np.identity(ntraj)
         print "# summing Hamiltonian"
-        self.H = self.T + self.V + self.tau + shift
+        
+        if self.ehrenfest:
+            self.H = self.T + self.V + shift
+        else:
+            self.H = self.T + self.V + self.tau + shift
 
     # build the potential energy matrix, V
     # This routine assumes that S is already built
@@ -478,7 +484,6 @@ class simulation(fmsobj):
                     tdc = self.centroids[key].get_timederivcoups_qm()[jstate]
                     self.tau[i,j] = Sij * cm1i * tdc
                     self.tau[j,i] = Sij.conjugate() * c1i * tdc
-
                 
     # build the kinetic energy matrix, T
     def build_T(self):
