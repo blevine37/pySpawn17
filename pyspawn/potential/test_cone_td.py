@@ -38,7 +38,7 @@ def compute_elec_struct(self,zbackprop):
     H_elec[1, 1] = 0.5 * (x - a/2)**2 + 0.5 * (y)**2
     H_elec[0, 1] = k * y
     H_elec[1, 0] = k * y
-    print "H_elec = ", H_elec 
+    print "\nH_elec = ", H_elec 
     energies, eigenvectors = lin.eigh(H_elec)
     print "\neigenvalues = ", energies
       
@@ -48,11 +48,11 @@ def compute_elec_struct(self,zbackprop):
     exec("self.set_" + cbackprop + "energies(energies)")    
     
     # Computing forces
-    f = np.zeros((self.numstates,self.numdims))
-    ftmp = - (r - a/2)
+    f = np.zeros((self.numstates, self.numdims))
+    ftmp = - (r + a/2)
     f[0,0] = (x/r) * ftmp
     f[0,1] = (y/r) * ftmp
-    ftmp = - (r + a/2)
+    ftmp = - (r - a/2)
     f[1,0] = (x/r) * ftmp
     f[1,1] = (y/r) * ftmp
     exec("self.set_" + cbackprop + "forces(f)")
@@ -60,15 +60,14 @@ def compute_elec_struct(self,zbackprop):
     # This part performs the propagation of the electronic wave function for ehrenfest dynamics
     if time < 1e-8: # first time step electronic wave function propagated only by dt/2:
         print "\nPropagating first iteration:"
+
         # Constructing electronic wave function for the first timestep
         prev_wf = np.zeros((self.numstates, self.length_wf), dtype=np.complex128)
         prev_wf[0,0] = math.sin(theta) / np.sqrt(2)
         prev_wf[0,1] = math.cos(theta) / np.sqrt(2)
         prev_wf[1,0] = math.cos(theta) / np.sqrt(2)
         prev_wf[1,1] = -math.sin(theta) / np.sqrt(2)
-#         print "\nprev_wf =", prev_wf
-#         print "\nprev_norm = ", np.dot(np.transpose(np.conjugate(prev_wf[:, 0])), prev_wf[:, 0]) + np.dot(np.transpose(np.conjugate(prev_wf[:, 1])), prev_wf[:, 1])
-        
+       
         wf = propagate_symplectic(self, H_elec, prev_wf, el_timestep/2, n_el_steps/2) 
            
     else: # propagation for not the first step
@@ -79,10 +78,15 @@ def compute_elec_struct(self,zbackprop):
     eigenvectors_t = np.transpose(np.conjugate(eigenvectors))    
     amp_0 = np.dot(eigenvectors_t[0, :], wf)
     pop_0 = np.dot(np.transpose(np.conjugate(amp_0)), amp_0)
+    amp_1 = np.dot(eigenvectors_t[1, :], wf)
+    pop_1 = np.dot(np.transpose(np.conjugate(amp_1)), amp_1)
+    
     print "\nwf =", wf
-    print "\n0th state population:", pop_0
-    print "\nnorm = ", np.dot(np.transpose(np.conjugate(wf[:, 0])), wf[:, 0]) + np.dot(np.transpose(np.conjugate(wf[:, 1])), wf[:, 1])
-
+    print "\namp_0 = ", amp_0
+    print "1st state population:", pop_0
+    print "2nd state population:", pop_1
+    print "norm = ", pop_0 + pop_1
+    print ""
 #     phasing wave function to match previous time step
     W = np.matmul(prev_wf,wf.T)
      
