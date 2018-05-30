@@ -772,7 +772,7 @@ class traj(fmsobj):
         # consider whether to spawn
         if not zbackprop:
             self.consider_spawning()
-
+        
     def compute_centroid(self, zbackprop=False):
         firsttime = self.get_firsttime()
         dt = self.get_timestep()
@@ -787,6 +787,7 @@ class traj(fmsobj):
         exec("self.set_" + cbackprop + "time(t)")
         exec("self.set_" + cbackprop + "time_half_step(t + sign * -0.5 * dt)")
         # if it is this trajectories first timestep (forward or backward)
+        print "\nCOMPUTING ELECTRONIC STRUCTURE\n"
         self.compute_elec_struct(zbackprop)
         # only output on forward propagation
         if abs(t - firsttime) < 1.0e-6:
@@ -884,6 +885,7 @@ class traj(fmsobj):
             getcom = "self.get_" + cbackprop + key + "()"
             #print getcom
             tmp = eval(getcom)
+            #print "\nkey =", key
             if n!=1:
                 dset[ipos,0:n] = tmp[0:n]
             else:
@@ -896,8 +898,10 @@ class traj(fmsobj):
         trajgrp = h5f.create_group(groupname)
         for key in self.h5_datasets:
             n = self.h5_datasets[key]
-            #print "key, n ", key, n
-            dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n), dtype="float64")
+            if key != "wf0" and key != "wf1":
+                dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n), dtype="float64")
+            if key == "wf0" or key == "wf1":
+                dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n), dtype="complex128")
         for key in self.h5_datasets_half_step:
             n = self.h5_datasets_half_step[key]
             dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n), dtype="float64")
