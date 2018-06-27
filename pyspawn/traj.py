@@ -6,6 +6,7 @@ from pyspawn.fmsobj import fmsobj
 import os
 import shutil
 import h5py
+from numpy import dtype
 
 class traj(fmsobj):
     def __init__(self):
@@ -32,6 +33,9 @@ class traj(fmsobj):
         #self.method = "cone"
         self.length_wf = self.numstates
         self.wf = np.zeros((self.numstates,self.length_wf))
+        self.td_wf_real = np.zeros(self.numstates)
+        self.td_wf_imag = np.zeros(self.numstates)
+        self.populations = np.zeros(self.numstates)
         self.prev_wf = np.zeros((self.numstates,self.length_wf))
         self.energies = np.zeros(self.numstates)
         self.forces = np.zeros((self.numstates,self.numdims))
@@ -172,6 +176,24 @@ class traj(fmsobj):
         #self.prev_energies = np.zeros(self.numstates)
         #self.prev_forces = np.zeros((self.numstates,self.numdims))
 
+    def get_td_wf_real(self):
+        return self.td_wf_real.copy()
+
+    def set_td_wf_real(self, wf):
+        self.td_wf_real = wf
+
+    def get_td_wf_imag(self):
+        return self.td_wf_imag.copy()
+
+    def set_td_wf_imag(self, wf):
+        self.td_wf_imag = wf
+
+    def get_populations(self):
+        return self.populations
+        
+    def set_populations(self, pop):
+        self.populations = pop
+        
     def set_istate(self,ist):
         self.istate = ist
 
@@ -830,9 +852,7 @@ class traj(fmsobj):
         self.set_z_spawn_now(z)
         self.set_z_dont_spawn(z_dont_spawn)
         self.set_spawnlastcoup(tdc)
-        self.set_spawntimes(spawnt)
-                        
-            
+        self.set_spawntimes(spawnt)   
             
     def h5_output(self, zbackprop,zdont_half_step=False):
         if not zbackprop:
@@ -883,9 +903,9 @@ class traj(fmsobj):
                 ipos=0
                 dset[1:(l+1),0:n] = dset[0:(l),0:n]
             getcom = "self.get_" + cbackprop + key + "()"
-            #print getcom
+#             print getcom
             tmp = eval(getcom)
-            #print "\nkey =", key
+#             print "\nkey =", key
             if n!=1:
                 dset[ipos,0:n] = tmp[0:n]
             else:
