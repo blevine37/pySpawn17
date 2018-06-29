@@ -33,9 +33,6 @@ class traj(fmsobj):
         #self.method = "cone"
         self.length_wf = self.numstates
         self.wf = np.zeros((self.numstates,self.length_wf))
-        self.td_wf_real = np.zeros(self.numstates)
-        self.td_wf_imag = np.zeros(self.numstates)
-        self.populations = np.zeros(self.numstates)
         self.prev_wf = np.zeros((self.numstates,self.length_wf))
         self.energies = np.zeros(self.numstates)
         self.forces = np.zeros((self.numstates,self.numdims))
@@ -53,9 +50,6 @@ class traj(fmsobj):
         self.backprop_timederivcoups = np.zeros(self.numstates)
         self.backprop_S_elec_flat = np.zeros(self.numstates*self.numstates)
 
-        self.spawntimes = -1.0 * np.ones(self.numstates)
-        self.spawnthresh = 0.0
-        self.spawnlastcoup = np.zeros(self.numstates)
         self.positions_tpdt = np.zeros(self.numdims)
         self.positions_t = np.zeros(self.numdims)
         self.positions_tmdt = np.zeros(self.numdims)
@@ -65,6 +59,10 @@ class traj(fmsobj):
         self.energies_tpdt = np.zeros(self.numstates)
         self.energies_t = np.zeros(self.numstates)
         self.energies_tmdt = np.zeros(self.numstates)
+        
+        self.spawntimes = -1.0 * np.ones(self.numstates)
+        self.spawnthresh = 0.0
+        self.spawnlastcoup = np.zeros(self.numstates)
         self.z_spawn_now = np.zeros(self.numstates)
         self.z_dont_spawn = np.zeros(self.numstates)
         self.numchildren = 0
@@ -75,6 +73,73 @@ class traj(fmsobj):
         self.forces_i_qm = np.zeros(self.numdims)
         self.timederivcoups_qm = np.zeros(self.numstates)
 
+        #In the following block there are variables needed for ehrenfest
+        
+        self.td_wf_real = np.zeros(self.numstates)
+        self.td_wf_imag = np.zeros(self.numstates)
+        self.populations = np.zeros(self.numstates)
+        
+        self.clonethresh = 0.0
+        self.clonetimes = -1.0 * np.ones(self.numstates)
+        self.z_clone_now = np.zeros(self.numstates)
+        self.z_dont_clone = np.zeros(self.numstates)
+        
+    def get_td_wf_real(self):
+        return self.td_wf_real.copy()
+
+    def set_td_wf_real(self, wf):
+        self.td_wf_real = wf
+
+    def get_td_wf_imag(self):
+        return self.td_wf_imag.copy()
+
+    def set_td_wf_imag(self, wf):
+        self.td_wf_imag = wf
+
+    def get_populations(self):
+        return self.populations
+        
+    def set_populations(self, pop):
+        self.populations = pop
+ 
+    def consider_cloning(self):
+        pop = self.populations
+        df = sum(self.forces) #force parameter, will change to the proper expression later
+#         tdc = self.get_timederivcoups()
+#         lasttdc = self.get_spawnlastcoup()
+        clonet = self.get_clonetimes()
+        thresh = self.clonethresh
+#         z_dont_spawn = self.get_z_dont_spawn()
+#         z = self.get_z_spawn_now()
+        
+        for jstate in range(self.numstates):
+            # First checkcing if the force is larger than threshold
+            delta_clone = pop[jstate] * df / self.masses
+            if (delta_clone > thresh):
+                if clonet[jstate] > -1.0e-6:
+        #check to see if a trajectory in a cloning region is ready to clone
+                    if abs(tdc[jstate]) < abs(lasttdc[jstate]):
+                        # setting z_clone_now indicates that
+                        # this trajectory should clone to jstate
+                        z[jstate] = 1.0
+                else:
+        #check to see if a trajectory is entering a cloning region
+                    if (abs(tdc[jstate]) > thresh) and (z_dont_spawn[jstate] < 0.5):
+                        spawnt[jstate] = self.get_time() - self.get_timestep()
+                        print "## trajectory " + self.get_label() + " entered cloning region for state ", jstate, " at time ", clonet[jstate]
+            else:
+                z_dont_clone[jstate] = 1.0
+                        
+#         self.set_z_spawn_now(z)
+#         self.set_z_dont_spawn(z_dont_spawn)
+#         self.set_spawnlastcoup(tdc)
+#         self.set_spawntimes(spawnt)    
+    
+    # End of Ehrenfest block
+
+
+
+    
     def set_time(self,t):
         self.time = t
     
@@ -175,24 +240,6 @@ class traj(fmsobj):
         self.energies_tmdt = np.zeros(self.numstates)
         #self.prev_energies = np.zeros(self.numstates)
         #self.prev_forces = np.zeros((self.numstates,self.numdims))
-
-    def get_td_wf_real(self):
-        return self.td_wf_real.copy()
-
-    def set_td_wf_real(self, wf):
-        self.td_wf_real = wf
-
-    def get_td_wf_imag(self):
-        return self.td_wf_imag.copy()
-
-    def set_td_wf_imag(self, wf):
-        self.td_wf_imag = wf
-
-    def get_populations(self):
-        return self.populations
-        
-    def set_populations(self, pop):
-        self.populations = pop
         
     def set_istate(self,ist):
         self.istate = ist
