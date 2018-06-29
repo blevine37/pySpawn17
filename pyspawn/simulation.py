@@ -20,10 +20,6 @@ class simulation(fmsobj):
 
         self.ehrenfest = True
 
-        # centroids is a dictionary of TBFs representing the centroids
-        # between the basis functions
-        self.centroids = dict()
-
         # queue is a list of tasks to be run
         self.queue = ["END"]
         # tasktimes is a list of the simulation times associated with each task
@@ -140,8 +136,6 @@ class simulation(fmsobj):
         self.timestep = h
         for key in self.traj:
             self.traj[key].set_timestep(h)
-        for key in self.centroids:
-            self.centroids[key].set_timestep(h)
 
     # set the maximimum simulation time on all trajectories and centroids
     def set_maxtime_all(self,maxtime):
@@ -149,15 +143,11 @@ class simulation(fmsobj):
         h = self.get_timestep()
         for key in self.traj:
             self.traj[key].set_maxtime(maxtime+h)
-        for key in self.centroids:
-            self.centroids[key].set_maxtime(maxtime+h)
 
     # set the minimimum simulation time on all trajectories and centroids
     def set_mintime_all(self,mintime):
         for key in self.traj:
             self.traj[key].set_mintime(mintime)
-        for key in self.centroids:
-            self.centroids[key].set_mintime(mintime)
 
     # set the propagator on all trajectories
     def set_propagator_all(self,prop):
@@ -241,10 +231,6 @@ class simulation(fmsobj):
     def propagate(self):
         gen.print_splash()
         while True:
-            # compute centroid positions and mark those centroids that
-            # can presently be computed
-            print "### updating centroids"
-            self.update_centroids()
 
             # update the queue (list of tasks to be computed)
             print "### updating task queue"
@@ -274,13 +260,11 @@ class simulation(fmsobj):
                 print "### done with " + current
             else:
                 print "### task queue is empty"
-            if self.ehrenfest:
                 # spawn new trajectories if needed
-                print "### now we will spawn new trajectories if necessary"
-                self.spawn_as_necessary()
-            else:
-                print "### now we will clone new trajectories if necessary"
-                self.clone_as_necessary()
+            print "### now we will spawn new trajectories if necessary"
+            self.spawn_as_necessary()
+#             print "### now we will clone new trajectories if necessary"
+#             self.clone_as_necessary()
             
             # propagate quantum variables if possible
             print "### propagating quantum amplitudes if we have enough information to do so"
@@ -296,7 +280,7 @@ class simulation(fmsobj):
         # we have to determine what the maximum time is for which
         # we have all the necessary information to propagate the amplitudes
         max_info_time = 1.0e10
-        # first check centroids
+        # first check trajectories
         for key in self.traj:
             #print "traj key", key
             # if a trajectory is spawning, we can only propagate to the
@@ -319,26 +303,6 @@ class simulation(fmsobj):
             # only propagate to its current forward propagation time
             time = self.traj[key].get_time()
             if (time - timestep) < max_info_time:
-                max_info_time = time - timestep
-                #print "time max_info_time", time, max_info_time
-        # now centroids
-        for key in self.centroids:
-            #print "centroid key", key
-            # if a centroid is backpropagating, we can only propagate to
-            # its mintime
-            timestep = self.centroids[key].get_timestep()
-            mintime = self.centroids[key].get_mintime()
-            #print "mintime, backprop_time", mintime, self.centroids[key].get_backprop_time()
-            if (mintime + 1.0e-6) < self.centroids[key].get_backprop_time():
-                if (mintime - timestep) < max_info_time:
-                    max_info_time = mintime - timestep
-                    #print "mintime, max_info_time", mintime, max_info_time
-            # if a centroid is not backpropagating, we can
-            # only propagate to its current forward propagation time
-            time = self.centroids[key].get_time()
-            if (time - timestep) < max_info_time:
-                # we subtract two timesteps because the spawning procedure
-                # can take is back in time in a subsequent step
                 max_info_time = time - timestep
                 #print "time max_info_time", time, max_info_time
 
@@ -380,10 +344,6 @@ class simulation(fmsobj):
         for key in self.traj:
             if self.traj_map[key] < ntraj:
                 self.traj[key].get_all_qm_data_at_time_from_h5(qm_time)
-        for key in self.centroids:
-            key1, key2 = str.split(key,"_a_")
-            if self.traj_map[key1] < ntraj and self.traj_map[key2] < ntraj:
-                self.centroids[key].get_all_qm_data_at_time_from_h5(qm_time)
             
     def get_qm_data_from_h5_half_step(self):
         qm_time = self.get_quantum_time_half_step()
@@ -391,10 +351,6 @@ class simulation(fmsobj):
         for key in self.traj:
             if self.traj_map[key] < ntraj:
                 self.traj[key].get_all_qm_data_at_time_from_h5_half_step(qm_time)
-        for key in self.centroids:
-            key1, key2 = str.split(key,"_a_")
-            if self.traj_map[key1] < ntraj and self.traj_map[key2] < ntraj:
-                self.centroids[key].get_all_qm_data_at_time_from_h5_half_step(qm_time)
                         
     # build the overlap matrix, S
     def build_S(self):
@@ -429,20 +385,13 @@ class simulation(fmsobj):
     def build_H(self):
         print "# building potential energy matrix"
         self.build_V()
-        if not self.ehrenfest:
-            # If we do ehrenfest dynamics there's no NACs
-            print "# building NAC matrix"
-            self.build_tau()
         print "# building kinetic energy matrix"
         self.build_T()
         ntraj = self.get_num_traj_qm()
         shift = self.get_qm_energy_shift() * np.identity(ntraj)
         print "# summing Hamiltonian"
-        if self.ehrenfest:
-            # No NACs if we do ehrenfest
-            self.H = self.T + self.V + shift
-        else:
-            self.H = self.T + self.V + self.tau + shift
+        self.H = self.T + self.V + shift
+
 
     # build the potential energy matrix, V
     # This routine assumes that S is already built
@@ -456,38 +405,6 @@ class simulation(fmsobj):
             istate = self.traj[key].get_istate()
             if i < ntraj:
                 self.V[i,i] = self.traj[key].get_energies_qm()[istate]
-        for key in self.centroids:
-            keyi, keyj = str.split(key,"_a_")
-            i = self.traj_map[keyi]
-            j = self.traj_map[keyj]
-            if i < ntraj and j < ntraj:
-                istate = self.centroids[key].get_istate()
-                jstate = self.centroids[key].get_jstate()
-                if istate == jstate:
-                    E = self.centroids[key].get_energies_qm()[istate]
-                    self.V[i,j] = self.S[i,j] * E
-                    self.V[j,i] = self.S[j,i] * E
-
-                
-    # build the nonadiabatic coupling matrix, tau
-    # This routine assumes that S is already built
-    def build_tau(self):
-        c1i = (complex(0.0,1.0))
-        cm1i = (complex(0.0,-1.0))
-        ntraj = self.get_num_traj_qm()
-        self.tau = np.zeros((ntraj,ntraj),dtype=np.complex128)
-        for key in self.centroids:
-            keyi, keyj = str.split(key,"_a_")
-            i = self.traj_map[keyi]
-            j = self.traj_map[keyj]
-            if i < ntraj and j < ntraj:
-                istate = self.centroids[key].get_istate()
-                jstate = self.centroids[key].get_jstate()
-                if istate != jstate:
-                    Sij = cg.overlap_nuc(self.traj[keyi], self.traj[keyj],positions_i="positions_qm",positions_j="positions_qm",momenta_i="momenta_qm",momenta_j="momenta_qm")
-                    tdc = self.centroids[key].get_timederivcoups_qm()[jstate]
-                    self.tau[i,j] = Sij * cm1i * tdc
-                    self.tau[j,i] = Sij.conjugate() * c1i * tdc
                 
     # build the kinetic energy matrix, T
     def build_T(self):
@@ -531,20 +448,6 @@ class simulation(fmsobj):
                 tasktime_tmp = self.traj[key].get_backprop_time()
                 self.insert_task(task_tmp,tasktime_tmp, tasktimes)
                 
-        # centroid tasks (forward propagation)
-        for key in self.centroids:
-            if self.centroids[key].get_z_compute_me():
-                task_tmp = "self.centroids[\"" + key  + "\"].compute_centroid()"
-                tasktime_tmp = self.centroids[key].get_time()
-                self.insert_task(task_tmp,tasktime_tmp, tasktimes)
-                
-        # centroid tasks (backward propagation)
-        for key in self.centroids:
-            if self.centroids[key].get_z_compute_me_backprop():
-                task_tmp = "self.centroids[\"" + key  + "\"].compute_centroid(zbackprop=True)"
-                tasktime_tmp = self.centroids[key].get_backprop_time()
-                self.insert_task(task_tmp,tasktime_tmp, tasktimes)
-                
         print "##", (len(self.queue)-1), "task(s) in queue:"
         for i in range(len(self.queue)-1):
             print self.queue[i] + ", time = " + str(tasktimes[i])
@@ -557,97 +460,6 @@ class simulation(fmsobj):
                 self.queue.insert(i,task)
                 tasktimes.insert(i,tt)
                 return
-
-    # compute the centroid positions and moment and check which centroids
-    # can be computed
-    def update_centroids(self):
-        for key in self.centroids:
-            key1, key2 = str.split(key,"_a_")
-            timestep = self.centroids[key].get_timestep()
-
-            #update backpropagating centroids
-            self.centroids[key].set_z_compute_me_backprop(False)
-            backprop_time = self.centroids[key].get_backprop_time() - timestep
-            if (self.centroids[key].get_mintime()-1.0e-6) < backprop_time:
-                backprop_time1 = self.traj[key1].get_backprop_time()
-                if (backprop_time > backprop_time1 - 1.0e-6) and (backprop_time1  < (self.traj[key1].get_firsttime() - 1.0e-6) or backprop_time1  < (self.traj[key1].get_mintime() + 1.0e-6)):
-                    backprop_time2 = self.traj[key2].get_backprop_time()
-                    if (backprop_time > backprop_time2 - 1.0e-6) and (backprop_time2  < (self.traj[key2].get_firsttime() - 1.0e-6) or backprop_time2  < (self.traj[key2].get_mintime() + 1.0e-6)):
-                        time1 = self.traj[key1].get_time()
-                        time2 = self.traj[key2].get_time()
-                        # this if takes care of the special case where we try to compute the backpropagating centroid at firsttime before
-                        # forward propagation has begun
-                        if (backprop_time + 1.0e-6 < time1) and (backprop_time + 1.0e-6 < time2):
-                            pos1 = self.traj[key1].get_data_at_time_from_h5(backprop_time, "positions")
-                            mom1 = self.traj[key1].get_data_at_time_from_h5(backprop_time, "momenta")
-                            #if backprop_time2  < (self.traj[key2].get_mintime() + 1.0e-6):
-                            #    pos2 = self.traj[key2].get_backprop_positions()
-                            #    mom2 = self.traj[key2].get_backprop_momenta()
-                            #else:
-                            pos2 = self.traj[key2].get_data_at_time_from_h5(backprop_time, "positions")
-                            mom2 = self.traj[key2].get_data_at_time_from_h5(backprop_time, "momenta")
-                            #pos2, mom2 = self.traj[key2].get_q_and_p_at_time_from_h5(backprop_time)
-                            absSij = abs(cg.overlap_nuc(self.traj[key1],self.traj[key2], positions_i=pos1, positions_j=pos2, momenta_i=mom1, momenta_j=mom2))
-                            #print "absSij", absSij
-                            # this definition of mom is only right if all basis functions have same
-                            # width!!!!  I don't think the momentum is every used but still we 
-                            # shoudl fix this soon.
-                            width1 = self.traj[key1].get_widths()
-                            width2 = self.traj[key2].get_widths()
-                            pos_cent = ( width1 * pos1 + width2 * pos2 ) / (width1 + width2)
-                            mom_cent = 0.5 * ( mom1 + mom2 )
-                            self.centroids[key].set_backprop_positions(pos_cent)
-                            self.centroids[key].set_backprop_momenta(mom_cent)
-                            if absSij > 0.001:
-                                self.centroids[key].set_z_compute_me_backprop(True)
-                            else:
-                                self.centroids[key].set_backprop_time(backprop_time)
-                                dt = self.centroids[key].get_timestep()
-                                self.centroids[key].set_backprop_time_half_step(backprop_time + 0.5 * dt)
-                                self.centroids[key].set_backprop_energies(np.zeros(self.centroids[key].get_numstates()))
-                                self.centroids[key].set_backprop_timederivcoups(np.zeros(self.centroids[key].get_numstates()))
-                                firsttime = self.centroids[key].get_firsttime()
-                                if abs(backprop_time - firsttime) > 1.0e-6:
-                                    self.centroids[key].h5_output(True)
-
-            # update forward propagating centroids
-            self.centroids[key].set_z_compute_me(False)
-            time = self.centroids[key].get_time() + timestep
-            if (self.centroids[key].get_maxtime()+timestep+1.0e-6) > time:
-                time1 = self.traj[key1].get_time()
-                if (time < time1 + 1.0e-6) and time1 > self.traj[key1].get_firsttime() + 1.0e-6:
-                    time2 = self.traj[key2].get_time()
-                    if (time < time2 + 1.0e-6) and time2 > self.traj[key2].get_firsttime() + 1.0e-6:
-                        pos1 = self.traj[key1].get_data_at_time_from_h5(time, "positions")
-                        mom1 = self.traj[key1].get_data_at_time_from_h5(time, "momenta")
-                        pos2 = self.traj[key2].get_data_at_time_from_h5(time, "positions")
-                        mom2 = self.traj[key2].get_data_at_time_from_h5(time, "momenta")
-                        #pos1, mom1 = self.traj[key1].get_q_and_p_at_time_from_h5(time)
-                        #pos2, mom2 = self.traj[key2].get_q_and_p_at_time_from_h5(time)
-                        absSij = abs(cg.overlap_nuc(self.traj[key1],self.traj[key2], positions_i=pos1, positions_j=pos2, momenta_i=mom1, momenta_j=mom2))
-                        #print "absSij", absSij
-                        # this definion of mom is only correct if all basis functions have same
-                        # width!!!!  I don't think that the centroid momentum is ever used, but
-                        # we should still fix this soon
-                        width1 = self.traj[key1].get_widths()
-                        width2 = self.traj[key2].get_widths()
-                        pos_cent = ( width1 * pos1 + width2 * pos2 ) / ( width1 + width2)
-                        mom_cent = 0.5 * ( mom1 + mom2 )
-                        self.centroids[key].set_positions(pos_cent)
-                        self.centroids[key].set_momenta(mom_cent)
-                        if absSij > 0.001:
-                            self.centroids[key].set_z_compute_me(True)
-                        else:
-                            self.centroids[key].set_time(time)
-                            dt = self.centroids[key].get_timestep()
-                            self.centroids[key].set_time_half_step(time - 0.5 * dt)
-                            self.centroids[key].set_energies(np.zeros(self.centroids[key].get_numstates()))
-                            self.centroids[key].set_timederivcoups(np.zeros(self.centroids[key].get_numstates()))
-                            firsttime = self.centroids[key].get_firsttime()
-                            if abs(time - firsttime) > 1.0e-6:
-                                self.centroids[key].h5_output(False)
-                            else:
-                                self.centroids[key].h5_output(False,zdont_half_step=True)
 
     # this is the spawning routine
     def spawn_as_necessary(self):
@@ -704,19 +516,7 @@ class simulation(fmsobj):
 
         # okay, now it's time to add the spawned trajectories
         for label in spawntraj:
-            # create new centroid structures
-            for key2 in self.traj:
-                # "_a_" marks the centroid labels
-                centkey = str(key2 + "_a_" + label)
-
-                # create and initiate the trajectory structures!
-                newcent = traj()
-                newcent.init_centroid(self.traj[key2],spawntraj[label], centkey)
-
-                # add the centroid
-                self.centroids[centkey] = newcent
-                print "# adding centroid ", centkey
-
+            
             # finally, add the spawned trajectory
             self.add_traj(spawntraj[label])
 

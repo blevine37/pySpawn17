@@ -78,11 +78,24 @@ class traj(fmsobj):
         self.td_wf_real = np.zeros(self.numstates)
         self.td_wf_imag = np.zeros(self.numstates)
         self.populations = np.zeros(self.numstates)
+        self.av_energy = 0.0
         
         self.clonethresh = 0.0
         self.clonetimes = -1.0 * np.ones(self.numstates)
         self.z_clone_now = np.zeros(self.numstates)
         self.z_dont_clone = np.zeros(self.numstates)
+
+    def get_clonethresh(self):
+        return self.clonethresh
+
+    def set_clonethresh(self, thresh):
+        self.clonethresh = thresh
+
+    def get_av_energy(self):
+        return self.av_energy
+
+    def set_av_energy(self, e):
+        self.av_energy = e
         
     def get_td_wf_real(self):
         return self.td_wf_real.copy()
@@ -101,44 +114,8 @@ class traj(fmsobj):
         
     def set_populations(self, pop):
         self.populations = pop
- 
-    def consider_cloning(self):
-        pop = self.populations
-        df = sum(self.forces) #force parameter, will change to the proper expression later
-#         tdc = self.get_timederivcoups()
-#         lasttdc = self.get_spawnlastcoup()
-        clonet = self.get_clonetimes()
-        thresh = self.clonethresh
-#         z_dont_spawn = self.get_z_dont_spawn()
-#         z = self.get_z_spawn_now()
-        
-        for jstate in range(self.numstates):
-            # First checkcing if the force is larger than threshold
-            delta_clone = pop[jstate] * df / self.masses
-            if (delta_clone > thresh):
-                if clonet[jstate] > -1.0e-6:
-        #check to see if a trajectory in a cloning region is ready to clone
-                    if abs(tdc[jstate]) < abs(lasttdc[jstate]):
-                        # setting z_clone_now indicates that
-                        # this trajectory should clone to jstate
-                        z[jstate] = 1.0
-                else:
-        #check to see if a trajectory is entering a cloning region
-                    if (abs(tdc[jstate]) > thresh) and (z_dont_spawn[jstate] < 0.5):
-                        spawnt[jstate] = self.get_time() - self.get_timestep()
-                        print "## trajectory " + self.get_label() + " entered cloning region for state ", jstate, " at time ", clonet[jstate]
-            else:
-                z_dont_clone[jstate] = 1.0
-                        
-#         self.set_z_spawn_now(z)
-#         self.set_z_dont_spawn(z_dont_spawn)
-#         self.set_spawnlastcoup(tdc)
-#         self.set_spawntimes(spawnt)    
-    
+     
     # End of Ehrenfest block
-
-
-
     
     def set_time(self,t):
         self.time = t
@@ -563,54 +540,10 @@ class traj(fmsobj):
         
         self.potential_specific_traj_copy(parent)
 
-
-    def init_centroid(self, existing, child, label):
-        ts = child.get_timestep()
-        
-        self.set_numstates(child.get_numstates())
-        self.set_numdims(child.get_numdims())
-
-        self.set_istate(child.get_istate())
-        self.set_jstate(existing.get_istate())
-        
-        time = child.get_time()
-        self.set_time(time - ts)
-
-        self.set_label(label)
-        
-        mintime = max(child.get_mintime(),existing.get_mintime())
-        self.set_mintime(mintime)
-        self.set_backprop_time(time + ts)
-        self.set_firsttime(time)
-        self.set_maxtime(child.get_maxtime())
-        
-        self.set_widths(child.get_widths())
-        self.set_masses(child.get_masses())
-        if hasattr(child,'atoms'):
-            self.set_atoms(child.get_atoms())
-        if hasattr(child,'civecs'):
-            self.set_civecs(child.get_civecs())
-            self.set_backprop_civecs(child.get_civecs())
-            self.set_ncivecs(child.get_ncivecs())
-        if hasattr(child,'orbs'):
-            self.set_orbs(child.get_orbs())
-            self.set_backprop_orbs(child.get_orbs())
-            self.set_norbs(child.get_norbs())
-        if hasattr(child,'prev_wf_positions'):
-            self.set_prev_wf_positions(child.get_prev_wf_positions())
-            self.set_backprop_prev_wf_positions(child.get_prev_wf_positions())
-        if hasattr(child,'electronic_phases'):
-            self.set_electronic_phases(child.get_electronic_phases())
-            self.set_backprop_electronic_phases(child.get_electronic_phases())
-
-        self.set_timestep(ts)
-
-        self.potential_specific_traj_copy(existing)
-
     def rescale_momentum(self, v_parent):
         v_child = self.get_energies()[self.get_istate()]
         #print "rescale v_child ", v_child
-        #print "rescale v_parent ", v_parent
+        print "rescale v_parent ", v_parent
         # computing kinetic energy of parent.  Remember that, at this point,
         # the child's momentum is still that of the parent, so we compute
         # t_parent from the child's momentum
@@ -619,7 +552,7 @@ class traj(fmsobj):
         t_parent = 0.0
         for idim in range(self.get_numdims()):
             t_parent += 0.5 * p_parent[idim] * p_parent[idim] / m[idim]
-        #print "rescale t_parent ", t_parent
+        print "rescale t_parent ", t_parent
         factor = ( ( v_parent + t_parent - v_child ) / t_parent )
         if factor < 0.0:
             print "# Aborting spawn because child does not have"
@@ -841,65 +774,26 @@ class traj(fmsobj):
         # consider whether to spawn
         if not zbackprop:
             self.consider_spawning()
-        
-    def compute_centroid(self, zbackprop=False):
-        firsttime = self.get_firsttime()
-        dt = self.get_timestep()
-        if zbackprop:
-            cbackprop = "backprop_"
-            sign = -1.0
-        else:
-            cbackprop = ""
-            sign = 1.0
-        t = eval("self.get_" + cbackprop + "time()")
-        t += sign * dt
-        exec("self.set_" + cbackprop + "time(t)")
-        exec("self.set_" + cbackprop + "time_half_step(t + sign * -0.5 * dt)")
-        # if it is this trajectories first timestep (forward or backward)
-        print "\nCOMPUTING ELECTRONIC STRUCTURE\n"
-        self.compute_elec_struct(zbackprop)
-        # only output on forward propagation
-        if abs(t - firsttime) < 1.0e-6:
-            if not zbackprop:
-                self.h5_output(zbackprop,zdont_half_step=True)
-        else:
-            self.h5_output(zbackprop)
-                       
+          
     def consider_spawning(self):
-        tdc = self.get_timederivcoups()
-        lasttdc = self.get_spawnlastcoup()
-        spawnt = self.get_spawntimes()
-        thresh = self.get_spawnthresh()
-        z_dont_spawn = self.get_z_dont_spawn()
+
+        thresh = self.clonethresh
         z = self.get_z_spawn_now()
-        
+        print "CONSIDERING CLONING:"
+
         for jstate in range(self.numstates):
-            #print "consider1 ", jstate, self.get_istate()
-            if (jstate != self.get_istate()):
-                #print "consider2 ",spawnt[jstate]
-                if spawnt[jstate] > -1.0e-6:
-        #check to see if a trajectory in a spawning region is ready to spawn
-                    #print "consider3 ",tdc[jstate], lasttdc[jstate]
-                    if abs(tdc[jstate]) < abs(lasttdc[jstate]):
-                        #print "Spawning to state ", jstate, " at time ", self.get_time()
-                        # setting z_spawn_now indicates that
-                        # this trajectory should spawn to jstate
-                        z[jstate] = 1.0
-                else:
-        #check to see if a trajectory is entering a spawning region
-                    #print "consider4 ",jstate, tdc, thresh
-                    if (abs(tdc[jstate]) > thresh) and (z_dont_spawn[jstate] < 0.5):
-                        spawnt[jstate] = self.get_time() - self.get_timestep()
-                        print "## trajectory " + self.get_label() + " entered spawning region for state ", jstate, " at time ", spawnt[jstate]
-                    else:
-                        if (abs(tdc[jstate]) < (0.9*thresh)) and (z_dont_spawn[jstate] > 0.5):
-                            z_dont_spawn[jstate] = 0.0
-                        
-                        
-        self.set_z_spawn_now(z)
-        self.set_z_dont_spawn(z_dont_spawn)
-        self.set_spawnlastcoup(tdc)
-        self.set_spawntimes(spawnt)   
+            dE = self.energies[jstate] - self.av_energy
+            clone_parameter = np.abs(dE*self.populations[jstate])
+            print "cloning parameter = ", clone_parameter
+            print "Threshold =", thresh
+            print "state to clone to =", jstate
+            if clone_parameter > thresh:
+                print "Cloning to state ", jstate, " at time ", self.get_time()
+                # setting z_spawn_now indicates that
+                # this trajectory should clone to jstate
+                z[jstate] = 1.0
+        
+        self.set_z_spawn_now(z) 
             
     def h5_output(self, zbackprop,zdont_half_step=False):
         if not zbackprop:
