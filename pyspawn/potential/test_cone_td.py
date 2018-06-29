@@ -40,7 +40,7 @@ def compute_elec_struct(self,zbackprop):
 #     print "\nH_elec = ", H_elec 
     energies, eigenvectors = lin.eigh(H_elec)
 #     print "\neigenvalues = ", energies
-      
+    print "eigenvecs = ", eigenvectors  
     r = math.sqrt( x * x + y * y )
     theta = (math.atan2(y,x)) / 2.0
 
