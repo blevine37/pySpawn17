@@ -236,7 +236,6 @@ class simulation(fmsobj):
     
     def get_Sinv(self):
         return self.Sinv.copy()
-    
 
     # this is the main propagation loop for the simulation
     def propagate(self):
@@ -275,10 +274,13 @@ class simulation(fmsobj):
                 print "### done with " + current
             else:
                 print "### task queue is empty"
-
-            # spawn new trajectories if needed
-            print "### now we will spawn new trajectories if necessary"
-            self.spawn_as_necessary()
+            if self.ehrenfest:
+                # spawn new trajectories if needed
+                print "### now we will spawn new trajectories if necessary"
+                self.spawn_as_necessary()
+            else:
+                print "### now we will clone new trajectories if necessary"
+                self.clone_as_necessary()
             
             # propagate quantum variables if possible
             print "### propagating quantum amplitudes if we have enough information to do so"
@@ -286,13 +288,13 @@ class simulation(fmsobj):
             
             # print restart output - this must be the last line in this loop!
             print "### updating restart output"
-            self.restart_output()
-
+            self.restart_output()    
+    
     # here we will propagate the quantum amplitudes if we have
     # the necessary information to do so
     def propagate_quantum_as_necessary(self):
         # we have to determine what the maximum time is for which
-        # we have all the necessary information to propogate the amplitudes
+        # we have all the necessary information to propagate the amplitudes
         max_info_time = 1.0e10
         # first check centroids
         for key in self.traj:
@@ -427,15 +429,17 @@ class simulation(fmsobj):
     def build_H(self):
         print "# building potential energy matrix"
         self.build_V()
-        print "# building NAC matrix"
-        #self.build_tau()
+        if not self.ehrenfest:
+            # If we do ehrenfest dynamics there's no NACs
+            print "# building NAC matrix"
+            self.build_tau()
         print "# building kinetic energy matrix"
         self.build_T()
         ntraj = self.get_num_traj_qm()
         shift = self.get_qm_energy_shift() * np.identity(ntraj)
         print "# summing Hamiltonian"
-        
         if self.ehrenfest:
+            # No NACs if we do ehrenfest
             self.H = self.T + self.V + shift
         else:
             self.H = self.T + self.V + self.tau + shift
@@ -661,11 +665,11 @@ class simulation(fmsobj):
                     # create label that indicates parentage
                     # for example:
                     # a trajectory labeled 00b1b5 means that the initial
-                    # trajectory "00" spawned a trajecory "1" (its
+                    # trajectory "00" spawned a trajectory "1" (its
                     # second child) which then spawned another (it's 6th child)
                     label = str(self.traj[key].get_label() + "b" + str(self.traj[key].get_numchildren()))
 
-                    # create and initiate new trajectpory structure
+                    # create and initiate new trajectory structure
                     newtraj = traj()
                     newtraj.init_spawn_traj(self.traj[key], jstate, label)
 
