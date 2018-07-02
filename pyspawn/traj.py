@@ -499,7 +499,9 @@ class traj(fmsobj):
         self.set_momenta(mom)
         self.set_energies(e)
 
-        mintime = float(parent.get_spawntimes()[istate])
+#         mintime = float(parent.get_spawntimes()[istate])
+        # Setting mintime to current time to avoid backpropagation
+        mintime = parent.get_time()
         #print "init_st mintime", mintime
         self.set_mintime(mintime)
         #print "init_st time", time
@@ -537,12 +539,13 @@ class traj(fmsobj):
         z_dont[parent.get_istate()] = 1.0
         self.set_z_dont_spawn(z_dont)
         self.set_spawnthresh(parent.get_spawnthresh())
+        self.set_clonethresh(parent.get_clonethresh())
         
         self.potential_specific_traj_copy(parent)
 
     def rescale_momentum(self, v_parent):
         v_child = self.get_energies()[self.get_istate()]
-        #print "rescale v_child ", v_child
+        print "rescale v_child ", v_child
         print "rescale v_parent ", v_parent
         # computing kinetic energy of parent.  Remember that, at this point,
         # the child's momentum is still that of the parent, so we compute
@@ -773,9 +776,45 @@ class traj(fmsobj):
 
         # consider whether to spawn
         if not zbackprop:
-            self.consider_spawning()
-          
+            self.consider_cloning()
+
     def consider_spawning(self):
+        tdc = self.get_timederivcoups()
+        lasttdc = self.get_spawnlastcoup()
+        spawnt = self.get_spawntimes()
+        thresh = self.get_spawnthresh()
+        z_dont_spawn = self.get_z_dont_spawn()
+        z = self.get_z_spawn_now()
+        
+        for jstate in range(self.numstates):
+            #print "consider1 ", jstate, self.get_istate()
+            if (jstate != self.get_istate()):
+                #print "consider2 ",spawnt[jstate]
+                if spawnt[jstate] > -1.0e-6:
+        #check to see if a trajectory in a spawning region is ready to spawn
+                    #print "consider3 ",tdc[jstate], lasttdc[jstate]
+                    if abs(tdc[jstate]) < abs(lasttdc[jstate]):
+                        #print "Spawning to state ", jstate, " at time ", self.get_time()
+                        # setting z_spawn_now indicates that
+                        # this trajectory should spawn to jstate
+                        z[jstate] = 1.0
+                else:
+        #check to see if a trajectory is entering a spawning region
+                    #print "consider4 ",jstate, tdc, thresh
+                    if (abs(tdc[jstate]) > thresh) and (z_dont_spawn[jstate] < 0.5):
+                        spawnt[jstate] = self.get_time() - self.get_timestep()
+                        print "## trajectory " + self.get_label() + " entered spawning region for state ", jstate, " at time ", spawnt[jstate]
+                    else:
+                        if (abs(tdc[jstate]) < (0.9*thresh)) and (z_dont_spawn[jstate] > 0.5):
+                            z_dont_spawn[jstate] = 0.0
+                        
+                        
+        self.set_z_spawn_now(z)
+        self.set_z_dont_spawn(z_dont_spawn)
+        self.set_spawnlastcoup(tdc)
+        self.set_spawntimes(spawnt)
+          
+    def consider_cloning(self):
 
         thresh = self.clonethresh
         z = self.get_z_spawn_now()
