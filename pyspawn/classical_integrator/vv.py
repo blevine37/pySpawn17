@@ -18,19 +18,14 @@ def prop_first_step(self,zbackprop):
             
     exec("x_t = self.get_" + cbackprop + "positions()")
     self.compute_elec_struct(zbackprop)
-    exec("f_t = self.get_" + cbackprop + "forces_i()")
+#     exec("f_t = self.get_" + cbackprop + "forces_i()")
+    f_t = self.get_av_force()
     exec("p_t = self.get_" + cbackprop + "momenta()")
     exec("e_t = self.get_" + cbackprop + "energies()")
     m = self.get_masses()
     v_t = p_t / m
     a_t = f_t / m
     exec("t = self.get_" + cbackprop + "time()")
-    
-    #print "t ", t
-    #print "x_t ", x_t
-    #print "f_t ", f_t
-    #print "v_t ", v_t
-    #print "a_t ", a_t
 
     if not zbackprop:
         self.h5_output(zbackprop, zdont_half_step=True)
@@ -39,9 +34,9 @@ def prop_first_step(self,zbackprop):
     x_tpdt = x_t + v_tphdt * dt
     
     exec("self.set_" + cbackprop + "positions(x_tpdt)")
-    
     self.compute_elec_struct(zbackprop)
-    exec("f_tpdt = self.get_" + cbackprop + "forces_i()")
+#     exec("f_tpdt = self.get_" + cbackprop + "forces_i()")
+    f_tpdt = self.get_av_force()
     exec("e_tpdt = self.get_" + cbackprop + "energies()")
     
     a_tpdt = f_tpdt / m
@@ -82,6 +77,7 @@ def prop_first_step(self,zbackprop):
     exec("self.set_" + cbackprop + "positions(x_tp2dt)")
         
 def prop_not_first_step(self,zbackprop):
+    
     if not zbackprop:
         cbackprop = ""
         dt = self.get_timestep()
