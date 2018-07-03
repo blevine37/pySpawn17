@@ -261,8 +261,8 @@ class simulation(fmsobj):
             else:
                 print "### task queue is empty"
                 # spawn new trajectories if needed
-            print "### now we will spawn new trajectories if necessary"
-            self.spawn_as_necessary()
+            print "### now we will clone new trajectories if necessary"
+            self.clone_as_necessary()
 #             print "### now we will clone new trajectories if necessary"
 #             self.clone_as_necessary()
             
@@ -462,7 +462,7 @@ class simulation(fmsobj):
                 return
 
     # this is the spawning routine
-    def spawn_as_necessary(self):
+    def clone_as_necessary(self):
         spawntraj = dict()
         for key in self.traj:
             # trajectories that are spawning or should start were marked
@@ -483,6 +483,7 @@ class simulation(fmsobj):
 
                     # create and initiate new trajectory structure
                     newtraj = traj()
+                    print "eigenvecs of parent =", self.traj[key].get_approx_eigenvecs()
                     newtraj.init_spawn_traj(self.traj[key], jstate, label)
 
                     # checking to see if overlap with existing trajectories
@@ -498,7 +499,9 @@ class simulation(fmsobj):
                         print "## creating new trajectory ", label
                         spawntraj[label] = newtraj
                         self.traj[key].incr_numchildren()
-
+                        # After cloning to jstate we should remove population on jth state from the parent
+                        self.traj[key].remove_state_pop(jstate)
+                         
                     # whether we spawn or not, we reset the trajectory so
                     # that:
                     # it isn't slated to spawn

@@ -77,19 +77,47 @@ class traj(fmsobj):
         
         self.td_wf_real = np.zeros(self.numstates)
         self.td_wf_imag = np.zeros(self.numstates)
+        self.mce_amps_real = np.zeros(self.numstates)
+        self.mce_amps_imag = np.zeros(self.numstates)
         self.populations = np.zeros(self.numstates)
         self.av_energy = 0.0
+        self.av_force = np.zeros(self.numdims)
+        self.approx_eigenvecs = np.zeros((self.numstates, self.numstates))
         
         self.clonethresh = 0.0
         self.clonetimes = -1.0 * np.ones(self.numstates)
         self.z_clone_now = np.zeros(self.numstates)
         self.z_dont_clone = np.zeros(self.numstates)
 
+    def get_mce_amps_real(self):
+        return self.mce_amps_real.copy()
+
+    def set_mce_amps_real(self, amps_real):
+        self.mce_amps_real = amps_real
+
+    def get_mce_amps_imag(self):
+        return self.mce_amps_imag.copy()
+
+    def set_mce_amps_imag(self, amps_imag):
+        self.mce_amps_imag = amps_imag
+
+    def get_approx_eigenvecs(self):
+        return self.approx_eigenvecs.copy()
+
+    def set_approx_eigenvecs(self, eigenvecs):
+        self.approx_eigenvecs = eigenvecs
+
     def get_clonethresh(self):
         return self.clonethresh
 
     def set_clonethresh(self, thresh):
         self.clonethresh = thresh
+
+    def get_av_force(self):
+        return self.av_force.copy()
+
+    def set_av_force(self, av_force):
+        self.av_force = av_force
 
     def get_av_energy(self):
         return self.av_energy
@@ -114,7 +142,21 @@ class traj(fmsobj):
         
     def set_populations(self, pop):
         self.populations = pop
-     
+
+    def remove_state_pop(self, jstate):
+        """After cloning of the wave function to the jstate the cloned wf have all population on jstate
+        the rest of the population stays on the parent wf. This subroutine removes all population on jstate
+        from the parent wf and updates the affected quantities"""
+        for istate in range(self.numstates):
+            new_wf = np.zeros((self.numstates), dtype = np.complex128)
+            if istate != jstate:
+                new_wf += self.approx_eigenvecs[istate, :] * (self.mce_amps_real[istate]\
+                                                    + 1j * self.mce_amps_imag[istate])\
+                                                    / np.sqrt(1-self.populations[jstate])
+        
+        self.td_wf_real = np.real(new_wf)
+        self.td_wf_imag = np.imag(new_wf)
+        
     # End of Ehrenfest block
     
     def set_time(self,t):
@@ -492,7 +534,14 @@ class traj(fmsobj):
         pos = parent.get_positions_tmdt()
         mom = parent.get_momenta_tmdt()
         e = parent.get_energies_tmdt()
+        
+#       cloning routines
 
+#        Projecting out everything but the population on the desired state
+        parent_amp = 1j * parent.mce_amps_imag + parent.mce_amps_real
+        self.td_wf_real = np.real(parent.get_approx_eigenvecs()[self.istate, :] * parent_amp / np.abs(parent_amp))
+        self.td_wf_imag = np.imag(parent.get_approx_eigenvecs()[self.istate, :] * parent_amp / np.abs(parent_amp))
+        
 # adjust momentum
         
         self.set_positions(pos)
@@ -667,28 +716,6 @@ class traj(fmsobj):
 
     def get_spawntimes(self):
         return self.spawntimes.copy()
-
-    def set_timederivcoups(self,t):
-        if t.shape == self.timederivcoups.shape:
-            self.timederivcoups = t.copy()
-        else:
-            print "Error in set_spawntimes"
-            sys.exit
-    
-    def get_timederivcoups(self):
-        return self.timederivcoups.copy()
-    
-    def set_backprop_timederivcoups(self,t):
-        if t.shape == self.backprop_timederivcoups.shape:
-            # we multiply by -1.0 because the tdc is computed as the
-            # derivative with respect to -t during back propagation
-            self.backprop_timederivcoups = -1.0 * t.copy()
-        else:
-            print "Error in set_spawntimes"
-            sys.exit
-    
-    def get_backprop_timederivcoups(self):
-        return self.backprop_timederivcoups.copy()
     
     def set_S_elec_flat(self,S):
         self.S_elec_flat = S.copy()
@@ -777,61 +804,28 @@ class traj(fmsobj):
         # consider whether to spawn
         if not zbackprop:
             self.consider_cloning()
-
-    def consider_spawning(self):
-        tdc = self.get_timederivcoups()
-        lasttdc = self.get_spawnlastcoup()
-        spawnt = self.get_spawntimes()
-        thresh = self.get_spawnthresh()
-        z_dont_spawn = self.get_z_dont_spawn()
-        z = self.get_z_spawn_now()
-        
-        for jstate in range(self.numstates):
-            #print "consider1 ", jstate, self.get_istate()
-            if (jstate != self.get_istate()):
-                #print "consider2 ",spawnt[jstate]
-                if spawnt[jstate] > -1.0e-6:
-        #check to see if a trajectory in a spawning region is ready to spawn
-                    #print "consider3 ",tdc[jstate], lasttdc[jstate]
-                    if abs(tdc[jstate]) < abs(lasttdc[jstate]):
-                        #print "Spawning to state ", jstate, " at time ", self.get_time()
-                        # setting z_spawn_now indicates that
-                        # this trajectory should spawn to jstate
-                        z[jstate] = 1.0
-                else:
-        #check to see if a trajectory is entering a spawning region
-                    #print "consider4 ",jstate, tdc, thresh
-                    if (abs(tdc[jstate]) > thresh) and (z_dont_spawn[jstate] < 0.5):
-                        spawnt[jstate] = self.get_time() - self.get_timestep()
-                        print "## trajectory " + self.get_label() + " entered spawning region for state ", jstate, " at time ", spawnt[jstate]
-                    else:
-                        if (abs(tdc[jstate]) < (0.9*thresh)) and (z_dont_spawn[jstate] > 0.5):
-                            z_dont_spawn[jstate] = 0.0
-                        
-                        
-        self.set_z_spawn_now(z)
-        self.set_z_dont_spawn(z_dont_spawn)
-        self.set_spawnlastcoup(tdc)
-        self.set_spawntimes(spawnt)
           
     def consider_cloning(self):
 
         thresh = self.clonethresh
         z = self.get_z_spawn_now()
         print "CONSIDERING CLONING:"
-
+        clone_parameter = np.zeros(self.numstates)
+        
         for jstate in range(self.numstates):
             dE = self.energies[jstate] - self.av_energy
-            clone_parameter = np.abs(dE*self.populations[jstate])
+            clone_parameter[jstate] = np.abs(dE*self.populations[jstate])
             print "cloning parameter = ", clone_parameter
             print "Threshold =", thresh
-            print "state to clone to =", jstate
-            if clone_parameter > thresh:
-                print "Cloning to state ", jstate, " at time ", self.get_time()
+            print "z < 1", z.any() < 0.5
+
+            if clone_parameter[jstate] > thresh:
+                print "CLONING TO STATE ", jstate, " at time ", self.get_time()
                 # setting z_spawn_now indicates that
                 # this trajectory should clone to jstate
                 z[jstate] = 1.0
-        
+        print "max threshold", np.argmax(clone_parameter)        
+#         z[np.argmax(clone_parameter)] = 1.0
         self.set_z_spawn_now(z) 
             
     def h5_output(self, zbackprop,zdont_half_step=False):
@@ -846,23 +840,7 @@ class traj(fmsobj):
         if len(self.h5_datasets) == 0:
             self.init_h5_datasets()
         filename = "working.hdf5"
-        #extensions = [3,2,1,0]
-        #for i in extensions :
-        #    if i==0:
-        #        ext = ""
-        #    else:
-        #        ext = str(i) + "."
-        #    filename = "sim." + ext + "hdf5"
-        #    if os.path.isfile(filename):
-        #        if (i == extensions[0]):
-        #            os.remove(filename)
-        #        else:
-        #            ext = str(i+1) + "."
-        #            filename2 = "sim." + ext + "hdf5"
-        #            if (i == extensions[-1]):
-        #                shutil.copy2(filename, filename2)
-        #            else:
-        #                shutil.move(filename, filename2)
+
         h5f = h5py.File(filename, "a")
         groupname = traj_or_cent + self.label
         if groupname not in h5f.keys():
@@ -898,10 +876,10 @@ class traj(fmsobj):
         trajgrp = h5f.create_group(groupname)
         for key in self.h5_datasets:
             n = self.h5_datasets[key]
-            if key != "wf0" and key != "wf1":
-                dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n), dtype="float64")
-            if key == "wf0" or key == "wf1":
-                dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n), dtype="complex128")
+#             if key != "wf0" and key != "wf1":
+            dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n), dtype="float64")
+#             if key == "wf0" or key == "wf1":
+#                 dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n), dtype="complex128")
         for key in self.h5_datasets_half_step:
             n = self.h5_datasets_half_step[key]
             dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n), dtype="float64")
@@ -990,55 +968,6 @@ class traj(fmsobj):
             #print "dset[ipoint,:] ", dset[ipoint,:]        
         h5f.close()
             
-    def compute_tdc(self,Win):
-        W = Win.copy()
-        if W[0,0] > 1.0 and W[0,0] < 1.01:
-            W[0,0] = 1.0
-        if W[0,0] < -1.0 and W[0,0] > -1.01:
-            W[0,0] = -1.0
-        if W[1,1] > 1.0 and W[1,1] < 1.01:
-            W[1,1] = 1.0
-        if W[1,1] < -1.0 and W[1,1] > -1.01:
-            W[1,1] = -1.0
-        #print "W", W
-        Atmp = np.arccos(W[0,0]) - np.arcsin(W[0,1])
-        Btmp = np.arccos(W[0,0]) + np.arcsin(W[0,1])
-        Ctmp = np.arccos(W[1,1]) - np.arcsin(W[1,0])
-        Dtmp = np.arccos(W[1,1]) + np.arcsin(W[1,0])
-        Wlj = np.sqrt(1-W[0,0]*W[0,0]-W[1,0]*W[1,0])
-        if Wlj != Wlj:
-            Wlj = 0.0
-        #print "ABDCtmp Wlj ", Atmp, Btmp, Ctmp, Dtmp, Wlj
-        if np.absolute(Atmp) < 1.0e-6:
-            A = -1.0
-        else:
-            A = -1.0 * np.sin(Atmp) / Atmp
-        if np.absolute(Btmp) < 1.0e-6:
-            B = 1.0
-        else:
-            B = np.sin(Btmp) / Btmp
-        if np.absolute(Ctmp) < 1.0e-6:
-            C = 1.0
-        else:
-            C = np.sin(Ctmp) / Ctmp
-        if np.absolute(Dtmp) < 1.0e-6:
-            D = 1.0
-        else:
-            D = np.sin(Dtmp) / Dtmp
-        if Wlj < 1.0e-6:
-            E = 0.0
-        else:
-            Wlk = -1.0 * (W[0,1]*W[0,0]+W[1,1]*W[1,0]) / Wlj
-            sWlj = np.sin(Wlj)
-            sWlk = np.sin(Wlk)
-            Etmp = np.sqrt((1-Wlj*Wlj)*(1-Wlk*Wlk))
-            denom = sWlj*sWlj - sWlk*sWlk
-            E = 2.0 * Wlj * (Wlj*Wlk*sWlj + (Etmp - 1.0) * sWlk) / denom
-        #print "ABCDE", A, B, C, D, E
-        h = self.get_timestep()
-        tdc = 0.5 / h * (np.arccos(W[0,0])*(A+B) + np.arcsin(W[1,0])*(C+D) + E)
-        #print "tdc", tdc
-        return tdc
 
     def initial_wigner(self,iseed):
         print "## randomly selecting Wigner initial conditions"
@@ -1113,6 +1042,4 @@ class traj(fmsobj):
 
         print "# ZPE = ", zpe
         print "# kinetic energy = ", ke
-
-
         
