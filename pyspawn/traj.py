@@ -73,11 +73,12 @@ class traj(fmsobj):
         self.timederivcoups_qm = np.zeros(self.numstates)
 
         #In the following block there are variables needed for ehrenfest
-        
-        self.td_wf_real = np.zeros(self.numstates)
-        self.td_wf_imag = np.zeros(self.numstates)
-        self.mce_amps_real = np.zeros(self.numstates)
-        self.mce_amps_imag = np.zeros(self.numstates)
+        self.td_wf = np.zeros((self.numstates), dtype = np.complex128)
+#         self.td_wf_real = np.zeros(self.numstates)
+#         self.td_wf_imag = np.zeros(self.numstates)
+        self.mce_amps = np.zeros((self.numstates), dtype = np.complex128)
+#         self.mce_amps_real = np.zeros(self.numstates)
+#         self.mce_amps_imag = np.zeros(self.numstates)
         self.populations = np.zeros(self.numstates)
         self.av_energy = 0.0
         self.av_force = np.zeros(self.numdims)
@@ -88,17 +89,23 @@ class traj(fmsobj):
         self.z_clone_now = np.zeros(self.numstates)
         self.z_dont_clone = np.zeros(self.numstates)
 
-    def get_mce_amps_real(self):
-        return self.mce_amps_real.copy()
+    def get_mce_amps(self):
+        return self.mce_amps.copy()
+ 
+    def set_mce_amps(self, amps):
+        self.mce_amps = amps
 
-    def set_mce_amps_real(self, amps_real):
-        self.mce_amps_real = amps_real
-
-    def get_mce_amps_imag(self):
-        return self.mce_amps_imag.copy()
-
-    def set_mce_amps_imag(self, amps_imag):
-        self.mce_amps_imag = amps_imag
+#     def get_mce_amps_real(self):
+#         return self.mce_amps_real.copy()
+# 
+#     def set_mce_amps_real(self, amps_real):
+#         self.mce_amps_real = amps_real
+# 
+#     def get_mce_amps_imag(self):
+#         return self.mce_amps_imag.copy()
+# 
+#     def set_mce_amps_imag(self, amps_imag):
+#         self.mce_amps_imag = amps_imag
 
     def get_approx_eigenvecs(self):
         return self.approx_eigenvecs.copy()
@@ -123,18 +130,24 @@ class traj(fmsobj):
 
     def set_av_energy(self, e):
         self.av_energy = e
+
+    def get_td_wf(self):
+        return self.td_wf.copy()
+
+    def set_td_wf(self, wf):
+        self.td_wf = wf
         
-    def get_td_wf_real(self):
-        return self.td_wf_real.copy()
-
-    def set_td_wf_real(self, wf):
-        self.td_wf_real = wf
-
-    def get_td_wf_imag(self):
-        return self.td_wf_imag.copy()
-
-    def set_td_wf_imag(self, wf):
-        self.td_wf_imag = wf
+#     def get_td_wf_real(self):
+#         return self.td_wf_real.copy()
+# 
+#     def set_td_wf_real(self, wf):
+#         self.td_wf_real = wf
+# 
+#     def get_td_wf_imag(self):
+#         return self.td_wf_imag.copy()
+# 
+#     def set_td_wf_imag(self, wf):
+#         self.td_wf_imag = wf
 
     def get_populations(self):
         return self.populations
@@ -149,13 +162,12 @@ class traj(fmsobj):
         for istate in range(self.numstates):
             new_wf = np.zeros((self.numstates), dtype = np.complex128)
             if istate != jstate:
-                new_wf += self.approx_eigenvecs[istate, :] * (self.mce_amps_real[istate]\
-                                                    + 1j * self.mce_amps_imag[istate])\
+                new_wf += self.approx_eigenvecs[istate, :] * self.mce_amps[istate]\
                                                     / np.sqrt(1-self.populations[jstate])
         
-        self.td_wf_real = np.real(new_wf)
-        self.td_wf_imag = np.imag(new_wf)
-        
+#         self.td_wf_real = np.real(new_wf)
+#         self.td_wf_imag = np.imag(new_wf)
+        self.td_wf = new_wf
     # End of Ehrenfest block
     
     def set_time(self,t):
@@ -528,15 +540,17 @@ class traj(fmsobj):
 #       cloning routines
 
 #        Projecting out everything but the population on the desired state
-        parent_amp = 1j * parent.mce_amps_imag + parent.mce_amps_real
-        self.td_wf_real = np.real(parent.get_approx_eigenvecs()[self.istate, :] * parent_amp / np.abs(parent_amp))
-        self.td_wf_imag = np.imag(parent.get_approx_eigenvecs()[self.istate, :] * parent_amp / np.abs(parent_amp))
+        parent_amp = parent.mce_amps
+#         self.td_wf_real = np.real(parent.get_approx_eigenvecs()[self.istate, :] * parent_amp / np.abs(parent_amp))
+#         self.td_wf_imag = np.imag(parent.get_approx_eigenvecs()[self.istate, :] * parent_amp / np.abs(parent_amp))
+        self.td_wf = parent.get_approx_eigenvecs()[self.istate, :] * parent_amp / np.abs(parent_amp)
         average_energy = 0.0
         pop = np.zeros(self.numstates)
         amp = np.zeros((self.numstates), dtype=np.complex128) 
         eigenvectors_t = np.transpose(np.conjugate(parent.get_approx_eigenvecs()))    
-        wf = self.td_wf_real + self.td_wf_imag
-        
+#         wf = self.td_wf_real + self.td_wf_imag
+        wf = self.td_wf
+         
         for k in range(self.numstates):
             amp[k] = np.dot(eigenvectors_t[k, :], wf)
             pop[k] = np.real(np.dot(np.transpose(np.conjugate(amp[k])), amp[k]))
@@ -849,11 +863,17 @@ class traj(fmsobj):
         trajgrp = h5f.create_group(groupname)
         for key in self.h5_datasets:
             n = self.h5_datasets[key]
-            dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n), dtype="float64")
+            if key == "td_wf":
+                dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n), dtype="complex128")
+            else:
+                dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n), dtype="float64")
 
         for key in self.h5_datasets_half_step:
             n = self.h5_datasets_half_step[key]
-            dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n), dtype="float64")
+            if key == "td_wf":
+                dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n), dtype="complex128")
+            else:
+                dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n), dtype="float64")
         # add some metadata
         trajgrp.attrs["istate"] = self.istate
         trajgrp.attrs["masses"] = self.masses
