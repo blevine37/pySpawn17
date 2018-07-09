@@ -86,9 +86,11 @@ def compute_elec_struct(self,zbackprop):
         pop[k] = np.real(np.dot(np.transpose(np.conjugate(amp[k])), amp[k]))
     
     av_energy = np.real(np.dot(np.dot(np.transpose(np.conjugate(wf)), H_elec), wf))
-
+    self.set_av_energy(float(av_energy))
+    av_energy2 = pop[0]*energies[0] + pop[1]*energies[1]
     print "eigenvecs = ", eigenvectors     
     print "average energy =", self.av_energy
+    print "average energy 2 =", av_energy2
     print "energies = ", energies
     print "prev_wf =", prev_wf
     print "\nwf =", wf
@@ -112,7 +114,6 @@ def compute_elec_struct(self,zbackprop):
 
     self.set_av_force = forces_av
     self.set_approx_eigenvecs(eigenvectors)
-    self.set_av_energy(float(av_energy))
     self.set_mce_amps_real(np.real(amp))
     self.set_mce_amps_imag(np.imag(amp))
     self.td_wf_real = np.real(wf)

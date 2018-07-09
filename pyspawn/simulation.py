@@ -463,13 +463,12 @@ class simulation(fmsobj):
 
     # this is the spawning routine
     def clone_as_necessary(self):
-        spawntraj = dict()
+        clonetraj = dict()
         for key in self.traj:
-            # trajectories that are spawning or should start were marked
+            # trajectories that are cloning or should start were marked
             # during propagation.  See "propagate_step" and "consider_spawning"
             # in traj.py
-            z = self.traj[key].get_z_spawn_now()
-            z_dont = self.traj[key].get_z_dont_spawn()
+            z = self.traj[key].get_z_clone_now()
             spawnt = self.traj[key].get_spawntimes()
             for jstate in range(self.traj[key].get_numstates()):
                 # is this trajectory marked to spawn to state j?
@@ -484,7 +483,7 @@ class simulation(fmsobj):
                     # create and initiate new trajectory structure
                     newtraj = traj()
                     print "eigenvecs of parent =", self.traj[key].get_approx_eigenvecs()
-                    newtraj.init_spawn_traj(self.traj[key], jstate, label)
+                    newtraj.init_clone_traj(self.traj[key], jstate, label)
 
                     # checking to see if overlap with existing trajectories
                     # is too high.  If so, we abort spawn
@@ -492,12 +491,12 @@ class simulation(fmsobj):
 
                     # rescaling velocity.  We'll abort if there is not
                     # enough energy (aka a "frustrated spawn")
-                    z_add_traj_rescale = newtraj.rescale_momentum(self.traj[key].get_energies_tmdt()[self.traj[key].get_istate()])
+                    z_add_traj_rescale = newtraj.rescale_momentum(self.traj[key].get_av_energy())
 
                     # okay, now we finally decide whether to spawn or not
                     if z_add_traj_olap and z_add_traj_rescale:
                         print "## creating new trajectory ", label
-                        spawntraj[label] = newtraj
+                        clonetraj[label] = newtraj
                         self.traj[key].incr_numchildren()
                         # After cloning to jstate we should remove population on jth state from the parent
                         self.traj[key].remove_state_pop(jstate)
@@ -506,25 +505,21 @@ class simulation(fmsobj):
                     # that:
                     # it isn't slated to spawn
                     z[jstate] = 0.0
-                    # it shouldn't spawn again until the coupling drops
-                    # below a threshold
-                    z_dont[jstate] = 1.0
                     # it isn't currently spawning
                     spawnt[jstate] = -1.0
 
             # once all states have been checked, we update the TBF structure
-            self.traj[key].set_z_spawn_now(z)
-            self.traj[key].set_z_dont_spawn(z_dont)
+            self.traj[key].set_z_clone_now(z)
             self.traj[key].set_spawntimes(spawnt)
 
         # okay, now it's time to add the spawned trajectories
-        for label in spawntraj:
+        for label in clonetraj:
             
             # finally, add the spawned trajectory
-            self.add_traj(spawntraj[label])
+            self.add_traj(clonetraj[label])
 
-    # check to make sure that a spawned trajectory doesn't overlap too much
-    # with any existing trajectory
+    # check to make sure that a cloned trajectory doesn't overlap too much
+    # with any existing trajectory (IS THIS NEEDED?)
     def check_overlap(self,newtraj):
         z_add_traj=True
         for key2 in self.traj:

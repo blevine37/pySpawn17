@@ -61,10 +61,9 @@ class traj(fmsobj):
         self.energies_tmdt = np.zeros(self.numstates)
         
         self.spawntimes = -1.0 * np.ones(self.numstates)
-        self.spawnthresh = 0.0
         self.spawnlastcoup = np.zeros(self.numstates)
-        self.z_spawn_now = np.zeros(self.numstates)
-        self.z_dont_spawn = np.zeros(self.numstates)
+        self.z_clone_now = np.zeros(self.numstates)
+#         self.z_dont_spawn = np.zeros(self.numstates)
         self.numchildren = 0
         
         self.positions_qm = np.zeros(self.numdims)
@@ -251,8 +250,7 @@ class traj(fmsobj):
         self.backprop_timederivcoups = np.zeros(self.numstates)
         self.timederivcoups_qm = np.zeros(self.numstates)
         self.spawnlastcoup = np.zeros(self.numstates)
-        self.z_spawn_now = np.zeros(self.numstates)
-        self.z_dont_spawn = np.zeros(self.numstates)
+        self.z_clone_now = np.zeros(self.numstates)
 
         self.energies_tpdt = np.zeros(self.numstates)
         self.energies_t = np.zeros(self.numstates)
@@ -286,18 +284,6 @@ class traj(fmsobj):
 
     def incr_numchildren(self):
         self.set_numchildren(self.get_numchildren() + 1)
-
-    #def set_software(self,sw):
-    #    self.software = sw
-
-    #def set_method(self,meth):
-    #    self.method = meth
-
-    #def get_software(self):
-    #    return self.software
-
-    #def get_method(self):
-    #    return self.method
 
     def set_positions(self,pos):
         if pos.shape == self.positions.shape:
@@ -520,7 +506,7 @@ class traj(fmsobj):
 
         self.set_firsttime(t)
 
-    def init_spawn_traj(self, parent, istate, label):
+    def init_clone_traj(self, parent, istate, label):
         self.set_numstates(parent.get_numstates())
         self.set_numdims(parent.get_numdims())
 
@@ -534,20 +520,32 @@ class traj(fmsobj):
         pos = parent.get_positions_tmdt()
         mom = parent.get_momenta_tmdt()
         e = parent.get_energies_tmdt()
-        
+                      
+        self.set_positions(pos)
+        self.set_momenta(mom)
+        self.set_energies(e)
+
 #       cloning routines
 
 #        Projecting out everything but the population on the desired state
         parent_amp = 1j * parent.mce_amps_imag + parent.mce_amps_real
         self.td_wf_real = np.real(parent.get_approx_eigenvecs()[self.istate, :] * parent_amp / np.abs(parent_amp))
         self.td_wf_imag = np.imag(parent.get_approx_eigenvecs()[self.istate, :] * parent_amp / np.abs(parent_amp))
+        average_energy = 0.0
+        pop = np.zeros(self.numstates)
+        amp = np.zeros((self.numstates), dtype=np.complex128) 
+        eigenvectors_t = np.transpose(np.conjugate(parent.get_approx_eigenvecs()))    
+        wf = self.td_wf_real + self.td_wf_imag
         
-# adjust momentum
+        for k in range(self.numstates):
+            amp[k] = np.dot(eigenvectors_t[k, :], wf)
+            pop[k] = np.real(np.dot(np.transpose(np.conjugate(amp[k])), amp[k]))
+            average_energy += pop[k] * parent.energies[k]
+            
+        self.av_energy = float(average_energy)
         
-        self.set_positions(pos)
-        self.set_momenta(mom)
-        self.set_energies(e)
-
+        print "energy of child =", self.av_energy
+        print "energy of parent =", parent.av_energy
 #         mintime = float(parent.get_spawntimes()[istate])
         # Setting mintime to current time to avoid backpropagation
         mintime = parent.get_time()
@@ -586,16 +584,15 @@ class traj(fmsobj):
 
         z_dont = np.zeros(parent.get_numstates())
         z_dont[parent.get_istate()] = 1.0
-        self.set_z_dont_spawn(z_dont)
-        self.set_spawnthresh(parent.get_spawnthresh())
         self.set_clonethresh(parent.get_clonethresh())
         
         self.potential_specific_traj_copy(parent)
 
     def rescale_momentum(self, v_parent):
-        v_child = self.get_energies()[self.get_istate()]
+        v_child = self.av_energy
         print "rescale v_child ", v_child
         print "rescale v_parent ", v_parent
+
         # computing kinetic energy of parent.  Remember that, at this point,
         # the child's momentum is still that of the parent, so we compute
         # t_parent from the child's momentum
@@ -610,13 +607,20 @@ class traj(fmsobj):
             print "# Aborting spawn because child does not have"
             print "# enough energy for momentum adjustment"
             return False
-        #print "# rescaling momentum by factor ", factor
         factor = math.sqrt(factor)
         print "# rescaling momentum by factor ", factor
         p_child = factor * p_parent
-        #print "rescale p_child ", p_child
-        #print "rescale p_parent ", p_parent
         self.set_momenta(p_child)
+        
+        # Computing kinetic energy of child to make sure energy is conserved
+        t_child = 0.0
+        for idim in range(self.get_numdims()):
+            t_child += 0.5 * p_child[idim] * p_child[idim] / m[idim]
+        print "total energy of parent =", v_parent + t_parent
+        print "total energy of child =", v_child + t_child
+        if v_parent + t_parent - v_child - t_child > 1e-9: 
+            print "ENERGY NOT CONSERVED!!!"
+            sys.exit
         return True
 
     def set_forces(self,f):
@@ -729,51 +733,25 @@ class traj(fmsobj):
     def get_backprop_S_elec_flat(self):
         return self.backprop_S_elec_flat.copy()
     
-    def set_timederivcoups_qm(self,t):
-        if t.shape == self.timederivcoups_qm.shape:
-            self.timederivcoups_qm = t.copy()
+    def set_z_clone_now(self,z):
+        if z.shape == self.z_clone_now.shape:
+            self.z_clone_now = z.copy()
         else:
-            print "Error in set_spawntimes"
+            print "Error in set_z_clone_now"
             sys.exit
     
-    def get_timederivcoups_qm(self):
-        return self.timederivcoups_qm.copy()
+    def get_z_clone_now(self):
+        return self.z_clone_now.copy()
     
-    def set_spawnlastcoup(self,tdc):
-        if tdc.shape == self.spawnlastcoup.shape:
-            self.spawnlastcoup = tdc.copy()
-        else:
-            print "Error in set_spawnlastcoup"
-            sys.exit
-    
-    def get_spawnlastcoup(self):
-        return self.spawnlastcoup.copy()
-    
-    def set_z_spawn_now(self,z):
-        if z.shape == self.z_spawn_now.shape:
-            self.z_spawn_now = z.copy()
-        else:
-            print "Error in set_z_spawn_now"
-            sys.exit
-    
-    def get_z_spawn_now(self):
-        return self.z_spawn_now.copy()
-    
-    def set_z_dont_spawn(self,z):
-        if z.shape == self.z_dont_spawn.shape:
-            self.z_dont_spawn = z.copy()
-        else:
-            print "Error in set_z_dont_spawn"
-            sys.exit
-    
-    def get_z_dont_spawn(self):
-        return self.z_dont_spawn.copy()
-    
-    def set_spawnthresh(self,t):
-        self.spawnthresh = t
-    
-    def get_spawnthresh(self):
-        return self.spawnthresh
+#     def set_z_dont_spawn(self,z):
+#         if z.shape == self.z_dont_spawn.shape:
+#             self.z_dont_spawn = z.copy()
+#         else:
+#             print "Error in set_z_dont_spawn"
+#             sys.exit
+#     
+#     def get_z_dont_spawn(self):
+#         return self.z_dont_spawn.copy()
     
     def set_z_compute_me(self,z):
         self.z_compute_me = z
@@ -801,32 +779,34 @@ class traj(fmsobj):
         else:
             self.prop_not_first_step(zbackprop=zbackprop)
 
-        # consider whether to spawn
+        # consider whether to clone
         if not zbackprop:
             self.consider_cloning()
           
     def consider_cloning(self):
 
         thresh = self.clonethresh
-        z = self.get_z_spawn_now()
+        z = self.get_z_clone_now()
         print "CONSIDERING CLONING:"
         clone_parameter = np.zeros(self.numstates)
         
         for jstate in range(self.numstates):
             dE = self.energies[jstate] - self.av_energy
             clone_parameter[jstate] = np.abs(dE*self.populations[jstate])
-            print "cloning parameter = ", clone_parameter
+            print "cloning parameter = ", clone_parameter[jstate]
+            print "dE =", dE
+            print "pop = ", self.populations[jstate]
             print "Threshold =", thresh
             print "z < 1", z.any() < 0.5
 
-            if clone_parameter[jstate] > thresh:
+            if clone_parameter[jstate] > thresh and jstate == np.argmax(clone_parameter):
                 print "CLONING TO STATE ", jstate, " at time ", self.get_time()
-                # setting z_spawn_now indicates that
+                # setting z_clone_now indicates that
                 # this trajectory should clone to jstate
                 z[jstate] = 1.0
         print "max threshold", np.argmax(clone_parameter)        
 #         z[np.argmax(clone_parameter)] = 1.0
-        self.set_z_spawn_now(z) 
+        self.set_z_clone_now(z) 
             
     def h5_output(self, zbackprop,zdont_half_step=False):
         if not zbackprop:
