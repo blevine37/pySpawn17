@@ -809,20 +809,13 @@ class traj(fmsobj):
         self.set_z_clone_now(z) 
             
     def h5_output(self, zbackprop,zdont_half_step=False):
-        if not zbackprop:
-            cbackprop = ""
-        else:
-            cbackprop = "backprop_"
-        if "_a_" not in self.get_label():
-            traj_or_cent = "traj_"
-        else:
-            traj_or_cent = "cent_"
+
         if len(self.h5_datasets) == 0:
             self.init_h5_datasets()
         filename = "working.hdf5"
 
         h5f = h5py.File(filename, "a")
-        groupname = traj_or_cent + self.label
+        groupname = "traj_" + self.label
         if groupname not in h5f.keys():
             self.create_h5_traj(h5f,groupname)
         trajgrp = h5f.get(groupname)
@@ -840,7 +833,7 @@ class traj(fmsobj):
             else:
                 ipos=0
                 dset[1:(l+1),0:n] = dset[0:(l),0:n]
-            getcom = "self.get_" + cbackprop + key + "()"
+            getcom = "self.get_" + key + "()"
 #             print getcom
             tmp = eval(getcom)
 #             print "\nkey =", key
@@ -856,10 +849,8 @@ class traj(fmsobj):
         trajgrp = h5f.create_group(groupname)
         for key in self.h5_datasets:
             n = self.h5_datasets[key]
-#             if key != "wf0" and key != "wf1":
             dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n), dtype="float64")
-#             if key == "wf0" or key == "wf1":
-#                 dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n), dtype="complex128")
+
         for key in self.h5_datasets_half_step:
             n = self.h5_datasets_half_step[key]
             dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n), dtype="float64")
@@ -872,11 +863,7 @@ class traj(fmsobj):
         
     def get_data_at_time_from_h5(self,t,dset_name):
         h5f = h5py.File("working.hdf5", "r")
-        if "_a_" not in self.get_label():
-            traj_or_cent = "traj_"
-        else:
-            traj_or_cent = "cent_"
-        groupname = traj_or_cent + self.label
+        groupname = "traj_" + self.label
         filename = "working.hdf5"
         trajgrp = h5f.get(groupname)
         dset_time = trajgrp["time"][:]
@@ -896,11 +883,7 @@ class traj(fmsobj):
 
     def get_all_qm_data_at_time_from_h5(self,t,suffix=""):
         h5f = h5py.File("working.hdf5", "r")
-        if "_a_" not in self.get_label():
-            traj_or_cent = "traj_"
-        else:
-            traj_or_cent = "cent_"
-        groupname = traj_or_cent + self.label
+        groupname = "traj_" + self.label
         filename = "working.hdf5"
         trajgrp = h5f.get(groupname)
         dset_time = trajgrp["time"][:]
@@ -923,11 +906,7 @@ class traj(fmsobj):
             
     def get_all_qm_data_at_time_from_h5_half_step(self,t):
         h5f = h5py.File("working.hdf5", "r")
-        if "_a_" not in self.get_label():
-            traj_or_cent = "traj_"
-        else:
-            traj_or_cent = "cent_"
-        groupname = traj_or_cent + self.label
+        groupname = "traj_" + self.label
         filename = "working.hdf5"
         trajgrp = h5f.get(groupname)
         dset_time = trajgrp["time_half_step"][:]
