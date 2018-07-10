@@ -15,16 +15,10 @@ from Cython.Compiler.PyrexTypes import c_ref_type
 
 ### pyspawn_cone electronic structure ###
 def compute_elec_struct(self,zbackprop):
-    if not zbackprop:
-        cbackprop = ""
-    else:
-        cbackprop = "backprop_"
 
-#     exec("self.set_" + cbackprop + "prev_wf(self.get_" + cbackprop + "wf())")
     prev_wf = self.td_wf
-#     prev_wf = self.td_wf_real + 1j*self.td_wf_imag
-    exec("x = self.get_" + cbackprop + "positions()[0]")
-    exec("y = self.get_" + cbackprop + "positions()[1]")
+    x = self.get_positions()[0]
+    y = self.get_positions()[1]
     
     n_el_steps = 2000
     time = self.get_time()
@@ -116,10 +110,6 @@ def compute_elec_struct(self,zbackprop):
     self.set_av_force = forces_av
     self.set_approx_eigenvecs(eigenvectors)
     self.set_mce_amps(amp)
-#     self.set_mce_amps_real(np.real(amp))
-#     self.set_mce_amps_imag(np.imag(amp))
-#     self.td_wf_real = np.real(wf)
-#     self.td_wf_imag = np.imag(wf)
     self.td_wf = wf
     self.populations = pop
 
@@ -145,7 +135,7 @@ def init_h5_datasets(self):
     self.h5_datasets["av_energy"] = 1
     self.h5_datasets["av_force"] = self.numdims
     self.h5_datasets["td_wf"] = self.numstates
-#     self.h5_datasets["td_wf_imag"] = self.numstates
+    self.h5_datasets["mce_amps"] = self.numstates    
     self.h5_datasets["time"] = 1
     self.h5_datasets["energies"] = self.numstates
     self.h5_datasets["positions"] = self.numdims
@@ -153,16 +143,8 @@ def init_h5_datasets(self):
     self.h5_datasets["forces_i"] = self.numdims
     self.h5_datasets["populations"] = self.numstates
     self.h5_datasets_half_step["time_half_step"] = 1
-#     self.h5_types["td_wf"] = "complex128"
 
 def potential_specific_traj_copy(self,from_traj):
     return
-
-# 
-# def get_backprop_wf0(self):
-#     return self.backprop_wf[0,:].copy()
-# 
-# def get_backprop_wf1(self):
-#     return self.backprop_wf[1,:].copy()
 
 ###end pyspawn_cone electronic structure section###

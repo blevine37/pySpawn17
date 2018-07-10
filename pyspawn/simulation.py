@@ -33,7 +33,7 @@ class simulation(fmsobj):
         self.quantum_time = 0.0
         # quantum time is the current time of the quantum amplitudes
         self.quantum_time_half_step = 0.0
-        # timestep for qunatum propagation
+        # timestep for quantum propagation
         self.timestep = 0.0
         # quantum propagator
         #self.qm_propagator = "RK2"
@@ -282,29 +282,11 @@ class simulation(fmsobj):
         max_info_time = 1.0e10
         # first check trajectories
         for key in self.traj:
-            #print "traj key", key
-            # if a trajectory is spawning, we can only propagate to the
-            # spawntime
+
             timestep = self.traj[key].get_timestep()
-            spawntimes = self.traj[key].get_spawntimes()
-            for i in range(len(spawntimes)):
-                if (spawntimes[i] - timestep) < max_info_time and spawntimes[i] > 0.0 :
-                    max_info_time = spawntimes[i] - timestep
-                    #print "i spawntimes[i] max_info_time", i, spawntimes[i], max_info_time
-            # if a trajectory is backpropagating, we can only propagate to
-            # its mintime
-            mintime = self.traj[key].get_mintime()
-            #print "mintime, backproptime", mintime, self.traj[key].get_backprop_time()
-            if (mintime + 1.0e-6) < self.traj[key].get_backprop_time():
-                if (mintime - timestep) < max_info_time:
-                    max_info_time = mintime - timestep
-                    #print "mintime max_info_time", mintime, max_info_time
-            # if a trajectory is neither spawning nor backpropagating, we can
-            # only propagate to its current forward propagation time
             time = self.traj[key].get_time()
             if (time - timestep) < max_info_time:
                 max_info_time = time - timestep
-                #print "time max_info_time", time, max_info_time
 
         print "## we have enough information to propagate to time ", max_info_time
 
@@ -441,13 +423,6 @@ class simulation(fmsobj):
                 tasktime_tmp = self.traj[key].get_time()
                 self.insert_task(task_tmp,tasktime_tmp, tasktimes)
                 
-        # backward propagation tasks
-        for key in self.traj:
-            if (self.traj[key].get_mintime()+1.0e-6) < self.traj[key].get_backprop_time():
-                task_tmp = "self.traj[\"" + key  + "\"].propagate_step(zbackprop=True)"
-                tasktime_tmp = self.traj[key].get_backprop_time()
-                self.insert_task(task_tmp,tasktime_tmp, tasktimes)
-                
         print "##", (len(self.queue)-1), "task(s) in queue:"
         for i in range(len(self.queue)-1):
             print self.queue[i] + ", time = " + str(tasktimes[i])
@@ -469,7 +444,6 @@ class simulation(fmsobj):
             # during propagation.  See "propagate_step" and "consider_spawning"
             # in traj.py
             z = self.traj[key].get_z_clone_now()
-            spawnt = self.traj[key].get_spawntimes()
             for jstate in range(self.traj[key].get_numstates()):
                 # is this trajectory marked to spawn to state j?
                 if z[jstate] > 0.5:
@@ -506,11 +480,9 @@ class simulation(fmsobj):
                     # it isn't slated to spawn
                     z[jstate] = 0.0
                     # it isn't currently spawning
-                    spawnt[jstate] = -1.0
 
             # once all states have been checked, we update the TBF structure
             self.traj[key].set_z_clone_now(z)
-            self.traj[key].set_spawntimes(spawnt)
 
         # okay, now it's time to add the spawned trajectories
         for label in clonetraj:

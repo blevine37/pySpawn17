@@ -36,8 +36,6 @@ class traj(fmsobj):
         self.timederivcoups = np.zeros(self.numstates)
         self.S_elec_flat = np.zeros(self.numstates*self.numstates)
 
-        self.backprop_time = 0.0
-
         self.positions_tpdt = np.zeros(self.numdims)
         self.positions_t = np.zeros(self.numdims)
         self.positions_tmdt = np.zeros(self.numdims)
@@ -48,9 +46,7 @@ class traj(fmsobj):
         self.energies_t = np.zeros(self.numstates)
         self.energies_tmdt = np.zeros(self.numstates)
         
-        self.spawntimes = -1.0 * np.ones(self.numstates)
         self.spawnlastcoup = np.zeros(self.numstates)
-        self.z_clone_now = np.zeros(self.numstates)
         self.numchildren = 0
         
         self.positions_qm = np.zeros(self.numdims)
@@ -66,6 +62,7 @@ class traj(fmsobj):
         self.av_energy = 0.0
         self.av_force = np.zeros(self.numdims)
         self.approx_eigenvecs = np.zeros((self.numstates, self.numstates))
+        self.z_clone_now = np.zeros(self.numstates)
         
         self.clonethresh = 0.0
         self.clonetimes = -1.0 * np.ones(self.numstates)
@@ -144,12 +141,6 @@ class traj(fmsobj):
     def get_timestep(self):
         return self.timestep
     
-    def set_backprop_time(self,t):
-        self.backprop_time = t
-     
-    def get_backprop_time(self):
-        return self.backprop_time
-    
     def set_maxtime(self,t):
         self.maxtime = t
     
@@ -191,7 +182,6 @@ class traj(fmsobj):
         self.energies = np.zeros(self.numstates)
         self.forces = np.zeros((self.numstates,self.numdims))
 
-        self.spawntimes = -1.0 * np.ones(self.numstates)
         self.spawnlastcoup = np.zeros(self.numstates)
         self.z_clone_now = np.zeros(self.numstates)
 
@@ -574,16 +564,6 @@ class traj(fmsobj):
 
     def get_prev_wf(self):
         return self.prev_wf.copy()
-
-    def set_spawntimes(self,st):
-        if st.shape == self.spawntimes.shape:
-            self.spawntimes = st.copy()
-        else:
-            print "Error in set_spawntimes"
-            sys.exit
-
-    def get_spawntimes(self):
-        return self.spawntimes.copy()
     
     def set_S_elec_flat(self,S):
         self.S_elec_flat = S.copy()
@@ -639,7 +619,6 @@ class traj(fmsobj):
                 # this trajectory should clone to jstate
                 z[jstate] = 1.0
         print "max threshold", np.argmax(clone_parameter)        
-#         z[np.argmax(clone_parameter)] = 1.0
         self.set_z_clone_now(z) 
             
     def h5_output(self, zbackprop,zdont_half_step=False):
