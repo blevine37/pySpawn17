@@ -17,11 +17,11 @@ from Cython.Compiler.PyrexTypes import c_ref_type
 def compute_elec_struct(self,zbackprop):
 
     prev_wf = self.td_wf
-    x = self.get_positions()[0]
-    y = self.get_positions()[1]
+    x = self.positions[0]
+    y = self.positions[1]
     
     n_el_steps = 2000
-    time = self.get_time()
+    time = self.time
     el_timestep = self.timestep / n_el_steps
     a = 6
     k = 3
@@ -39,7 +39,7 @@ def compute_elec_struct(self,zbackprop):
     r = math.sqrt( x * x + y * y )
     theta = (math.atan2(y,x)) / 2.0
 
-    self.set_energies(energies)      
+    self.energies = energies      
 
     # This part performs the propagation of the electronic wave function for ehrenfest dynamics
     if time < 1e-8 or prev_wf.all() < 1e-8: # first time step electronic wave function propagated only by dt/2:
@@ -81,11 +81,10 @@ def compute_elec_struct(self,zbackprop):
         pop[k] = np.real(np.dot(np.transpose(np.conjugate(amp[k])), amp[k]))
     
     av_energy = np.real(np.dot(np.dot(np.transpose(np.conjugate(wf)), H_elec), wf))
-    self.set_av_energy(float(av_energy))
-    av_energy2 = pop[0]*energies[0] + pop[1]*energies[1]
+    self.av_energy = float(av_energy)
+    
     print "eigenvecs = ", eigenvectors     
     print "average energy =", self.av_energy
-    print "average energy 2 =", av_energy2
     print "energies = ", energies
     print "prev_wf =", prev_wf
     print "\nwf =", wf
@@ -107,12 +106,11 @@ def compute_elec_struct(self,zbackprop):
 #         wf[1,:] = -1.0 * wf[1,:]
 #         W[:,1] = -1.0 * W[:,1]
 
-    self.set_av_force = forces_av
-    self.set_approx_eigenvecs(eigenvectors)
-    self.set_mce_amps(amp)
+    self.av_force = forces_av
+    self.approx_eigenvecs = eigenvectors
+    self.mce_amps = amp
     self.td_wf = wf
     self.populations = pop
-
     
 def propagate_symplectic(self, H, wf, timestep, nsteps):
 

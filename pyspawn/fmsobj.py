@@ -98,13 +98,12 @@ class fmsobj(object):
             
         self.from_dict(**tempdict)
 
-    def set_parameters(self,params):
+    def set_parameters(self, params):
         print "### Setting " + self.__class__.__name__ + " parameters"
         for key in params:
             print key + " = " + str(params[key]) 
-            method = "set_" + key
-            if hasattr(self,method):
-                exec("self.set_" + key + "(params[key])")
+            if hasattr(self, key):
+                exec("self." + key + "= params[key]")
             else:
                 print "### Parameter " + key + " not found in " + self.__class__.__name__ + ", exiting"
                 quit()

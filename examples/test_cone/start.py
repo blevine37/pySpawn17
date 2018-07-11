@@ -13,16 +13,16 @@ qm_prop = "fulldiag"
 qm_ham = "adiabatic"
 
 # use TeraChem CASSCF or CASCI to compute potentials
-potential = "test_cone"
+potential = "test_cone_td"
 
 # initial time
 t0 = 0.0
 
 # time step
-ts = 0.1
+ts = 0.2
 
 # final simulation time
-tfinal = 8.0
+tfinal = 21.0
 
 # number of dimensions                                                                                           
 numdims = 2
@@ -39,7 +39,9 @@ traj_params = {
     # final simulation time
     "maxtime": tfinal,
     # coupling threshhold
-    "spawnthresh": (0.5 * np.pi) / ts / 20.0,
+#     "spawnthresh": (0.5 * np.pi) / ts / 20.0,
+    # coupling threshhold
+    "clonethresh": 1.0,
     # initial electronic state (indexed such that 0 is the ground state)
     "istate": 1,
     # Gaussian widths
@@ -47,9 +49,11 @@ traj_params = {
     # nuclear masses (in a.u)    
     "masses": np.asarray([1822.0, 1822.0]),
     # initial positions
-    "positions": np.asarray([0.45,0.0]),
+    "positions": np.asarray([0.45, 0.0]),
     # inition momenta
-    "momenta": np.asarray([-200.0,0.0]),
+    "momenta": np.asarray([-200.0, 50.0]),
+    #
+    "numstates": numstates,
     }
 
 sim_params = {
@@ -76,17 +80,17 @@ pyspawn.general.check_files()
 
 # set up first trajectory
 traj1 = pyspawn.traj()
-traj1.set_numstates(numstates)
-traj1.set_numdims(numdims)
+# traj1.set_numstates(numstates)
+# traj1.set_numdims(numdims)
 traj1.set_parameters(traj_params)
 
 # set up simulation 
 sim = pyspawn.simulation()
 sim.add_traj(traj1)
 sim.set_parameters(sim_params)
-
 # begin propagation
 sim.propagate()
+print sim.num_traj_qm
 
 
 

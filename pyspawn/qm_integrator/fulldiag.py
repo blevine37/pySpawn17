@@ -9,12 +9,12 @@ import math
 def qm_propagate_step(self,zoutput_first_step=False):
     c1i = (complex(0.0,1.0))
     self.compute_num_traj_qm()
-    qm_t = self.get_quantum_time()
-    dt = self.get_timestep()
+    qm_t = self.quantum_time
+    dt = self.timestep
     qm_tpdt = qm_t + dt 
-    ntraj = self.get_num_traj_qm()
+    ntraj = self.num_traj_qm
     
-    amps_t = self.get_qm_amplitudes()
+    amps_t = self.qm_amplitudes
     #print "amps_t", amps_t
     
     self.build_Heff_first_half()
@@ -45,14 +45,14 @@ def qm_propagate_step(self,zoutput_first_step=False):
 
     #print "fulldiag amps", amps
     
-    tmp1 = la.solve(R,amps)
-    tmp2 = X*tmp1 # elementwise multiplication
+    tmp1 = la.solve(R, amps)
+    tmp2 = X * tmp1 # elementwise multiplication
     #amps = la.solve(LH,tmp2)
-    amps = np.matmul(R,tmp2)
+    amps = np.matmul(R, tmp2)
 
     #print "fulldiag amps2", amps
     
-    self.set_quantum_time(qm_tpdt)
+    self.quantum_time = qm_tpdt
 
     self.build_Heff_second_half()
         
@@ -76,13 +76,13 @@ def qm_propagate_step(self,zoutput_first_step=False):
 
     #print "fulldiag amps3", amps
     
-    tmp1 = la.solve(R,amps)
-    tmp2 = X*tmp1 # elementwise multiplication
+    tmp1 = la.solve(R, amps)
+    tmp2 = X * tmp1 # elementwise multiplication
     #amps = la.solve(LH,tmp2)
-    amps = np.matmul(R,tmp2)
+    amps = np.matmul(R, tmp2)
 
     #print "fulldiag amps4", amps
     
-    self.set_qm_amplitudes(amps)
+    self.qm_amplitudes = amps
                 
 ######################################################

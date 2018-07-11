@@ -7,10 +7,10 @@
 def build_Heff_first_half(self):
     self.get_qm_data_from_h5()
     
-    qm_time = self.get_quantum_time()
-    dt = self.get_timestep()
+    qm_time = self.quantum_time
+    dt = self.timestep
     t_half = qm_time + 0.5 * dt
-    self.set_quantum_time_half_step(t_half)
+    self.quantum_time_half_step = t_half
     self.get_qm_data_from_h5_half_step()        
     
     self.build_S()
@@ -25,10 +25,10 @@ def build_Heff_first_half(self):
 def build_Heff_second_half(self):
     self.get_qm_data_from_h5()
     
-    qm_time = self.get_quantum_time()
-    dt = self.get_timestep()
+    qm_time = self.quantum_time
+    dt = self.timestep
     t_half = qm_time - 0.5 * dt
-    self.set_quantum_time_half_step(t_half)
+    self.quantum_time_half_step = t_half
     self.get_qm_data_from_h5_half_step()        
     
     self.build_S()
