@@ -19,10 +19,10 @@ potential = "test_cone_td"
 t0 = 0.0
 
 # time step
-ts = 0.2
+ts = 0.1
 
 # final simulation time
-tfinal = 21.0
+tfinal = 70.0
 
 # number of dimensions                                                                                           
 numdims = 2
@@ -41,7 +41,7 @@ traj_params = {
     # coupling threshhold
 #     "spawnthresh": (0.5 * np.pi) / ts / 20.0,
     # coupling threshhold
-    "clonethresh": 1.0,
+    "clonethresh": 0.10,
     # initial electronic state (indexed such that 0 is the ground state)
     "istate": 1,
     # Gaussian widths
@@ -49,9 +49,9 @@ traj_params = {
     # nuclear masses (in a.u)    
     "masses": np.asarray([1822.0, 1822.0]),
     # initial positions
-    "positions": np.asarray([0.45, 0.0]),
+    "positions": np.asarray([0.25, 0.1]),
     # inition momenta
-    "momenta": np.asarray([-200.0, 50.0]),
+    "momenta": np.asarray([-0.01, 0.02]),
     #
     "numstates": numstates,
     }
@@ -64,9 +64,9 @@ sim_params = {
     # final simulation time
     "max_quantum_time": traj_params["maxtime"],
     # initial qm amplitudes
-    "qm_amplitudes": np.ones(1,dtype=np.complex128),
+    "qm_amplitudes": np.ones(1, dtype=np.complex128),
     # energy shift used in quantum propagation
-    "qm_energy_shift": -5.18,
+    "qm_energy_shift": 0.0,
 }
 
 # import routines needed for propagation

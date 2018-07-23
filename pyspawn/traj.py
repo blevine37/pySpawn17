@@ -11,7 +11,8 @@ from numpy import dtype
 class traj(fmsobj):
     numstates = 2    
     numdims = 2
-    
+    t_decoherence_par = 0.1
+        
     def __init__(self):
         self.time = 0.0
         self.time_half_step = 0.0
@@ -42,9 +43,14 @@ class traj(fmsobj):
         self.momenta_tpdt = np.zeros(self.numdims)
         self.momenta_t = np.zeros(self.numdims)
         self.momenta_tmdt = np.zeros(self.numdims)
+        
         self.energies_tpdt = np.zeros(self.numstates)
         self.energies_t = np.zeros(self.numstates)
         self.energies_tmdt = np.zeros(self.numstates)
+        
+        self.av_energy_tpdt = 0.0
+        self.av_energy_t = 0.0
+        self.av_energy_tmdt = 0.0       
         
         self.spawnlastcoup = np.zeros(self.numstates)
         self.numchildren = 0
@@ -64,6 +70,13 @@ class traj(fmsobj):
         self.z_clone_now = np.zeros(self.numstates)        
         self.clonethresh = 0.0
 
+    def calc_kin_en(self, p, m):
+        ke = 0.0
+        for idim in range(self.numdims):
+            ke += 0.5 * p[idim] * p[idim] / m[idim]
+        
+        return ke
+    
     def remove_state_pop(self, jstate):
         """After cloning of the wave function to the jstate the cloned wf have all population on jstate
         the rest of the population stays on the parent wf. This subroutine removes all population on jstate
@@ -76,7 +89,7 @@ class traj(fmsobj):
 
         self.td_wf = new_wf
     # End of Ehrenfest block
-
+    
     def set_forces_i_qm(self, f):
         if f.shape == self.forces_i_qm.shape:
             self.forces_i_qm = f.copy()
@@ -122,22 +135,28 @@ class traj(fmsobj):
 
 #        Projecting out everything but the population on the desired state
         parent_amp = parent.mce_amps
-        self.td_wf = parent.approx_eigenvecs[self.istate, :] * parent_amp / np.abs(parent_amp)
+        self.td_wf = parent.approx_eigenvecs[:, self.istate] * parent_amp[self.istate] / np.abs(parent_amp[self.istate])
         average_energy = 0.0
         pop = np.zeros(self.numstates)
         amp = np.zeros((self.numstates), dtype=np.complex128) 
         eigenvectors_t = np.transpose(np.conjugate(parent.approx_eigenvecs))    
         wf = self.td_wf
         
-        for k in range(self.numstates):
-            amp[k] = np.dot(eigenvectors_t[k, :], wf)
-            pop[k] = np.real(np.dot(np.transpose(np.conjugate(amp[k])), amp[k]))
-            average_energy += pop[k] * parent.energies[k]
-            
+        H_elec = self.construct_el_H()
+        average_energy = np.real(np.dot(np.dot(np.transpose(np.conjugate(wf)), H_elec), wf))
+#         print "parent eigenvecs = ", parent.approx_eigenvecs
+#         print "parent wf = ", parent.td_wf
+#         print "child wf = ", self.td_wf
+#         print "child pop = ", pop
+#         print "clone init clone traj norm =", np.dot(np.transpose(np.conjugate(wf)), wf)
+#         
+        # updating quantum parameters for child    
         self.av_energy = float(average_energy)
+        self.mce_amps = amp
+        self.populations = pop
         
-        print "energy of child =", self.av_energy
-        print "energy of parent =", parent.av_energy
+#         print "energy of child =", self.av_energy
+#         print "energy of parent =", parent.av_energy
         # Setting mintime to current time to avoid backpropagation
         mintime = parent.time
         self.mintime = mintime
@@ -180,14 +199,11 @@ class traj(fmsobj):
         # t_parent from the child's momentum
         p_parent = self.momenta
         m = self.masses
-        t_parent = 0.0
-        for idim in range(self.numdims):
-            t_parent += 0.5 * p_parent[idim] * p_parent[idim] / m[idim]
-
+        t_parent = self.calc_kin_en(p_parent, m)
+        
         factor = ( ( v_parent + t_parent - v_child ) / t_parent )
         if factor < 0.0:
-            print "# Aborting cloning because child does not have"
-            print "# enough energy for momentum adjustment"
+            print "# Aborting cloning because child does not have enough energy for momentum adjustment"
             return False
         factor = math.sqrt(factor)
         print "# rescaling momentum by factor ", factor
@@ -202,7 +218,29 @@ class traj(fmsobj):
             print "ENERGY NOT CONSERVED!!!"
             sys.exit
         return True
-
+    
+    def rescale_parent_momentum(self, energy):
+        
+        v_fin = energy
+        p_ini = self.momenta
+        v_ini = self.av_energy
+        t_ini = self.calc_kin_en(p, m)
+        
+#         print "Initial kinetic energy", t_ini
+#         print "Initial potential energy", v_ini
+#         print "Final Potential energy", v_fin
+#         print "Goal kinetic energy", v_ini + t_ini - v_fin    
+        factor = v_ini + t_ini - v_fin
+        if factor < 0.0:
+            print "# Aborting cloning because parent momentum cannot be adjusted"
+            return False
+        factor = np.sqrt(factor)
+        print "# rescaling parent momentum by factor ", factor
+        p_fin = p_ini * factor
+        self.momentum = p_fin
+        
+        return True
+                
     def set_forces(self,f):
         if f.shape == self.forces.shape:
             self.forces = f.copy()
@@ -217,16 +255,16 @@ class traj(fmsobj):
         fi = self.get_forces()[self.istate, :]
         return fi
 
-    def propagate_step(self, zbackprop=False):
+    def propagate_step(self):
 
-        if abs(eval("self.time") - self.firsttime) < 1.0e-6:
-            self.prop_first_step(zbackprop = zbackprop)
+        if float(self.time) - float(self.firsttime) < self.timestep:
+            self.prop_first_step()
         else:
-            self.prop_not_first_step(zbackprop = zbackprop)
+            self.prop_not_first_step()
 
         # consider whether to clone
         self.consider_cloning()
-          
+        
     def consider_cloning(self):
         """Marking trajectories for cloning using z_clone_now variable
         as a parameter we use (Ei - Eav) * POPi"""
@@ -235,13 +273,29 @@ class traj(fmsobj):
         print "CONSIDERING CLONING:"
         clone_parameter = np.zeros(self.numstates)
         
+        m = self.masses
+        ke_tot = 0.0
+        p = np.zeros((self.numstates, self.numstates))
+        tau = np.zeros((self.numstates, self.numstates))
+        for idim in range(self.numdims):
+            ke_tot += 0.5 * self.momenta[idim] * self.momenta[idim] / m[idim]
+        
+        for istate in range(self.numstates):
+            for jstate in range(self.numstates):
+                if istate == jstate:
+                    tau[istate, jstate] = 0.0
+                else:
+                    dE = np.abs(self.energies[jstate] - self.energies[istate])
+                    tau[istate, jstate] = (1 + self.t_decoherence_par / ke_tot) / dE
+                p[istate, jstate] = 1 - np.exp(-self.timestep / tau[istate, jstate])
+                            
         for jstate in range(self.numstates):
             dE = self.energies[jstate] - self.av_energy
             clone_parameter[jstate] = np.abs(dE*self.populations[jstate])
-            print "cloning parameter = ", clone_parameter[jstate]
-            print "dE =", dE
-            print "pop = ", self.populations[jstate]
-            print "Threshold =", self.clonethresh
+#             print "cloning parameter = ", clone_parameter[jstate]
+#             print "dE =", dE
+#             print "pop = ", self.populations[jstate]
+#             print "Threshold =", self.clonethresh
 
             if clone_parameter[jstate] > self.clonethresh and jstate == np.argmax(clone_parameter):
                 print "CLONING TO STATE ", jstate, " at time ", self.time
@@ -251,7 +305,7 @@ class traj(fmsobj):
         print "max threshold", np.argmax(clone_parameter)        
         self.z_clone_now = z 
             
-    def h5_output(self, zbackprop,zdont_half_step=False):
+    def h5_output(self, zdont_half_step=False):
 
         if len(self.h5_datasets) == 0:
             self.init_h5_datasets()

@@ -119,36 +119,6 @@ class simulation(fmsobj):
         """get the number of tasks in the queue"""
         return (len(self.queue)-1)
 
-    def set_olapmax(self,s):
-        self.olapmax = s
-
-    def set_timestep_all(self,h):
-        """set the timestep on all trajectories"""
-        self.timestep = h
-        for key in self.traj:
-            self.traj[key].timestep = h
-
-    def set_maxtime_all(self,maxtime):
-        """set the maximimum simulation time on all trajectories"""
-        self.set_max_quantum_time(maxtime)
-        h = self.timestep
-        for key in self.traj:
-            self.traj[key].set_maxtime(maxtime+h)
-
-    def set_mintime_all(self,mintime):
-        """set the minimimum simulation time on all trajectories"""
-        for key in self.traj:
-            self.traj[key].set_mintime(mintime)
-            
-    def set_max_walltime(self,t):
-        current_t = time.time()
-        self.max_walltime = current_t + t
-        print "### simulation will end after ", t, " seconds wall time"
-
-    def set_max_walltime_formatted(self,s):
-        pt = datetime.datetime.strptime(s,'%H:%M:%S')
-        self.set_max_walltime(pt.second+pt.minute*60+pt.hour*3600)
-
     def propagate(self):
         """this is the main propagation loop for the simulation"""
         gen.print_splash()
@@ -182,11 +152,8 @@ class simulation(fmsobj):
                 print "### done with " + current
             else:
                 print "### task queue is empty"
-                # spawn new trajectories if needed
             print "### now we will clone new trajectories if necessary"
             self.clone_as_necessary()
-#             print "### now we will clone new trajectories if necessary"
-#             self.clone_as_necessary()
             
             # propagate quantum variables if possible
             print "### propagating quantum amplitudes if we have enough information to do so"
@@ -395,14 +362,15 @@ class simulation(fmsobj):
 
                     # checking to see if overlap with existing trajectories
                     # is too high.  If so, we abort spawn
-                    z_add_traj_olap = self.check_overlap(newtraj)
+#                     z_add_traj_olap = self.check_overlap(newtraj)
 
                     # rescaling velocity.  We'll abort if there is not
                     # enough energy (aka a "frustrated spawn")
                     z_add_traj_rescale = newtraj.rescale_momentum(self.traj[key].av_energy)
-
+#                     rescale_parent = sel#f.traj[key].rescale_parent_momentum(newtraj.av_energy *\
+#                                                                             (1 - newtraj.populations[jstate]))
                     # okay, now we finally decide whether to spawn or not
-                    if z_add_traj_olap and z_add_traj_rescale:
+                    if z_add_traj_rescale: #and rescale_parent:
                         print "## creating new trajectory ", label
                         clonetraj[label] = newtraj
                         self.traj[key].numchildren += 1
@@ -506,7 +474,7 @@ class simulation(fmsobj):
         groupname = "sim"
         if groupname not in h5f.keys():
             # creating sim group in hdf5 output file
-            self.create_h5_sim(h5f,groupname)
+            self.create_h5_sim(h5f, groupname)
             grp = h5f.get(groupname)
             self.create_new_h5_map(grp)
         else:
@@ -519,11 +487,11 @@ class simulation(fmsobj):
             if l > 0:
                 lwidth = dset.size / l
                 if n > lwidth:
-                    dset.resize(n,axis=1)
+                    dset.resize(n, axis=1)
                     if not znewmap:
                         self.create_new_h5_map(grp)
                         znewmap = True
-            dset.resize(l+1,axis=0)
+            dset.resize(l+1, axis=0)
             ipos=l
 #             getcom = "self.get_" + key + "()"
             getcom = "self." + key
@@ -531,16 +499,16 @@ class simulation(fmsobj):
             tmp = eval(getcom)
             if type(tmp).__module__ == np.__name__:
                 tmp = np.ndarray.flatten(tmp)
-                dset[ipos,0:n] = tmp[0:n]
+                dset[ipos, 0:n] = tmp[0:n]
             else:
-                dset[ipos,0] = tmp
+                dset[ipos, 0] = tmp
         h5f.flush()
         h5f.close()
 
-    def create_new_h5_map(self,grp):
+    def create_new_h5_map(self, grp):
         ntraj = self.num_traj_qm
-        labels = np.empty(ntraj,dtype="S512")
-        istates = np.zeros(ntraj,dtype=np.int32)
+        labels = np.empty(ntraj, dtype="S512")
+        istates = np.zeros(ntraj, dtype=np.int32)
         for key in self.traj_map:
             if self.traj_map[key] < ntraj:
                 labels[self.traj_map[key]] = key
