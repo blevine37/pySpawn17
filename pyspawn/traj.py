@@ -302,7 +302,7 @@ class traj(fmsobj):
                 # setting z_clone_now indicates that
                 # this trajectory should clone to jstate
                 z[jstate] = 1.0
-        print "max threshold", np.argmax(clone_parameter)        
+#         print "max threshold", np.argmax(clone_parameter)        
         self.z_clone_now = z 
             
     def h5_output(self, zdont_half_step=False):
