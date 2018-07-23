@@ -232,13 +232,14 @@ class fafile(object):
 
             of.close()
 
-    def fill_trajectory_energies(self,column_file_prefix=None):
+    def fill_trajectory_energies(self, column_file_prefix=None):
         for key in self.labels:
             times =  self.get_traj_dataset(key,"time")[:,0]
             ntimes = self.get_traj_num_times(key)
             mom = self.get_traj_data_from_h5(key,"momenta")
             nmom = mom.size / ntimes
             poten = self.get_traj_data_from_h5(key,"energies")
+            av_energy = self.get_traj_data_from_h5(key, "av_energy")
             nstates = poten.size/ntimes
 
             istate = self.get_traj_attr_from_h5(key,'istate')
@@ -249,21 +250,25 @@ class fafile(object):
             toten = np.zeros((ntimes,1))
 
             for itime in range(ntimes):
-                p = mom[itime,:]
-                kinen[itime,0] = 0.5 * np.sum(p * p / m)
-                toten[itime,0] = kinen[itime,0] + poten[itime,istate]
+                p = mom[itime, :]
+                kinen[itime, 0] = 0.5 * np.sum(p * p / m)
+                toten[itime, 0] = kinen[itime, 0] + av_energy[itime]
 
             dset_poten = key + "_poten"
             dset_toten = key + "_toten"
             dset_kinen = key + "_kinen"
-
+            dset_aven = key + "_aven"
+            
             self.datasets[dset_poten] = poten
             self.datasets[dset_toten] = toten
             self.datasets[dset_kinen] = kinen
-
+            self.datasets[dset_aven] = av_energy
+            
             if column_file_prefix != None:
                 column_filename = column_file_prefix + "_" + key + ".dat"
-                self.write_columnar_data_file(key+"_time",[dset_poten,dset_kinen,dset_toten],column_filename)
+                self.write_columnar_data_file(key + "_time",\
+                                              [dset_poten, dset_kinen, dset_toten, dset_aven],\
+                                              column_filename)
 
     def fill_trajectory_bonds(self,bonds,column_file_prefix):
         for key in self.labels:
