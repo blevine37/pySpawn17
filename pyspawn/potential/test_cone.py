@@ -19,7 +19,6 @@ def compute_elec_struct(self,zbackprop):
     else:
         cbackprop = "backprop_"
 
-        
     exec("self.set_" + cbackprop + "prev_wf(self.get_" + cbackprop + "wf())")
 
     exec("x = self.get_" + cbackprop + "positions()[0]")
@@ -40,23 +39,24 @@ def compute_elec_struct(self,zbackprop):
     f[1,0] = ( x / r ) * ftmp
     f[1,1] = ( y / r ) * ftmp
     exec("self.set_" + cbackprop + "forces(f)")
-        
+
     wf = np.zeros((self.numstates,self.length_wf))
     wf[0,0] = math.sin(theta)
     wf[0,1] = math.cos(theta)
     wf[1,0] = math.cos(theta)
     wf[1,1] = -math.sin(theta)
     exec("prev_wf = self.get_" + cbackprop + "prev_wf()")
-    # phasing wave funciton to match previous time step
+    # phasing wave function to match previous time step
     W = np.matmul(prev_wf,wf.T)
     if W[0,0] < 0.0:
-        wf[0,:] = -1.0*wf[0,:]
+        wf[0,:] = -1.0 * wf[0,:]
         W[:,0] = -1.0 * W[:,0]
     if W[1,1] < 0.0:
-        wf[1,:] = -1.0*wf[1,:]
+        wf[1,:] = -1.0 * wf[1,:]
         W[:,1] = -1.0 * W[:,1]
+    
     # computing NPI derivative coupling
-    tmp=self.compute_tdc(W)
+    tmp = self.compute_tdc(W)
     tdc = np.zeros(self.numstates)
     if self.istate == 1:
         jstate = 0
@@ -64,7 +64,7 @@ def compute_elec_struct(self,zbackprop):
         jstate = 1
     tdc[jstate] = tmp
     exec("self.set_" + cbackprop + "timederivcoups(tdc)")
-        
+    print "\nwf = \n", type(wf) 
     exec("self.set_" + cbackprop + "wf(wf)")
 
 def init_h5_datasets(self):
