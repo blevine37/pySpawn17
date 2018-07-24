@@ -109,7 +109,7 @@ def prop_first_step(self):
     
 def prop_not_first_step(self):
     
-    print "\nPerforming the VV propagation for NOT first timestep"
+#     print "\nPerforming the VV propagation for NOT first timestep"
     dt = self.timestep
 
     x_tpdt = self.positions

@@ -43,7 +43,7 @@ def compute_elec_struct(self):
     H_elec[0, 1] = k * y
     H_elec[1, 0] = k * y
 #     H_elec += eshift    
-    print "\nH_elec = ", H_elec 
+#     print "\nH_elec = ", H_elec 
     ss_energies, eigenvectors = lin.eig(H_elec)
     eigenvectors_T = np.transpose(np.conjugate(eigenvectors))
  
@@ -67,7 +67,7 @@ def compute_elec_struct(self):
 #         wf[1] = math.cos(theta)
         wf = eigenvectors[:, 1]
     else:
-        print "\nPropagating electronic wave function first half of timestep to compute forces, energies"
+#         print "\nPropagating electronic wave function first half of timestep to compute forces, energies"
 #         print "wf before first propagation", wf
         wf = propagate_symplectic(self, H_elec, wf, self.timestep/2, n_el_steps/2)
 #         print "wf after first propagation", wf
@@ -82,8 +82,9 @@ def compute_elec_struct(self):
     pop = np.zeros(self.numstates)
     amp = np.zeros((self.numstates), dtype=np.complex128) 
     for j in range(self.numstates):
-        amp[j] = np.dot(eigenvectors_T[:, j], wf)
+        amp[j] = np.dot(np.conjugate(np.transpose(eigenvectors[:, j])), wf)
         pop[j] = np.real(np.dot(np.transpose(np.conjugate(amp[j])), amp[j]))
+    norm = np.dot(wf_T, wf)
     
     self.av_energy = float(av_energy)
     self.energies = np.real(ss_energies)
@@ -92,39 +93,23 @@ def compute_elec_struct(self):
     self.mce_amps = amp
     self.populations = pop
 
-    # DEBUG
-#     mdx, pdx = -1e-6, 1e-6
-#     pdx_H_elec = construct_el_H(self, self.positions[0] , self.positions[1]+ pdx)
-#     mdx_H_elec = construct_el_H(self, self.positions[0] , self.positions[1]+ mdx)
-#     pdx_energies, pdx_eigenvecs = lin.eigh(pdx_H_elec)
-#     mdx_energies, mdx_eigenvecs = lin.eigh(mdx_H_elec)
-#     pdx_wf = pdx_eigenvecs[:, 1]
-#     mdx_wf = mdx_eigenvecs[:, 1]
-#     pdx_wf_T = np.transpose(np.conjugate(pdx_wf))
-#     mdx_wf_T = np.transpose(np.conjugate(mdx_wf))
-#     pdx_av_energy = np.real(np.dot(np.dot(pdx_wf_T, pdx_H_elec), pdx_wf))
-#     mdx_av_energy = np.real(np.dot(np.dot(mdx_wf_T, mdx_H_elec), mdx_wf)) 
-#     num_force = (pdx_av_energy - mdx_av_energy) / (pdx - mdx)
-#     print "num_force =", num_force
-#     print "real force =", self.av_force
-#     sys.exit()
-    # DEBUG
-
-    print "norm =", np.dot(wf_T, wf)
-    print "time =", self.time     
-    print "average energy =", self.av_energy
-    print "energies =", ss_energies
+    if abs(norm - 1.0) > 1e-6:
+        print "WARNING: Norm is not conserved!!! N =", norm  
+    print "Time =", self.time     
+    print "Average energy =", self.av_energy
+    print "Energies =", ss_energies
 #     print "total E =", self.calc_kin_en(self.momenta_tpdt, self.masses) + self.av_energy
-    print "wf =", wf
-    print "av_force =", av_force
+    print "Wave function =", wf
+    print "Eigenvectors =", eigenvectors
+    print "Amplitudes =", amp
+    print "Force =", av_force
 #     print "pop_total = ", pop[0] + pop[1]
-    print "\n1st state population:", pop[0]
-    print "2nd state population:", pop[1]
-
+    print "Population =", pop[0], pop[1]
+    print ""
     # This part performs the propagation of the electronic wave function 
     # for ehrenfest dynamics at a half step and save it
         
-    print "\nPropagating electronic wf second half of timestep"
+#     print "\nPropagating electronic wf second half of timestep"
 #     print "wf before second propagation", wf
     wf = propagate_symplectic(self, H_elec, wf, self.timestep/2, n_el_steps/2)
 #     print "wf after second propagation", wf
