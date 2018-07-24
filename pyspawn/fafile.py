@@ -192,25 +192,47 @@ class fafile(object):
             self.write_columnar_data_file("quantum_times",[dset_expec],column_filename)
 
 
-    def fill_electronic_state_populations(self,column_filename=None):
-        times = self.datasets["quantum_times"][:,0]
+    def fill_electronic_state_populations(self, column_filename=None):
+        times = self.datasets["quantum_times"][:, 0]
         ntimes = len(times)
         maxstates = self.get_max_state()
-        Nstate = np.zeros((ntimes,maxstates+1))
+        Nstate = np.zeros((ntimes, maxstates + 1))
         for i in range(ntimes):
             nt = self.ntraj[i]
             c_t = self.get_amplitude_vector(i)
             S_t = self.get_overlap_matrix(i)
             for ist in range(maxstates):
-                Nstate[i,ist] =  self.compute_expec_istate_not_normalized(S_t,c_t,ist)
-            Nstate[i,maxstates] = self.compute_expec(S_t,c_t)
+                Nstate[i,ist] =  self.compute_expec_istate_not_normalized(S_t, c_t, ist)
+            Nstate[i,maxstates] = self.compute_expec(S_t, c_t)
         self.datasets["electronic_state_populations"] = Nstate
             
         if column_filename != None:
-            self.write_columnar_data_file("quantum_times",["electronic_state_populations"],column_filename)
+            self.write_columnar_data_file("quantum_times", ["electronic_state_populations"], column_filename)
 
         return 
+    
+    def fill_trajectory_populations(self, column_file_prefix=None):
+        for key in self.labels:
+            times =  self.get_traj_dataset(key, "time")[:, 0]
+            ntimes = self.get_traj_num_times(key)
+            pop = self.get_traj_data_from_h5(key, "populations")
+            nstates = pop.size/ntimes
 
+            population = np.zeros((ntimes, nstates))
+
+            for itime in range(ntimes):
+                population = pop[itime, :]
+
+            dset_pop = key + "_pop"
+            
+            self.datasets[dset_pop] = pop
+            
+            if column_file_prefix != None:
+                column_filename = column_file_prefix + "_" + key + ".dat"
+                self.write_columnar_data_file(key + "_time",\
+                                              [dset_pop],\
+                                              column_filename)        
+    
     def write_xyzs(self):
         for key in self.labels:
             times = self.get_traj_dataset(key,"time")[:,0]
@@ -234,7 +256,7 @@ class fafile(object):
 
     def fill_trajectory_energies(self, column_file_prefix=None):
         for key in self.labels:
-            times =  self.get_traj_dataset(key,"time")[:,0]
+            times =  self.get_traj_dataset(key,"time")[:, 0]
             ntimes = self.get_traj_num_times(key)
             mom = self.get_traj_data_from_h5(key,"momenta")
             nmom = mom.size / ntimes
