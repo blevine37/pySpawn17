@@ -263,7 +263,7 @@ class traj(fmsobj):
             self.prop_not_first_step()
 
         # consider whether to clone
-        self.consider_cloning()
+        #self.consider_cloning()
         
     def consider_cloning(self):
         """Marking trajectories for cloning using z_clone_now variable
@@ -278,32 +278,27 @@ class traj(fmsobj):
         p = np.zeros((self.numstates, self.numstates))
         tau = np.zeros((self.numstates, self.numstates))
         for idim in range(self.numdims):
-            ke_tot += 0.5 * self.momenta[idim] * self.momenta[idim] / m[idim]
+            ke_tot += 0.5 * self.momenta_tmdt[idim] * self.momenta_tmdt[idim] / m[idim]
         
         for istate in range(self.numstates):
             for jstate in range(self.numstates):
                 if istate == jstate:
                     tau[istate, jstate] = 0.0
+                    p[istate, jstate] = 0.0
                 else:
                     dE = np.abs(self.energies[jstate] - self.energies[istate])
                     tau[istate, jstate] = (1 + self.t_decoherence_par / ke_tot) / dE
-                p[istate, jstate] = 1 - np.exp(-self.timestep / tau[istate, jstate])
-                            
-        for jstate in range(self.numstates):
-            dE = self.energies[jstate] - self.av_energy
-            clone_parameter[jstate] = np.abs(dE*self.populations[jstate])
-#             print "cloning parameter = ", clone_parameter[jstate]
-#             print "dE =", dE
-#             print "pop = ", self.populations[jstate]
-#             print "Threshold =", self.clonethresh
+                    p[istate, jstate] = 1 - np.exp(-self.timestep / tau[istate, jstate])
+        print "p = ", p                    
+        self.clone_p = p
 
-            if clone_parameter[jstate] > self.clonethresh and jstate == np.argmax(clone_parameter):
-                print "CLONING TO STATE ", jstate, " at time ", self.time
-                # setting z_clone_now indicates that
-                # this trajectory should clone to jstate
-                z[jstate] = 1.0
+#             if clone_parameter[jstate] > self.clonethresh and jstate == np.argmax(clone_parameter):
+#                 print "CLONING TO STATE ", jstate, " at time ", self.time
+#                 # setting z_clone_now indicates that
+#                 # this trajectory should clone to jstate
+#                 z[jstate] = 1.0
 #         print "max threshold", np.argmax(clone_parameter)        
-        self.z_clone_now = z 
+#         self.z_clone_now = z 
             
     def h5_output(self, zdont_half_step=False):
 
