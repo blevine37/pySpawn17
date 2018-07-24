@@ -5,6 +5,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 
+
 # open sim.hdf5 for processing
 an = pyspawn.fafile("sim.hdf5")
 work = pyspawn.fafile("working.hdf5")
