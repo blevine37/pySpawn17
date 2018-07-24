@@ -218,6 +218,7 @@ class fafile(object):
             pop = self.get_traj_data_from_h5(key, "populations")
             nstates = pop.size/ntimes
 
+
             population = np.zeros((ntimes, nstates))
 
             for itime in range(ntimes):
