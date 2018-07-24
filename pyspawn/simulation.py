@@ -153,7 +153,7 @@ class simulation(fmsobj):
             else:
                 print "### task queue is empty"
             print "### now we will clone new trajectories if necessary"
-            self.clone_as_necessary()
+            #self.clone_as_necessary()
             
             # propagate quantum variables if possible
             print "### propagating quantum amplitudes if we have enough information to do so"

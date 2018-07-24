@@ -6,8 +6,8 @@ import math
 # adaptive RK2 quantum integrator
 ######################################################
 
-def qm_propagate_step(self,zoutput_first_step=False):
-    c1i = (complex(0.0,1.0))
+def qm_propagate_step(self, zoutput_first_step=False):
+    c1i = (complex(0.0, 1.0))
     self.compute_num_traj_qm()
     qm_t = self.quantum_time
     dt = self.timestep
