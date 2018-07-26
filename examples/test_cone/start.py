@@ -19,10 +19,10 @@ potential = "test_cone_td"
 t0 = 0.0
 
 # time step
-ts = 0.1
+ts = 0.05
 
 # final simulation time
-tfinal = 10.0
+tfinal = 300.0
 
 # number of dimensions                                                                                           
 numdims = 2
@@ -49,9 +49,9 @@ traj_params = {
     # nuclear masses (in a.u)    
     "masses": np.asarray([1822.0, 1822.0]),
     # initial positions
-    "positions": np.asarray([-0.02, -0.01]),
+    "positions": np.asarray([-0.2, 0.0]),
     # inition momenta
-    "momenta": np.asarray([0.1, 0.0]),
+    "momenta": np.asarray([10.0, 10.0]),
     #
     "numstates": numstates,
     }
