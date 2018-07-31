@@ -352,9 +352,8 @@ class simulation(fmsobj):
                 for jstate in range(istate, self.traj[key].numstates):
                 # is this trajectory marked to spawn to state j?
                     if self.traj[key].clone_p[istate, jstate] > 0.05 and self.traj[key].populations[jstate] > 0.05:
-                        print "CLONING FROM ", istate, "TO", jstate
-                        print "time =", self.traj[key].time
-#                         sys.exit()
+                        print "CLONING FROM ", istate, "TO", jstate, " at time", self.traj[key].time
+                        print "p = ", self.traj[key].clone_p
                         # create label that indicates parentage
                         # for example: a trajectory labeled 00b1b5 means that the initial
                         # trajectory "00" spawned a trajectory "1" (its

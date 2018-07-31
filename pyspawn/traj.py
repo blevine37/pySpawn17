@@ -65,7 +65,6 @@ class traj(fmsobj):
         self.first_step = False
         self.n_el_steps = 4000
         self.td_wf = np.zeros((self.numstates), dtype = np.complex128)
-        self.td_wf_full_ts = np.zeros((self.numstates), dtype = np.complex128)
         self.mce_amps = np.zeros((self.numstates), dtype = np.complex128)
         self.populations = np.zeros(self.numstates)
         self.av_energy = 0.0
@@ -192,12 +191,11 @@ class traj(fmsobj):
         average_energy = np.real(np.dot(np.dot(np.transpose(np.conjugate(wf)), H_elec), wf))
         parent_energy = np.real(np.dot(np.dot(np.transpose(np.conjugate(parent_wf)), H_elec), parent_wf))
         
-        print "parent eigenvecs = ", parent.approx_eigenvecs
-        print "parent wf = ", parent_wf
-        print "child wf = ", wf
+#         print "parent eigenvecs = ", parent.approx_eigenvecs
+#         print "parent wf = ", parent_wf
+#         print "child wf = ", wf
         print "child pop = ", pop
         print "parent pop = ", parent_pop
-        print "clone init clone traj norm =", np.dot(np.transpose(np.conjugate(wf)), wf)
         
         # updating quantum parameters for child    
         self.td_wf = wf
@@ -241,17 +239,15 @@ class traj(fmsobj):
         self.clonethresh = parent.clonethresh
         
         self.potential_specific_traj_copy(parent)
+
         child_rescale_ok = self.rescale_momentum(e_av)
         if child_rescale_ok:
             parent_E_total = e_av + parent.calc_kin_en(mom, parent.masses)
             child_E_total = self.av_energy + self.calc_kin_en(self.momenta, self.masses)
             print "parent E before rescale=", parent_E_total 
-#             print "child E =", child_E_total
-#             print "parent momentum before rescale = ", parent.momenta
-#             print "parent energy before rescale = ", parent.av_energy + parent.calc_kin_en(parent.momenta_tpdt, parent.masses)
             parent_rescale_ok = parent.rescale_parent_momentum(e_av, float(parent_energy), a_tpdt)
             print "parent E after rescale = ", parent.calc_kin_en(parent.momenta_tpdt, parent.masses) + parent_energy
-#             print "parent momentum after rescale = ", parent.momenta
+        
         # need to update wave function at half step since the parent changed ee properties 
         # during cloning
             if parent_rescale_ok:
@@ -260,12 +256,11 @@ class traj(fmsobj):
                 parent.av_energy = float(parent_energy)
                 parent.mce_amps = parent_amp
                 parent.populations = parent_pop
+                # this makes sure the parent trajectory in VV propagated as first step
                 parent.first_step = True
-                #parent.approx_eigenvecs = 
                 return True
         else:
             return False
-#  sys.exit()
 
     def rescale_momentum(self, v_ini):
         """This subroutine rescales the momentum of the child basis function
@@ -351,7 +346,7 @@ class traj(fmsobj):
 
     def get_forces(self):
         return self.forces.copy()
-
+ 
     def get_forces_i(self):
         fi = self.get_forces()[self.istate, :]
         return fi
@@ -363,46 +358,37 @@ class traj(fmsobj):
         else:
             self.prop_not_first_step()
 
-        # consider whether to clone
-        self.consider_cloning()
+        # computing pairwise cloning probabilities
+        self.clone_p = self.compute_cloning_probabilities()
         
-    def consider_cloning(self):
-        """Marking trajectories for cloning using z_clone_now variable
-        as a parameter we use (Ei - Eav) * POPi"""
+    def compute_cloning_probabilities(self):
+        """Computing pairwise cloning probabilities according to:
+        tau_ij = (1 + t_dec / KE) / (E_i - E_j)
+        p_ij = 1 - exp( -dt / tau_ij)"""
         
-        z = self.z_clone_now
-        print "CONSIDERING CLONING:"
-        clone_parameter = np.zeros(self.numstates)
+        print "Computing cloning probabilities:"
         
         m = self.masses
         ke_tot = 0.0
         p = np.zeros((self.numstates, self.numstates))
         tau = np.zeros((self.numstates, self.numstates))
         for idim in range(self.numdims):
-            ke_tot += 0.5 * self.momenta_tmdt[idim] * self.momenta_tmdt[idim] / m[idim]
+            ke_tot += 0.5 * self.momenta_tpdt[idim] * self.momenta_tpdt[idim] / m[idim]
+        if ke_tot > 0.0:
+            for istate in range(self.numstates):
+                for jstate in range(self.numstates):
+                    if istate == jstate:
+                        tau[istate, jstate] = 0.0
+                        p[istate, jstate] = 0.0
+                    else:
+                        dE = np.abs(self.energies[jstate] - self.energies[istate])
+                        tau[istate, jstate] = (1 + self.t_decoherence_par / ke_tot) / dE
+                        p[istate, jstate] = 1 - np.exp(-self.timestep / tau[istate, jstate])
         
-        for istate in range(self.numstates):
-            for jstate in range(self.numstates):
-                if istate == jstate:
-                    tau[istate, jstate] = 0.0
-                    p[istate, jstate] = 0.0
-                else:
-                    dE = np.abs(self.energies[jstate] - self.energies[istate])
-                    tau[istate, jstate] = (1 + self.t_decoherence_par / ke_tot) / dE
-                    p[istate, jstate] = 1 - np.exp(-self.timestep / tau[istate, jstate])
-        print "p = ", p                    
-        self.clone_p = p
-
-#             if clone_parameter[jstate] > self.clonethresh and jstate == np.argmax(clone_parameter):
-#                 print "CLONING TO STATE ", jstate, " at time ", self.time
-#                 # setting z_clone_now indicates that
-#                 # this trajectory should clone to jstate
-#                 z[jstate] = 1.0
-#         print "max threshold", np.argmax(clone_parameter)        
-#         self.z_clone_now = z 
+        return p
             
     def h5_output(self, zdont_half_step=False):
-
+        """This subroutine outputs all datasets into an h5 file at each timestep"""
         if len(self.h5_datasets) == 0:
             self.init_h5_datasets()
         filename = "working.hdf5"

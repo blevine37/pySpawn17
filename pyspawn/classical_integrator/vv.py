@@ -49,6 +49,7 @@ def prop_first_step(self):
     
     # Output of parameters at t0
     if not self.first_step:
+        # after cloning we treat it as first step, h5 already has this timestep
         self.h5_output(zdont_half_step=True)
     
     # now we can propagate position full timestep
