@@ -48,7 +48,8 @@ def prop_first_step(self):
 #     print "v_tphdt =", v_tphdt
     
     # Output of parameters at t0
-    self.h5_output(zdont_half_step=True)
+    if not self.first_step:
+        self.h5_output(zdont_half_step=True)
     
     # now we can propagate position full timestep
     x_tpdt = x_t + v_tphdt * dt
@@ -107,6 +108,8 @@ def prop_first_step(self):
     self.av_energy_t = e_av_t
     self.av_energy_tpdt = e_av_tpdt
     
+    self.first_step = False 
+    
 def prop_not_first_step(self):
     
 #     print "\nPerforming the VV propagation for NOT first timestep"
@@ -152,7 +155,9 @@ def prop_not_first_step(self):
     
     # Computing momenta at t + dt and outputting paramaters
     self.momenta = p_tpdt
-
+    
+    print "VV: total energy =", self.calc_kin_en(self.momenta, m) + self.av_energy
+    
     t_half = t + 0.5 * dt
     t += dt
 

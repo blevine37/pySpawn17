@@ -62,6 +62,7 @@ class traj(fmsobj):
         self.forces_i_qm = np.zeros(self.numdims)
 
         #In the following block there are variables needed for ehrenfest
+        self.first_step = False
         self.n_el_steps = 4000
         self.td_wf = np.zeros((self.numstates), dtype = np.complex128)
         self.td_wf_full_ts = np.zeros((self.numstates), dtype = np.complex128)
@@ -254,10 +255,12 @@ class traj(fmsobj):
         # need to update wave function at half step since the parent changed ee properties 
         # during cloning
             if parent_rescale_ok:
-                parent.td_wf = propagate_symplectic(parent, H_elec, parent_wf, parent.timestep/2, self.n_el_steps/2)
+                parent.td_wf = parent_wf
+#                 parent.td_wf = propagate_symplectic(parent, H_elec, parent_wf, parent.timestep/2, self.n_el_steps/2)
                 parent.av_energy = float(parent_energy)
                 parent.mce_amps = parent_amp
                 parent.populations = parent_pop
+                parent.first_step = True
                 #parent.approx_eigenvecs = 
                 return True
         else:
@@ -320,11 +323,13 @@ class traj(fmsobj):
         print "# rescaling momentum by factor ", factor
         p_fin = factor * p_ini
         self.momenta_tpdt = p_fin
-        # need to update velocity at half step and position at step ahead
-        self.momenta = p_fin + 0.5 * self.timestep * accel
-        print "rescale momentum: position 1", self.positions
-        self.positions = self.positions + self.momenta / self.masses * self.timestep 
-        print "rescale momentum: position 2", self.positions
+#         # need to update velocity at half step and position at step ahead
+#         self.momenta = p_fin + 0.5 * self.timestep * accel
+        self.momenta = self.momenta_tpdt
+
+#         print "rescale momentum: position 1", self.positions
+        self.positions = self.positions_tpdt #+ self.momenta / self.masses * self.timestep 
+#         print "rescale momentum: position 2", self.positions
         
         # Computing kinetic energy of child to make sure energy is conserved
         t_fin = 0.0
@@ -353,7 +358,7 @@ class traj(fmsobj):
 
     def propagate_step(self):
 
-        if float(self.time) - float(self.firsttime) < self.timestep:
+        if float(self.time) - float(self.firsttime) < self.timestep or self.first_step:
             self.prop_first_step()
         else:
             self.prop_not_first_step()

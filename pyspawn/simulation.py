@@ -1,5 +1,6 @@
 # simulation object contains the current state of the simulation.
 # It is analagous to the "bundle" object in the original FMS code.
+import sys
 import types
 import math
 import numpy as np
@@ -153,7 +154,7 @@ class simulation(fmsobj):
             else:
                 print "### task queue is empty"
             print "### now we will clone new trajectories if necessary"
-            #self.clone_as_necessary()
+            self.clone_as_necessary()
             
             # propagate quantum variables if possible
             print "### propagating quantum amplitudes if we have enough information to do so"
@@ -347,35 +348,34 @@ class simulation(fmsobj):
             # during propagation.  See "propagate_step" and "consider_spawning"
             # in traj.py
             z = self.traj[key].z_clone_now
-            for jstate in range(self.traj[key].numstates):
+            for istate in range(self.traj[key].numstates):
+                for jstate in range(istate, self.traj[key].numstates):
                 # is this trajectory marked to spawn to state j?
-                if z[jstate] > 0.5:
-                    # create label that indicates parentage
-                    # for example: a trajectory labeled 00b1b5 means that the initial
-                    # trajectory "00" spawned a trajectory "1" (its
-                    # second child) which then spawned another (it's 6th child)
-                    label = str(self.traj[key].label) + "b" + str(self.traj[key].numchildren)
+                    if self.traj[key].clone_p[istate, jstate] > 0.05 and self.traj[key].populations[jstate] > 0.05:
+                        print "CLONING FROM ", istate, "TO", jstate
+                        print "time =", self.traj[key].time
+#                         sys.exit()
+                        # create label that indicates parentage
+                        # for example: a trajectory labeled 00b1b5 means that the initial
+                        # trajectory "00" spawned a trajectory "1" (its
+                        # second child) which then spawned another (it's 6th child)
+                        label = str(self.traj[key].label) + "b" + str(self.traj[key].numchildren)
 
-                    # create and initiate new trajectory structure
-                    newtraj = traj()
-                    newtraj.init_clone_traj(self.traj[key], jstate, label)
+                        # create and initiate new trajectory structure
+                        newtraj = traj()
+                        clone_ok = newtraj.init_clone_traj(self.traj[key], istate, jstate, label)
 
-                    # checking to see if overlap with existing trajectories
-                    # is too high.  If so, we abort spawn
-#                     z_add_traj_olap = self.check_overlap(newtraj)
+                        # checking to see if overlap with existing trajectories
+                        # is too high.  If so, we abort spawn
+    #                     z_add_traj_olap = self.check_overlap(newtraj)
+    
 
-                    # rescaling velocity.  We'll abort if there is not
-                    # enough energy (aka a "frustrated spawn")
-                    z_add_traj_rescale = newtraj.rescale_momentum(self.traj[key].av_energy)
-#                     rescale_parent = sel#f.traj[key].rescale_parent_momentum(newtraj.av_energy *\
-#                                                                             (1 - newtraj.populations[jstate]))
-                    # okay, now we finally decide whether to spawn or not
-                    if z_add_traj_rescale: #and rescale_parent:
-                        print "## creating new trajectory ", label
-                        clonetraj[label] = newtraj
-                        self.traj[key].numchildren += 1
-                        # After cloning to jstate we should remove population on jth state from the parent
-                        self.traj[key].remove_state_pop(jstate)
+                        # okay, now we finally decide whether to spawn or not
+                        if clone_ok: #and rescale_parent:
+                            print "## creating new trajectory ", label
+                            clonetraj[label] = newtraj
+                            self.traj[key].numchildren += 1
+#                             sys.exit()
                          
                     # whether we spawn or not, we reset the trajectory so
                     # that:
@@ -391,7 +391,6 @@ class simulation(fmsobj):
             
             # finally, add the spawned trajectory
             print "CLONING SUCCESSFULL:"
-            print "number of trajectories:", self.num_traj_qm
             self.add_traj(clonetraj[label])
             print "number of trajectories:", self.num_traj_qm
             
