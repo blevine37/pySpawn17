@@ -121,15 +121,8 @@ class traj(fmsobj):
         self.numstates = parent.numstates
 
         self.istate = istate
-        
         time = parent.time 
         self.time = time
-        print "init_clone_traj: time =", time
-        print "energies at tpdt", parent.energies_tpdt
-        print "energies at tmdt", parent.energies_tmdt
-        print "energies at t", parent.energies_t
-        print "energies", parent.energies
-        
         self.label = label
         
         pos = parent.positions_tpdt
@@ -141,12 +134,11 @@ class traj(fmsobj):
         self.momenta = mom
         self.energies = e
         self.av_energy = e_av
-#       cloning routines
 
 #        During the cloning procedure we look at pairwise decoherence times, all population is going from
 #        istate to jstate. The rest of the amplitudes remain unchanged
         parent_amp = parent.mce_amps
-        wf = 0 + 0*1j
+        child_wf = 0 + 0*1j
         parent_wf = 0 + 0*1j
         for kstate in range(self.numstates):
             if kstate == istate:
@@ -159,64 +151,50 @@ class traj(fmsobj):
                 # the population from istate is transferred to jstate
                 scaling_factor = np.sqrt(1 + np.dot(np.transpose(np.conjugate(parent_amp[istate])), parent_amp[istate])\
                                          / np.dot(np.transpose(np.conjugate(parent_amp[kstate])), parent_amp[kstate]))
-                wf += parent.approx_eigenvecs[:, kstate] * parent_amp[kstate] * scaling_factor
+                child_wf += parent.approx_eigenvecs[:, kstate] * parent_amp[kstate] * scaling_factor
             
             else:
                 # the rest of the states remain unchanged 
-                wf += parent.approx_eigenvecs[:, kstate] * parent_amp[kstate]
+                child_wf += parent.approx_eigenvecs[:, kstate] * parent_amp[kstate]
                 parent_wf += parent.approx_eigenvecs[:, kstate] * parent_amp[kstate]
                 
-        average_energy = 0.0
-        pop = np.zeros(self.numstates)
-        amp = np.zeros((self.numstates), dtype=np.complex128) 
+        child_pop = np.zeros(self.numstates)
+        child_amp = np.zeros((self.numstates), dtype=np.complex128) 
         parent_pop = np.zeros(self.numstates)
         parent_amp = np.zeros((self.numstates), dtype=np.complex128)         
-        eigenvectors_t = np.transpose(np.conjugate(parent.approx_eigenvecs))    
+        eigenvectors_T = np.transpose(np.conjugate(parent.approx_eigenvecs))    
         parent_wf_T = np.transpose(np.conjugate(parent_wf))
+        
         H_elec = self.construct_el_H(self.positions[0], self.positions[1])
         Hx, Hy = parent.construct_force(parent.positions_tpdt[0], parent.positions_tpdt[1])
         
         av_force = np.zeros((self.numdims))    
         av_force[0] = -np.real(np.dot(np.dot(parent_wf_T, Hx), parent_wf))
         av_force[1] = -np.real(np.dot(np.dot(parent_wf_T, Hy), parent_wf))
-        print "init_clone_traj: parent force =", av_force
         a_tpdt = av_force / parent.masses
-        print "init_clone_traj: parent accel =", a_tpdt
-        for j in range(self.numstates):
-            amp[j] = np.dot(eigenvectors_t[:, j], wf)
-            pop[j] = np.real(np.dot(np.transpose(np.conjugate(amp[j])), amp[j]))
-            parent_amp[j] = np.dot(eigenvectors_t[:, j], parent_wf)
-            parent_pop[j] = np.real(np.dot(np.transpose(np.conjugate(parent_amp[j])), parent_amp[j]))
-        
-        average_energy = np.real(np.dot(np.dot(np.transpose(np.conjugate(wf)), H_elec), wf))
+        child_energy = np.real(np.dot(np.dot(np.transpose(np.conjugate(child_wf)), H_elec), child_wf))
         parent_energy = np.real(np.dot(np.dot(np.transpose(np.conjugate(parent_wf)), H_elec), parent_wf))
-        
-#         print "parent eigenvecs = ", parent.approx_eigenvecs
-#         print "parent wf = ", parent_wf
-#         print "child wf = ", wf
-        print "child pop = ", pop
+                
+        for j in range(self.numstates):
+            child_amp[j] = np.dot(eigenvectors_T[:, j], child_wf)
+            child_pop[j] = np.real(np.dot(np.transpose(np.conjugate(child_amp[j])), child_amp[j]))
+            parent_amp[j] = np.dot(eigenvectors_T[:, j], parent_wf)
+            parent_pop[j] = np.real(np.dot(np.transpose(np.conjugate(parent_amp[j])), parent_amp[j]))
+        print "child pop = ", child_pop
         print "parent pop = ", parent_pop
         
         # updating quantum parameters for child    
-        self.td_wf = wf
-        self.av_energy = float(average_energy)
-        self.mce_amps = amp
-        self.populations = pop
-        
-        print "momenta =", self.momenta
-        print "positions =", pos
-        print "energy of child =", self.av_energy
-        print "energy of parent =", parent_energy
-        
-#         parent.rescale_momentum(e_av)
-        
+        self.td_wf = child_wf
+        self.av_energy = float(child_energy)
+        self.mce_amps = child_amp
+        self.populations = child_pop
+                
         # Setting mintime to current time to avoid backpropagation
         mintime = parent.time
         self.mintime = mintime
-
         self.firsttime = time
-
         self.maxtime = parent.maxtime
+        
         self.widths = parent.widths
         self.masses = parent.masses
         if hasattr(parent,'atoms'):
@@ -244,6 +222,7 @@ class traj(fmsobj):
         if child_rescale_ok:
             parent_E_total = e_av + parent.calc_kin_en(mom, parent.masses)
             child_E_total = self.av_energy + self.calc_kin_en(self.momenta, self.masses)
+            print "child_E =", child_E_total
             print "parent E before rescale=", parent_E_total 
             parent_rescale_ok = parent.rescale_parent_momentum(e_av, float(parent_energy), a_tpdt)
             print "parent E after rescale = ", parent.calc_kin_en(parent.momenta_tpdt, parent.masses) + parent_energy
@@ -252,12 +231,12 @@ class traj(fmsobj):
         # during cloning
             if parent_rescale_ok:
                 parent.td_wf = parent_wf
-#                 parent.td_wf = propagate_symplectic(parent, H_elec, parent_wf, parent.timestep/2, self.n_el_steps/2)
                 parent.av_energy = float(parent_energy)
                 parent.mce_amps = parent_amp
                 parent.populations = parent_pop
                 # this makes sure the parent trajectory in VV propagated as first step
                 parent.first_step = True
+#                 self.first_step = True
                 return True
         else:
             return False
@@ -278,10 +257,10 @@ class traj(fmsobj):
         
         factor = ( ( v_ini + t_ini - v_fin ) / t_ini )
         if factor < 0.0:
-            print "# Aborting cloning because child does not have enough energy for momentum adjustment"
+            print "Aborting cloning because child does not have enough energy for momentum adjustment"
             return False
         factor = math.sqrt(factor)
-        print "# rescaling momentum by factor ", factor
+        print "Rescaling child momentum by factor ", factor
         p_fin = factor * p_ini
         self.momenta = p_fin
                 
@@ -312,24 +291,20 @@ class traj(fmsobj):
                 
         factor = ( ( v_ini + t_ini - v_fin ) / t_ini )
         if factor < 0.0:
-            print "# Aborting cloning because child does not have enough energy for momentum adjustment"
+            print "Aborting cloning because child does not have enough energy for momentum adjustment"
             return False
         factor = math.sqrt(factor)
-        print "# rescaling momentum by factor ", factor
+        print "Rescaling  parent momentum by factor ", factor
         p_fin = factor * p_ini
         self.momenta_tpdt = p_fin
-#         # need to update velocity at half step and position at step ahead
-#         self.momenta = p_fin + 0.5 * self.timestep * accel
-        self.momenta = self.momenta_tpdt
 
-#         print "rescale momentum: position 1", self.positions
-        self.positions = self.positions_tpdt #+ self.momenta / self.masses * self.timestep 
-#         print "rescale momentum: position 2", self.positions
+#         # need to update velocity at half step and position at step ahead
+        self.momenta = self.momenta_tpdt
+        self.positions = self.positions_tpdt 
         
         # Computing kinetic energy of child to make sure energy is conserved
         t_fin = 0.0
         for idim in range(self.numdims):
-            print "m =", m[idim]
             t_fin += 0.5 * p_fin[idim] * p_fin[idim] / m[idim]
         if v_ini + t_ini - v_fin - t_fin > 1e-9: 
             print "ENERGY NOT CONSERVED!!!"
@@ -352,8 +327,9 @@ class traj(fmsobj):
         return fi
 
     def propagate_step(self):
-
-        if float(self.time) - float(self.firsttime) < self.timestep or self.first_step:
+        
+        if float(self.time) - float(self.firsttime) < (self.timestep -1e-6) or self.first_step:
+            print (float(self.time) - float(self.firsttime) < self.timestep)
             self.prop_first_step()
         else:
             self.prop_not_first_step()
@@ -366,7 +342,7 @@ class traj(fmsobj):
         tau_ij = (1 + t_dec / KE) / (E_i - E_j)
         p_ij = 1 - exp( -dt / tau_ij)"""
         
-        print "Computing cloning probabilities:"
+        print "Computing cloning probabilities"
         
         m = self.masses
         ke_tot = 0.0
@@ -514,7 +490,7 @@ class traj(fmsobj):
         h5f.close()
             
     def initial_wigner(self, iseed):
-        print "## randomly selecting Wigner initial conditions"
+        print "Randomly selecting Wigner initial conditions"
         ndims = self.numdims
 
         h5f = h5py.File('hessian.hdf5', 'r')
@@ -547,7 +523,7 @@ class traj(fmsobj):
         evals = evals[idx]
         modes = modes[:, idx]
 
-        print '# eigenvalues of the mass-weighted hessian are (a.u.)'
+        print 'Eigenvalues of the mass-weighted hessian are (a.u.)'
         print evals
         
         # seed random number generator
@@ -584,6 +560,6 @@ class traj(fmsobj):
         zpe = np.sum(alphax[0 : (ndims - 6)])
         ke = 0.5 * np.sum(mom * mom / m)
 
-        print "# ZPE = ", zpe
-        print "# kinetic energy = ", ke
+        print "ZPE = ", zpe
+        print "Kinetic energy = ", ke
         
