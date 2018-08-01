@@ -22,7 +22,7 @@ def compute_elec_struct(self):
     smaller electronic timesteps"""
     wf = self.td_wf
     prev_wf = wf
-    print "\nPerforming electronic structure calculations:"
+    print "Performing electronic structure calculations:"
 #     print "Norm of the wf before propagation = ", np.dot(np.transpose(np.conjugate(prev_wf)), prev_wf)
     x = self.positions[0]
     y = self.positions[1]
@@ -37,8 +37,6 @@ def compute_elec_struct(self):
     # Constructing Hamiltonian, for now solving the eigenvalue problem to get adiabatic states
     # for real systems it will be replaced by approximate eigenstates
     H_elec = self.construct_el_H(x, y)
-#     eshift = 0.0    
-
     ss_energies, eigenvectors = lin.eigh(H_elec)
     eigenvectors_T = np.transpose(np.conjugate(eigenvectors))
     
@@ -49,11 +47,12 @@ def compute_elec_struct(self):
     amp = np.zeros((self.numstates), dtype=np.complex128) 
         
     if np.dot(np.transpose(np.conjugate(wf)), wf)  < 1e-8:
-        print "constructing electronic wf for the first timestep", wf
+        print "Constructing electronic wf for the first timestep", wf
         wf = eigenvectors[:, 1]
     else:
 #         print "\nPropagating electronic wave function first half of timestep to compute forces, energies"
-        wf = propagate_symplectic(self, H_elec, wf, self.timestep/2, n_el_steps/2)
+        if not self.first_step:
+            wf = propagate_symplectic(self, H_elec, wf, self.timestep/2, n_el_steps/2)
     
     wf_T = np.transpose(np.conjugate(wf))
     av_energy = np.real(np.dot(np.dot(wf_T, H_elec), wf))    
@@ -82,14 +81,13 @@ def compute_elec_struct(self):
     def print_stuff():
         print "Time =", self.time
         print "Position =", self.positions
-        print "Hamiltonian =", H_elec
+        print "Hamiltonian =\n", H_elec
         print "Average energy =", self.av_energy
         print "Energies =", ss_energies
         print "Force =", av_force
-        print "Wave function =", wf
-        print "Eigenvectors =", eigenvectors
+        print "Wave function =\n", wf
+        print "Eigenvectors =\n", eigenvectors
         print "Population =", pop[0], pop[1]
-        print ""
     print_stuff()
     # DEBUGGING
     

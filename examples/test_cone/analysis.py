@@ -15,6 +15,7 @@ an.fill_electronic_state_populations(column_filename = "N.dat")
 an.fill_trajectory_populations(column_file_prefix = "Pop")
 
 times = an.datasets[traj + "_time"]
+times_b0 = an.datasets["00b0_time"]
 # N = an.datasets["electronic_state_populations"]
 # make population (N.dat) plot in png format
 # plt.plot(times,N[:,0],"ro",times,N[:,1],"bs",markeredgewidth=0.0)
@@ -35,7 +36,9 @@ e = an.datasets[traj + "_poten"]
 # Plotting total energy
 f = plt.figure(3)
 tot = an.datasets[traj + "_toten"]
-plt.plot(times, tot, "g")
+tot_b0 = an.datasets["00b0_toten"]
+plt.plot(times, tot, "g", label = traj)
+plt.plot(times_b0, tot_b0, "b", label = "00b0")
 plt.xlabel('Time, au')
 plt.ylabel('Total Energy, au')
 

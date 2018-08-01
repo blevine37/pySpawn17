@@ -9,8 +9,8 @@ clas_prop = "vv"
 # adapative 2nd-order Runge-Kutta quantum propagator
 qm_prop = "fulldiag"
 
-# adiabtic NPI quantum Hamiltonian
-qm_ham = "adiabatic"
+# diabatic ehrenfest Hamiltonian
+qm_ham = "ehrenfest"
 
 # use TeraChem CASSCF or CASCI to compute potentials
 potential = "test_cone_td"
@@ -22,7 +22,7 @@ t0 = 0.0
 ts = 0.05
 
 # final simulation time
-tfinal = 300.0
+tfinal = 100.0
 
 # number of dimensions                                                                                           
 numdims = 2

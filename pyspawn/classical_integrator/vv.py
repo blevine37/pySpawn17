@@ -12,6 +12,7 @@ import sys
 def prop_first_step(self):
     
     print "Performing the VV propagation for the first timestep"
+    print "self.first_step =", self.first_step
     dt = self.timestep
     x_t = self.positions
     p_t = self.momenta
@@ -26,26 +27,8 @@ def prop_first_step(self):
     e_t = self.energies
     e_av_t = self.av_energy    
     
-    # numerically differentiating to test the forces
-#     dx = 1e-6
-#     self.positions[0] = self.positions[0] + dx
-#     self.compute_elec_struct()
-#     num_deriv = (self.av_energy - e_av_t) / dx 
-#     print "num_deriv =", num_deriv
-#     print "force =", f_t
-#     print "new force =", self.av_force
-#     sys.exit()
-    
     # propagating velocity half a timestep
     v_tphdt = v_t + 0.5 * a_t * dt
-#     print "x_t =", x_t
-#     print "v_t =", v_t
-#     print "a_t =", a_t
-#     print "f_t =", f_t
-#     print "e =", e_av_t
-#     print "ke_t =", self.calc_kin_en(p_t, m)
-#     print "\ntotal energy at t:", e_av_t + self.calc_kin_en(p_t, m)
-#     print "v_tphdt =", v_tphdt
     
     # Output of parameters at t0
     if not self.first_step:
@@ -64,16 +47,7 @@ def prop_first_step(self):
     # we can compute momentum value at full timestep (t0 + dt)
     v_tpdt = v_tphdt + 0.5 * a_tpdt * dt
     p_tpdt = v_tpdt * m
-    
-#     print "x_tpdt", x_tpdt
-#     print "v_tpdt =", v_tpdt
-#     print "a_tpdt =", a_tpdt
-#     print "f_tpdt =", f_tpdt
-#     print "e =", e_av_tpdt
-#     print "ke_t =", self.calc_kin_en(p_tpdt, m)
-#     print "\ntotal energy at t + dt:", e_av_tpdt + self.calc_kin_en(p_tpdt, m)
-#     print "\nDE =", e_av_t + self.calc_kin_en(p_t, m) - (e_av_tpdt + self.calc_kin_en(p_tpdt, m))
-    
+       
     # Positions and momenta values at t0 + dt
     
     self.momenta = p_tpdt
@@ -148,12 +122,6 @@ def prop_not_first_step(self):
     self.momenta_t = self.momenta_tpdt
     self.momenta_tpdt = p_tpdt
     
-#     dE_PE = self.av_energy_t - self.av_energy_tpdt
-#     dE_KE = self.calc_kin_en(self.momenta_t, m) - self.calc_kin_en(self.momenta_tpdt, m)
-#     print "\ndE_PE =", dE_PE
-#     print "dE_KE =", dE_KE
-#     print "dE_total =", dE_PE + dE_KE
-    
     # Computing momenta at t + dt and outputting paramaters
     self.momenta = p_tpdt
     
@@ -167,13 +135,7 @@ def prop_not_first_step(self):
 
     # Output of parameters at t
     self.h5_output()
-
-#     print "\nt =", t
-#     print "x_t =", x_tpdt
-#     print "f_t =", f_tpdt
-#     print "v_t =", v_tpdt
-#     print "a_t =", a_tpdt
-    
+  
     # Computing and saving momentum at t + 1/2 dt
     v_tp3hdt = v_tpdt + 0.5 * a_tpdt * dt
     p_tp3hdt = v_tp3hdt * m

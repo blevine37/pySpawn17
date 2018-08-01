@@ -28,7 +28,11 @@ class simulation(fmsobj):
         # olapmax is the maximum overlap allowed for a spawn.  Above this,
         # the spawn is cancelled
         self.olapmax = 0.8
-
+        
+        # if pij > p_threshold  and pop > pop_threshold cloning is initiated 
+        self.pop_threshold = 0.03
+        self.p_threshold = 0.05
+        
         # quantum time is the current time of the quantum amplitudes
         self.quantum_time = 0.0
         # quantum time is the current time of the quantum amplitudes
@@ -126,20 +130,20 @@ class simulation(fmsobj):
         while True:
 
             # update the queue (list of tasks to be computed)
-            print "### updating task queue"
+            print "\nUpdating task queue"
             self.update_queue()
 
             # if the queue is empty, we're done!
-            print "### checking if we are at the end of the simulation"
+            print "Checking if we are at the end of the simulation"
             #if (self.queue[0] == "END"):
             if (self.quantum_time + 1.0e-6 > self.max_quantum_time):
-                print "### propagate DONE, simulation ended gracefully!"
+                print "Propagate DONE, simulation ended gracefully!"
                 return
 
             # end simulation if walltime has expired
-            print "### checking if maximum wall time is reached"
+            print "Checking if maximum wall time is reached"
             if (self.max_walltime < time.time() and self.max_walltime > 0):
-                print "### wall time expired, simulation ended gracefully!"
+                print "Wall time expired, simulation ended gracefully!"
                 return
             
             # it is possible for the queue to run empty but for the job not to be done
@@ -148,20 +152,20 @@ class simulation(fmsobj):
                 # but we could parallelize here and send multiple tasks
                 # out for simultaneous processing.
                 current = self.pop_task()
-                print "### starting " + current            
+                print "\nStarting " + current            
                 eval(current)
-                print "### done with " + current
+                print "Done with " + current
             else:
-                print "### task queue is empty"
-            print "### now we will clone new trajectories if necessary"
+                print "Task queue is empty"
+            print "\nNow we will clone new trajectories if necessary:"
             self.clone_as_necessary()
             
             # propagate quantum variables if possible
-            print "### propagating quantum amplitudes if we have enough information to do so"
+            print "Propagating quantum amplitudes if we have enough information to do so"
             self.propagate_quantum_as_necessary()
             
             # print restart output - this must be the last line in this loop!
-            print "### updating restart output"
+            print "Updating restart output"
             self.restart_output()    
         
     def propagate_quantum_as_necessary(self):
@@ -178,18 +182,18 @@ class simulation(fmsobj):
             if (time - timestep) < max_info_time:
                 max_info_time = time - timestep
 
-        print "## we have enough information to propagate to time ", max_info_time
+        print "We have enough information to propagate to time ", max_info_time
 
         # now, if we have the necessary info, we propagate
         while max_info_time > (self.quantum_time + 1.0e-6):
             if self.quantum_time > 1.0e-6:
-                print "## propagating quantum amplitudes at time", self.quantum_time
+                print "Propagating quantum amplitudes at time", self.quantum_time
                 self.qm_propagate_step()
             else:
-                print "## propagating quantum amplitudes at time", self.quantum_time, " (first step)"
+                print "Propagating quantum amplitudes at time", self.quantum_time, " (first step)"
                 self.qm_propagate_step(zoutput_first_step=True)
                 
-            print "## outputing quantum information to hdf5"
+            print "\nOutputing quantum information to hdf5"
             self.h5_output()
 
     def init_amplitudes_one(self):
@@ -255,7 +259,7 @@ class simulation(fmsobj):
                                                           positions_j="positions_qm",\
                                                           momenta_i="momenta_qm",\
                                                           momenta_j="momenta_qm",\
-                                                          forces_j="forces_i_qm")
+                                                          forces_j="av_force")
 
     def invert_S(self):
         """compute Sinv from S"""
@@ -265,22 +269,22 @@ class simulation(fmsobj):
         """building the Hamiltonian matrix, H
         this routine assumes that S is already built"""
         
-        print "# building potential energy matrix"
+        print "Building potential energy matrix"
         self.build_V()
-        print "# building kinetic energy matrix"
+        print "Building kinetic energy matrix"
         self.build_T()
         ntraj = self.num_traj_qm
         shift = self.qm_energy_shift * np.identity(ntraj)
-        print "# summing Hamiltonian"
+        print "Summing Hamiltonian"
         self.H = self.T + self.V + shift
 
     def build_V(self):
         """build the potential energy matrix, V
         This routine assumes that S is already built"""
-        c1i = (complex(0.0,1.0))
-        cm1i = (complex(0.0,-1.0))
+        c1i = (complex(0.0, 1.0))
+        cm1i = (complex(0.0, -1.0))
         ntraj = self.num_traj_qm
-        self.V = np.zeros((ntraj,ntraj),dtype=np.complex128)
+        self.V = np.zeros((ntraj, ntraj), dtype=np.complex128)
         for key in self.traj:
             i = self.traj_map[key]
             istate = self.traj[key].istate
@@ -306,7 +310,7 @@ class simulation(fmsobj):
   
     def build_Heff(self):
         """built Heff form H, Sinv, and Sdot"""
-        print "# building effective Hamiltonian"
+        print "Building effective Hamiltonian"
         c1i = (complex(0.0,1.0))
         self.Heff = np.matmul(self.Sinv, (self.H - c1i * self.Sdot))
 
@@ -327,10 +331,10 @@ class simulation(fmsobj):
                 tasktime_tmp = self.traj[key].time
                 self.insert_task(task_tmp,tasktime_tmp, tasktimes)
                 
-        print "##", (len(self.queue)-1), "task(s) in queue:"
+        print (len(self.queue)-1), "task(s) in queue:"
         for i in range(len(self.queue)-1):
             print self.queue[i] + ", time = " + str(tasktimes[i])
-        print "END"
+        print ""
 
     def insert_task(self,task,tt,tasktimes):
         """add a task to the queue"""
@@ -341,19 +345,18 @@ class simulation(fmsobj):
                 return
 
     def clone_as_necessary(self):
-        """cloning routine"""
+        """Cloning routine. Trajectories that are cloning will be established from the 
+        cloning probabilities variable clone_p"""
+        
         clonetraj = dict()
         for key in self.traj:
-            # trajectories that are cloning or should start were marked
-            # during propagation.  See "propagate_step" and "consider_spawning"
-            # in traj.py
-            z = self.traj[key].z_clone_now
             for istate in range(self.traj[key].numstates):
                 for jstate in range(istate, self.traj[key].numstates):
                 # is this trajectory marked to spawn to state j?
-                    if self.traj[key].clone_p[istate, jstate] > 0.05 and self.traj[key].populations[jstate] > 0.05:
-                        print "CLONING FROM ", istate, "TO", jstate, " at time", self.traj[key].time
-                        print "p = ", self.traj[key].clone_p
+                    if self.traj[key].clone_p[istate, jstate] > self.p_threshold\
+                    and self.traj[key].populations[jstate] > self.pop_threshold:
+                        print "Cloning from ", istate, "to", jstate, " state at time", self.traj[key].time,\
+                        "p =", self.traj[key].clone_p[istate, jstate]
                         # create label that indicates parentage
                         # for example: a trajectory labeled 00b1b5 means that the initial
                         # trajectory "00" spawned a trajectory "1" (its
@@ -365,33 +368,20 @@ class simulation(fmsobj):
                         clone_ok = newtraj.init_clone_traj(self.traj[key], istate, jstate, label)
 
                         # checking to see if overlap with existing trajectories
-                        # is too high.  If so, we abort spawn
-    #                     z_add_traj_olap = self.check_overlap(newtraj)
-    
+                        # is too high.  If so, we abort cloning
+                        # z_add_traj_olap = self.check_overlap(newtraj)
 
-                        # okay, now we finally decide whether to spawn or not
-                        if clone_ok: #and rescale_parent:
-                            print "## creating new trajectory ", label
+                        # okay, now we finally decide whether to clone or not
+                        if clone_ok: 
+                            print "Creating new trajectory ", label
                             clonetraj[label] = newtraj
                             self.traj[key].numchildren += 1
-#                             sys.exit()
-                         
-                    # whether we spawn or not, we reset the trajectory so
-                    # that:
-                    # it isn't slated to spawn
-                    z[jstate] = 0.0
-                    # it isn't currently spawning
 
-            # once all states have been checked, we update the TBF structure
-            self.traj[key].z_clone_now = z
-
-        # okay, now it's time to add the spawned trajectories
+        # okay, now it's time to add the cloned trajectories
         for label in clonetraj:
-            
-            # finally, add the spawned trajectory
-            print "CLONING SUCCESSFULL:"
+            print "Cloning successful"
             self.add_traj(clonetraj[label])
-            print "number of trajectories:", self.num_traj_qm
+        print ""
             
     def check_overlap(self, newtraj):
         """check to make sure that a cloned trajectory doesn't overlap too much
@@ -409,7 +399,7 @@ class simulation(fmsobj):
 
             # let the user know what happened
             if not z_add_traj:
-                print "# aborting spawn due to large overlap with existing trajectory"
+                print "Aborting spawn due to large overlap with existing trajectory"
         return z_add_traj
 
     def restart_from_file(self, json_file, h5_file):
@@ -422,7 +412,7 @@ class simulation(fmsobj):
         The json file is meant to represent the *current* state of the
         simulation.  There is a separate hdf5 file that stores the history of
         the simulation.  Both are needed for restart."""
-        print "## creating new sim.json" 
+        print "Creating new sim.json" 
         # we keep copies of the last 3 json files just to be safe
         extensions = [3,2,1,0]
         for i in extensions :
@@ -444,7 +434,7 @@ class simulation(fmsobj):
                         
         # now we write the current json file
         self.write_to_file("sim.json")
-        print "## synchronizing sim.hdf5"
+        print "Synchronizing sim.hdf5"
         extensions = [3,2,1,0]
         for i in extensions :
             if i==0:
@@ -463,7 +453,7 @@ class simulation(fmsobj):
                     else:
                         shutil.move(filename, filename2)
         shutil.copy2("working.hdf5", "sim.hdf5")
-        print "## hdf5 and json output are synchronized"
+        print "hdf5 and json output are synchronized"
         
     def h5_output(self):
         self.init_h5_datasets()

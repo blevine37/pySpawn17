@@ -327,9 +327,11 @@ class traj(fmsobj):
         return fi
 
     def propagate_step(self):
+        """When cloning happens we start a parent wf
+        as a new trajectory because electronic structure properties changed,
+        first_step variable here ensures that we don't write to h5 file twice! (see vv.py)"""
         
         if float(self.time) - float(self.firsttime) < (self.timestep -1e-6) or self.first_step:
-            print (float(self.time) - float(self.firsttime) < self.timestep)
             self.prop_first_step()
         else:
             self.prop_not_first_step()
