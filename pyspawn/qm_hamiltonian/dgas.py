@@ -140,7 +140,12 @@ def build_S_DGAS(self):
             for keyj in self.traj:
                 j = self.traj_map[keyj]
                 if j < ntraj:
-                    self.S_nuc[i,j] = cg.overlap_nuc(self.traj[keyi], self.traj[keyj],positions_i="positions_qm",positions_j="positions_qm",momenta_i="momenta_qm",momenta_j="momenta_qm") 
+                    self.S_nuc[i,j] = cg.overlap_nuc(self.traj[keyi],
+                                                     self.traj[keyj],\
+                                                     positions_i="positions_qm",\
+                                                     positions_j="positions_qm",\
+                                                     momenta_i="momenta_qm",\
+                                                     momenta_j="momenta_qm") 
                     self.S[i,j] = self.S_nuc[i,j] * self.S_elec[i,j]
 
 # build the right-acting time derivative operator
@@ -153,7 +158,14 @@ def build_Sdot_nuc_DGAS(self):
             for keyj in self.traj:
                 j = self.traj_map[keyj]
                 if j < ntraj:
-                    self.Sdot_nuc[i,j] = cg.Sdot_nuc(self.traj[keyi], self.traj[keyj],positions_i="positions_qm",positions_j="positions_qm",momenta_i="momenta_qm",momenta_j="momenta_qm",forces_j="forces_i_qm") * self.S_elec[i,j]
+                    self.Sdot_nuc[i,j] = cg.Sdot_nuc(self.traj[keyi],\
+                                                     self.traj[keyj],\
+                                                     positions_i="positions_qm",\
+                                                     positions_j="positions_qm",\
+                                                     momenta_i="momenta_qm",\
+                                                     momenta_j="momenta_qm",\
+                                                     forces_j="forces_i_qm")\
+                                                     *self.S_elec[i,j]
 
 def build_Sdot_elec_DGAS(self):
     ntraj = self.get_num_traj_qm()    
@@ -167,10 +179,14 @@ def build_Sdot_elec_DGAS(self):
             # calculate NPI derivative coupling (as defined in the DGAS paper)
             S_ad = self.centroids[keycent].get_S_elec_flat().reshape((nstat,nstat))
             print "S_ad", S_ad
-            sii = np.dot(self.dgas_coeffs[i,j,:],np.matmul(S_ad,self.dgas_coeffs_next_time[i,j,:]))
-            sjj = np.dot(self.dgas_coeffs[j,i,:],np.matmul(S_ad,self.dgas_coeffs_next_time[j,i,:]))
-            sij = np.dot(self.dgas_coeffs[i,j,:],np.matmul(S_ad,self.dgas_coeffs_next_time[j,i,:]))
-            sji = np.dot(self.dgas_coeffs[j,i,:],np.matmul(S_ad,self.dgas_coeffs_next_time[i,j,:]))
+            sii = np.dot(self.dgas_coeffs[i,j,:],\
+                         np.matmul(S_ad,self.dgas_coeffs_next_time[i,j,:]))
+            sjj = np.dot(self.dgas_coeffs[j,i,:],\
+                         np.matmul(S_ad,self.dgas_coeffs_next_time[j,i,:]))
+            sij = np.dot(self.dgas_coeffs[i,j,:],\
+                         np.matmul(S_ad,self.dgas_coeffs_next_time[j,i,:]))
+            sji = np.dot(self.dgas_coeffs[j,i,:],\
+                         np.matmul(S_ad,self.dgas_coeffs_next_time[i,j,:]))
             print "sii", sii, sij, sji, sjj
             vinorm = np.sqrt(1.0 - sii*sii)
             vjnorm = np.sqrt(1.0 - sjj*sjj)
@@ -183,7 +199,8 @@ def build_Sdot_elec_DGAS(self):
                 vixj = 0.0
             else:
                 vixj = (sji - xixj * sii) / vinorm
-            xixj_next = np.dot(self.dgas_coeffs_next_time[i,j,:],self.dgas_coeffs_next_time[j,i,:])
+            xixj_next = np.dot(self.dgas_coeffs_next_time[i,j,:],\
+                               self.dgas_coeffs_next_time[j,i,:])
             if vjnorm >= 1.0e-6 and vinorm >= 1.0e-6:
                 vivj = (xixj_next - sii*sij - sji*sjj + sii*xixj*sjj) / (vinorm*vjnorm)
             else:
@@ -213,8 +230,10 @@ def build_Sdot_elec_DGAS(self):
                 A = xixj * acjj * (sii*sjj-1.0)
                 D = vivj * acjj * (sii*sjj-1.0)
             else:
-                A = xixj * acjj * (np.sqrt((1.0-sii*sii)*(1.0-sjj*sjj))*acii + (sii*sjj-1.0)*acjj) / (acjj*acjj-acii*acii)
-                D = vivj * acjj * (np.sqrt((1.0-sii*sii)*(1.0-sjj*sjj))*acjj + (sii*sjj-1.0)*acii) / (acjj*acjj-acii*acii)
+                A = xixj * acjj * (np.sqrt((1.0-sii*sii)*(1.0-sjj*sjj))*acii\
+                                   +(sii*sjj-1.0)*acjj) / (acjj*acjj-acii*acii)
+                D = vivj * acjj * (np.sqrt((1.0-sii*sii)*(1.0-sjj*sjj))*acjj\
+                                   +(sii*sjj-1.0)*acii) / (acjj*acjj-acii*acii)
 
             h = self.traj[keyi].get_timestep()
             print "ABCDh", A, B, C, D, h
@@ -246,7 +265,8 @@ def build_Sdot_elec_DGAS(self):
                 vixj = 0.0
             else:
                 vixj = (sji - xixj * sii) / vinorm
-            xixj_next = np.dot(self.dgas_coeffs_next_time[j,i,:],self.dgas_coeffs_next_time[i,j,:])
+            xixj_next = np.dot(self.dgas_coeffs_next_time[j,i,:],\
+                               self.dgas_coeffs_next_time[i,j,:])
             if vjnorm >= 1.0e-6 and vinorm >= 1.0e-6:
                 vivj = (xixj_next - sii*sij - sji*sjj + sii*xixj*sjj) / (vinorm*vjnorm)
             else:
@@ -276,8 +296,10 @@ def build_Sdot_elec_DGAS(self):
                 A = xixj * acjj * (sii*sjj-1.0)
                 D = vivj * acjj * (sii*sjj-1.0)
             else:
-                A = xixj * acjj * (np.sqrt((1.0-sii*sii)*(1.0-sjj*sjj))*acii + (sii*sjj-1.0)*acjj) / (acjj*acjj-acii*acii)
-                D = vivj * acjj * (np.sqrt((1.0-sii*sii)*(1.0-sjj*sjj))*acjj + (sii*sjj-1.0)*acii) / (acjj*acjj-acii*acii)
+                A = xixj * acjj * (np.sqrt((1.0-sii*sii)*(1.0-sjj*sjj))*acii\
+                                   +(sii*sjj-1.0)*acjj) / (acjj*acjj-acii*acii)
+                D = vivj * acjj * (np.sqrt((1.0-sii*sii)*(1.0-sjj*sjj))*acjj\
+                                   +(sii*sjj-1.0)*acii) / (acjj*acjj-acii*acii)
 
             h = self.traj[keyi].get_timestep()
             print "ABCDh", A, B, C, D, h
@@ -348,7 +370,12 @@ def build_V_DGAS(self):
 #            istate = self.centroids[key].get_istate()
 #            jstate = self.centroids[key].get_jstate()
 #            if istate != jstate:
-#                Sij = cg.overlap_nuc(self.traj[keyi], self.traj[keyj],positions_i="positions_qm",positions_j="positions_qm",momenta_i="momenta_qm",momenta_j="momenta_qm")
+#                 Sij = cg.overlap_nuc(self.traj[keyi],\
+#                                     self.traj[keyj],\
+#                                     positions_i="positions_qm",\
+#                                     positions_j="positions_qm",\
+#                                     momenta_i="momenta_qm",\
+#                                     momenta_j="momenta_qm")
 #                tdc = self.centroids[key].get_timederivcoups_qm()[jstate]
 #                self.tau[i,j] = Sij * cm1i * tdc
 #                self.tau[j,i] = Sij.conjugate() * c1i * tdc
@@ -364,5 +391,10 @@ def build_T_DGAS(self):
             for keyj in self.traj:
                 j = self.traj_map[keyj]
                 if j < ntraj:
-                    self.T[i,j] = cg.kinetic_nuc(self.traj[keyi], self.traj[keyj],positions_i="positions_qm",positions_j="positions_qm",momenta_i="momenta_qm",momenta_j="momenta_qm") * self.S_elec[i,j]
+                    self.T[i,j] = cg.kinetic_nuc(self.traj[keyi],\
+                                                 self.traj[keyj],\
+                                                 positions_i="positions_qm",\
+                                                 positions_j="positions_qm",\
+                                                 momenta_i="momenta_qm",\
+                                                 momenta_j="momenta_qm") * self.S_elec[i,j]
 

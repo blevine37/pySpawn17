@@ -55,7 +55,7 @@ def qm_propagate_step(self, zoutput_first_step=False):
     self.quantum_time = qm_tpdt
 
     self.build_Heff_second_half()
-        
+    print "Effective Hamiltonian built"    
     #print "fulldiag Heff2", self.Heff
  
     iHdt = (-0.5 * dt * c1i) * self.Heff

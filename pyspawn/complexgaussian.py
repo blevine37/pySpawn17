@@ -9,16 +9,21 @@ import numpy as np
 from pyspawn.fmsobj import fmsobj
 from pyspawn.traj import traj
 
-# compute the overlap of two virbonic TBFs (electronic part included)
-def overlap_nuc_elec(ti,tj,positions_i="positions",positions_j="positions",momenta_i="momenta",momenta_j="momenta"):
+def overlap_nuc_elec(ti, tj,positions_i="positions", positions_j="positions",\
+                     momenta_i="momenta", momenta_j="momenta"):
+    """Compute the overlap of two virbonic TBFs (electronic part included)"""
+    
     if ti.istate == tj.istate:
-        Sij = overlap_nuc(ti,tj,positions_i=positions_i,positions_j=positions_j,momenta_i=momenta_i,momenta_j=momenta_j)
+        Sij = overlap_nuc(ti, tj, positions_i=positions_i, positions_j=positions_j,\
+                          momenta_i=momenta_i, momenta_j=momenta_j)
     else:
         Sij = complex(0.0,0.0)
     return Sij
 
-# compute the overlap of two nuclear TBFs (electronic part not included)
-def overlap_nuc(ti,tj,positions_i="positions",positions_j="positions",momenta_i="momenta",momenta_j="momenta"):
+def overlap_nuc(ti, tj,positions_i="positions", positions_j="positions",\
+                momenta_i="momenta", momenta_j="momenta"):
+    """Compute the overlap of two nuclear TBFs (electronic part not included)"""
+    
     if isinstance(positions_i, types.StringTypes):
         ri = eval("ti." + positions_i)
     else:
@@ -39,6 +44,7 @@ def overlap_nuc(ti,tj,positions_i="positions",positions_j="positions",momenta_i=
     widthsi = ti.widths
     widthsj = tj.widths
     Sij = 1.0
+    
     for idim in range(ti.numdims):
         xi = ri[idim]
         xj = rj[idim]
@@ -46,24 +52,26 @@ def overlap_nuc(ti,tj,positions_i="positions",positions_j="positions",momenta_i=
         dj = pj[idim]
         xwi = widthsi[idim]
         xwj = widthsj[idim]
-
         Sij *= overlap_nuc_1d(xi, xj, di, dj, xwi, xwj)
 
     return Sij
 
-# compute the kinetic energy matrix element between two virbonic TBFs
 def kinetic_nuc_elec(ti, tj, positions_i="positions", positions_j="positions",\
                      momenta_i="momenta", momenta_j="momenta"):
+    """Compute the kinetic energy matrix element between two virbonic TBFs"""
+    
     if ti.istate == tj.istate:
         Tij = kinetic_nuc(ti, tj, positions_i=positions_i, positions_j=positions_j,\
                           momenta_i=momenta_i, momenta_j=momenta_j)
     else:
         Tij = complex(0.0, 0.0)
+    
     return Tij
 
-# compute the kinetic energy matrix element between two nuclear TBFs
 def kinetic_nuc(ti, tj, positions_i="positions", positions_j="positions",\
                 momenta_i="momenta", momenta_j="momenta"):
+    """compute the kinetic energy matrix element between two nuclear TBFs"""
+    
     ri = eval("ti." + positions_i)
     rj = eval("tj." + positions_j)
     pi = eval("ti." + momenta_i)
@@ -104,19 +112,22 @@ def kinetic_nuc(ti, tj, positions_i="positions", positions_j="positions",\
 
     return Tij
 
-# compute the Sdot matrix element between two vibronic TBFs
 def Sdot_nuc_elec(ti, tj, positions_i="positions", positions_j="positions",\
                   momenta_i="momenta", momenta_j="momenta", forces_j="forces"):
+    """Compute the Sdot matrix element between two vibronic TBFs"""
+    
     if ti.istate == tj.istate:
         Sdot_ij = Sdot_nuc(ti, tj, positions_i=positions_i, positions_j=positions_j,\
                            momenta_i=momenta_i, momenta_j=momenta_j, forces_j=forces_j)
     else:
         Sdot_ij = complex(0.0, 0.0)
+    
     return Sdot_ij
 
-# compute the Sdot matrix element between two nuclear TBFs
 def Sdot_nuc(ti, tj, positions_i="positions", positions_j="positions", momenta_i="momenta",\
              momenta_j="momenta", forces_j="forces"):
+    """Compute the Sdot matrix element between two nuclear TBFs"""
+    
     c1i = (complex(0.0, 1.0))
     ri = eval("ti." + positions_i)
     rj = eval("tj." + positions_j)
@@ -146,8 +157,9 @@ def Sdot_nuc(ti, tj, positions_i="positions", positions_j="positions", momenta_i
     
     return Sdot_ij
 
-# compute 1-dimensional nuclear overlaps
 def overlap_nuc_1d(xi, xj, di, dj, xwi, xwj):
+    """Compute 1-dimensional nuclear overlaps"""
+    
     c1i = (complex(0.0, 1.0))
     deltax = xi - xj
     pdiff = di - dj
@@ -167,8 +179,8 @@ def overlap_nuc_1d(xi, xj, di, dj, xwi, xwj):
         
     return cgold
 
-# compute 1-dimensional nuclear kinetic energy matrix elements
 def kinetic_nuc_1d(xi, xj, di, dj, xwi, xwj):
+    """compute 1-dimensional nuclear kinetic energy matrix elements"""
     c1i = (complex(0.0, 1.0))
     psum = di + dj
     deltax = xi - xj
