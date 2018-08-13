@@ -109,13 +109,13 @@ class fafile(object):
 
     def write_columnar_data_file(self,times,dsets,filename):
         of = open(filename,"w")
-        t = self.datasets[times][:,0]
+        t = self.datasets[times][:, 0]
         for i in range(len(t)):
-            of.write(str(t[i]) + " ")
+            of.write(str(round(t[i],8)) + " ")
             for iset in range(len(dsets)):
                 dat = self.datasets[dsets[iset]][i,:]
                 for j in range(len(dat)):
-                    of.write(str(dat[j]) + " ")
+                    of.write(str(round(dat[j],8)) + " ")
             of.write("\n")
         of.close()
         
@@ -499,6 +499,7 @@ class fafile(object):
             if column_file_prefix != None:
                 column_filename = column_file_prefix + "_" + key + ".dat"
                 self.write_columnar_data_file(key+"_time",[dset_pyrs],column_filename)
+
 
     def fill_trajectory_tdcs(self,column_file_prefix=None):
         for key in self.labels:

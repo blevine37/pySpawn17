@@ -87,5 +87,13 @@ def qm_propagate_step(self, zoutput_first_step=False):
     #print "fulldiag amps4", amps
     
     self.qm_amplitudes = amps
+    norm = 0.0
+    state_pop = np.zeros((ntraj), dtype=np.complex128)
+    for i in range(ntraj):
+        state_pop[i] = np.dot(np.conjugate(self.qm_amplitudes[i]), self.qm_amplitudes[i])
+        norm += state_pop[i]
+    print "Populations =", state_pop
+    print "Norm =", norm
+    
     print "Done with quantum propagation"            
 ######################################################

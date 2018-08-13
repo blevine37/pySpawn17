@@ -304,15 +304,10 @@ class simulation(fmsobj):
                         self.S_elec_dot[i, j] = S_dot_elec
                         self.Sdot[i,j] = S_dot_elec * self.S_nuc[i,j] + self.S_elec[i,j] * S_dot_nuc
 #         self.Sdot = np.dot(self.S_elec_dot, self.S_nuc) + np.dot(self.S_elec, self.S_nuc_dot)
-        print "S_dot_nuc =\n", self.S_nuc_dot
-        print "S_dot_elec =\n", self.S_elec_dot
-        print "Sdot =\n", self.Sdot
+#         print "S_dot_nuc =\n", self.S_nuc_dot
+#         print "S_dot_elec =\n", self.S_elec_dot
+#         print "Sdot =\n", self.Sdot
     
-        norm = 0.0
-        for i in range(ntraj):
-            norm += np.dot(np.conjugate(self.qm_amplitudes[i]), self.qm_amplitudes[i])
-    
-        print "Build Sdot: norm =", norm
     
     def build_H(self):
         """Building the Hamiltonian"""
