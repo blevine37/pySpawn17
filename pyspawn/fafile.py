@@ -32,13 +32,13 @@ class fafile(object):
     def get_max_state(self):
         return (np.amax(self.istates)+1)
 
-    def compute_expec(self,Op,c,zreal=True):
+    def compute_expec(self, Op, c, zreal=True):
         expec = np.matmul(c.conjugate(), np.matmul(Op, c))
         if zreal:
             expec = expec.real
         return expec
 
-    def compute_expec_istate_not_normalized(self,Op,c,istate,zreal=True):
+    def compute_expec_istate_not_normalized(self, Op, c, istate, zreal=True):
         ctmp = np.zeros(len(c),dtype=np.complex128)
         for i in range(len(c)):
             if self.istates[i] == istate:
@@ -190,7 +190,6 @@ class fafile(object):
 
         if column_filename != None:
             self.write_columnar_data_file("quantum_times",[dset_expec],column_filename)
-
 
     def fill_electronic_state_populations(self, column_filename=None):
         times = self.datasets["quantum_times"][:, 0]
@@ -359,7 +358,6 @@ class fafile(object):
                 column_filename = column_file_prefix + "_" + key + ".dat"
                 self.write_columnar_data_file(key+"_time",[dset_angles],column_filename)
 
-
     def fill_trajectory_diheds(self,diheds,column_file_prefix):
         for key in self.labels:
             times = self.get_traj_dataset(key,"time")[:,0]
@@ -406,7 +404,6 @@ class fafile(object):
             if column_file_prefix != None:
                 column_filename = column_file_prefix + "_" + key + ".dat"
                 self.write_columnar_data_file(key+"_time",[dset_diheds],column_filename)
-
 
     def fill_trajectory_twists(self,twists,column_file_prefix):
         for key in self.labels:
@@ -458,7 +455,6 @@ class fafile(object):
                 column_filename = column_file_prefix + "_" + key + ".dat"
                 self.write_columnar_data_file(key+"_time",[dset_twists],column_filename)
 
-
     def fill_trajectory_pyramidalizations(self,pyrs,column_file_prefix):
         for key in self.labels:
             times = self.get_traj_dataset(key,"time")[:,0]
@@ -503,7 +499,6 @@ class fafile(object):
             if column_file_prefix != None:
                 column_filename = column_file_prefix + "_" + key + ".dat"
                 self.write_columnar_data_file(key+"_time",[dset_pyrs],column_filename)
-
 
     def fill_trajectory_tdcs(self,column_file_prefix=None):
         for key in self.labels:

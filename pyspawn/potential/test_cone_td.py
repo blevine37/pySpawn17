@@ -31,17 +31,14 @@ def compute_elec_struct(self):
     n_el_steps = self.n_el_steps
     time = self.time
     el_timestep = self.timestep / n_el_steps
-    a = 6
-    k = 3
 
-    # Constructing Hamiltonian, for now solving the eigenvalue problem to get adiabatic states
+
+    # Constructing Hamiltonian, computing derivatives, for now solving the eigenvalue problem to get adiabatic states
     # for real systems it will be replaced by approximate eigenstates
-    H_elec = self.construct_el_H(x, y)
+    H_elec, Hx, Hy = self.construct_el_H(x, y) 
     ss_energies, eigenvectors = lin.eigh(H_elec)
     eigenvectors_T = np.transpose(np.conjugate(eigenvectors))
     
-    # Computing forces
-    Hx, Hy = self.construct_force(x, y)
     
     pop = np.zeros(self.numstates)
     amp = np.zeros((self.numstates), dtype=np.complex128) 
@@ -52,7 +49,7 @@ def compute_elec_struct(self):
     else:
 #         print "\nPropagating electronic wave function first half of timestep to compute forces, energies"
         if not self.first_step:
-            wf = propagate_symplectic(self, H_elec, wf, self.timestep/2, n_el_steps/2)
+            wf = propagate_symplectic(self, (H_elec), wf, self.timestep/2, n_el_steps/2)
     
     wf_T = np.transpose(np.conjugate(wf))
     av_energy = np.real(np.dot(np.dot(wf_T, H_elec), wf))    
@@ -70,7 +67,9 @@ def compute_elec_struct(self):
     self.energies = np.real(ss_energies)
     self.av_force = av_force
     self.approx_eigenvecs = eigenvectors
+    self.mce_amps_prev = self.mce_amps
     self.mce_amps = amp
+    self.td_wf_full_ts = np.complex128(wf)
     self.populations = pop
 
     if abs(norm - 1.0) > 1e-6:
@@ -79,14 +78,14 @@ def compute_elec_struct(self):
     # DEBUGGING
     
     def print_stuff():
-        print "Time =", self.time
-        print "Position =", self.positions
-        print "Hamiltonian =\n", H_elec
+#         print "Time =", self.time
+#         print "Position =", self.positions
+#         print "Hamiltonian =\n", H_elec
         print "Average energy =", self.av_energy
-        print "Energies =", ss_energies
-        print "Force =", av_force
-        print "Wave function =\n", wf
-        print "Eigenvectors =\n", eigenvectors
+        print "Energies =", ss_energies[0], ss_energies[1]
+#         print "Force =", av_force
+#         print "Wave function =\n", wf
+#         print "Eigenvectors =\n", eigenvectors
         print "Population =", pop[0], pop[1]
     print_stuff()
     # DEBUGGING
@@ -95,6 +94,7 @@ def compute_elec_struct(self):
     # for ehrenfest dynamics at a half step and save it
     wf = propagate_symplectic(self, H_elec, wf, self.timestep/2, n_el_steps/2)
     self.td_wf = wf
+    self.H_elec = H_elec
     
 #     phasing wave function to match previous time step
 #     W = np.matmul(prev_wf,wf.T)
@@ -108,35 +108,31 @@ def compute_elec_struct(self):
 #         W[:,1] = -1.0 * W[:,1]
   
 def construct_el_H(self, x, y):
+    """Constructing the 2D potential (Jahn-Teller model) and computing d/dx, d/dy for
+    force computation. Later will be replaced with the electronic structure program call"""
     
     a = 6
     k = 3
     
     H_elec = np.zeros((self.numstates, self.numstates))
-    H_elec[0, 0] = 0.5 * (x + a/2)**2 + 0.5 * (y)**2
-    H_elec[1, 1] = 0.5 * (x - a/2)**2 + 0.5 * (y)**2
+    H_elec[0, 0] = 0.25 * (x + a/2)**2 + 0.25 * (y)**2
+    H_elec[1, 1] = 0.25 * (x - a/2)**2 + 0.25 * (y)**2
     H_elec[0, 1] = k * y
     H_elec[1, 0] = k * y
-    
-    return H_elec    
 
-def construct_force(self, x, y):
-    
-    a = 6
-    k = 3
-    
     Hx = np.zeros((self.numstates, self.numstates))
     Hy = np.zeros((self.numstates, self.numstates))
-    Hx[0, 0] = x + a/2
-    Hx[1, 1] = x - a/2
-    Hy[0, 0] = y
-    Hy[1, 1] = y
+    Hx[0, 0] = 0.5 * (x + a/2)
+    Hx[1, 1] = 0.5 * (x - a/2)
+    Hy[0, 0] = 0.5 * y
+    Hy[1, 1] = 0.5 * y
     Hy[0, 1] = k
     Hy[1, 0] = k
-    
-    return Hx, Hy  
+        
+    return H_elec, Hx, Hy
 
 def propagate_symplectic(self, H, wf, timestep, nsteps):
+    """Symplectic split propagator, similar to classical Velocity-Verlet"""
     
     el_timestep = timestep / nsteps
     c_r = np.real(wf)
@@ -155,6 +151,7 @@ def propagate_symplectic(self, H, wf, timestep, nsteps):
     return wf
     
 def init_h5_datasets(self):
+    
     self.h5_datasets["av_energy"] = 1
     self.h5_datasets["av_force"] = self.numdims
     self.h5_datasets["td_wf"] = self.numstates
@@ -163,8 +160,9 @@ def init_h5_datasets(self):
     self.h5_datasets["energies"] = self.numstates
     self.h5_datasets["positions"] = self.numdims
     self.h5_datasets["momenta"] = self.numdims
-    self.h5_datasets["forces_i"] = self.numdims
     self.h5_datasets["populations"] = self.numstates
+    self.h5_datasets["td_wf_full_ts"] = self.numstates
+    
     self.h5_datasets_half_step["time_half_step"] = 1
 
 def potential_specific_traj_copy(self,from_traj):

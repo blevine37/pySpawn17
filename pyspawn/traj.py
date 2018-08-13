@@ -53,6 +53,14 @@ class traj(fmsobj):
         self.av_energy_t = 0.0
         self.av_energy_tmdt = 0.0       
         
+        self.av_force_tmdt = np.zeros(self.numdims)
+        self.av_force_t = np.zeros(self.numdims)
+        self.av_force_tpdt = np.zeros(self.numdims)
+        
+        self.td_wf_full_ts_tmdt = np.zeros((self.numstates), dtype = np.complex128)
+        self.td_wf_full_ts_t = np.zeros((self.numstates), dtype = np.complex128)
+        self.td_wf_full_ts_tpdt = np.zeros((self.numstates), dtype = np.complex128)
+        
         self.spawnlastcoup = np.zeros(self.numstates)
         self.numchildren = 0
         
@@ -62,8 +70,10 @@ class traj(fmsobj):
         self.forces_i_qm = np.zeros(self.numdims)
 
         #In the following block there are variables needed for ehrenfest
+        self.H_elec = np.zeros((self.numstates, self.numstates), dtype = np.complex128)
         self.first_step = False
         self.n_el_steps = 4000
+        self.td_wf_full_ts = np.zeros((self.numstates), dtype = np.complex128)
         self.td_wf = np.zeros((self.numstates), dtype = np.complex128)
         self.mce_amps = np.zeros((self.numstates), dtype = np.complex128)
         self.populations = np.zeros(self.numstates)
@@ -80,29 +90,6 @@ class traj(fmsobj):
             ke += 0.5 * p[idim] * p[idim] / m[idim]
         
         return ke
-    
-    def remove_state_pop(self, jstate):
-        """After cloning of the wave function to the jstate the cloned wf have all population on jstate
-        the rest of the population stays on the parent wf. This subroutine removes all population on jstate
-        from the parent wf and updates the affected quantities"""
-        for istate in range(self.numstates):
-            new_wf = np.zeros((self.numstates), dtype = np.complex128)
-            if istate != jstate:
-                new_wf += self.approx_eigenvecs[istate, :] * self.mce_amps[istate]\
-                                                    / np.sqrt(1 - self.populations[jstate])
-
-        self.td_wf = new_wf
-    # End of Ehrenfest block
-    
-    def set_forces_i_qm(self, f):
-        if f.shape == self.forces_i_qm.shape:
-            self.forces_i_qm = f.copy()
-        else:
-            print "Error in set_forces_i_qm"
-            sys.exit
-
-    def get_forces_i_qm(self):
-        return self.forces_i_qm.copy()
             
     def init_traj(self, t, ndims, pos, mom, wid, m, nstates, istat, lab):
 
@@ -165,8 +152,7 @@ class traj(fmsobj):
         eigenvectors_T = np.transpose(np.conjugate(parent.approx_eigenvecs))    
         parent_wf_T = np.transpose(np.conjugate(parent_wf))
         
-        H_elec = self.construct_el_H(self.positions[0], self.positions[1])
-        Hx, Hy = parent.construct_force(parent.positions_tpdt[0], parent.positions_tpdt[1])
+        H_elec, Hx, Hy = self.construct_el_H(self.positions[0], self.positions[1])
         
         av_force = np.zeros((self.numdims))    
         av_force[0] = -np.real(np.dot(np.dot(parent_wf_T, Hx), parent_wf))
@@ -311,20 +297,6 @@ class traj(fmsobj):
             sys.exit
         
         return True
-                
-    def set_forces(self,f):
-        if f.shape == self.forces.shape:
-            self.forces = f.copy()
-        else:
-            print "Error in set_forces"
-            sys.exit
-
-    def get_forces(self):
-        return self.forces.copy()
- 
-    def get_forces_i(self):
-        fi = self.get_forces()[self.istate, :]
-        return fi
 
     def propagate_step(self):
         """When cloning happens we start a parent wf
@@ -362,11 +334,12 @@ class traj(fmsobj):
                         dE = np.abs(self.energies[jstate] - self.energies[istate])
                         tau[istate, jstate] = (1 + self.t_decoherence_par / ke_tot) / dE
                         p[istate, jstate] = 1 - np.exp(-self.timestep / tau[istate, jstate])
-        
+        print "p =", p
         return p
             
     def h5_output(self, zdont_half_step=False):
         """This subroutine outputs all datasets into an h5 file at each timestep"""
+        
         if len(self.h5_datasets) == 0:
             self.init_h5_datasets()
         filename = "working.hdf5"
@@ -387,10 +360,10 @@ class traj(fmsobj):
             dset.resize(l+1, axis=0)
             ipos=l
 
-            if key == "forces_i":
-                getcom = "self.get_" + key + "()"
-            else:
-                getcom = "self." + key 
+#             if key == "forces_i":
+#                 getcom = "self.get_" + key + "()"
+#             else:
+            getcom = "self." + key 
 
 #             print getcom
             tmp = eval(getcom)
@@ -404,17 +377,18 @@ class traj(fmsobj):
 
     def create_h5_traj(self, h5f, groupname):
         """create a new trajectory group in hdf5 output file"""
+        
         trajgrp = h5f.create_group(groupname)
         for key in self.h5_datasets:
             n = self.h5_datasets[key]
-            if key == "td_wf" or key == "mce_amps":
+            if key == "td_wf" or key == "mce_amps" or key == "td_wf_full_ts":
                 dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n), dtype="complex128")
             else:
                 dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n), dtype="float64")
 
         for key in self.h5_datasets_half_step:
             n = self.h5_datasets_half_step[key]
-            if key == "td_wf" or key == "mce_amps":
+            if key == "td_wf" or key == "mce_amps" or key == "td_wf_full_ts":
                 dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n), dtype="complex128")
             else:
                 dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n), dtype="float64")
@@ -426,6 +400,8 @@ class traj(fmsobj):
             trajgrp.attrs["atoms"] = self.atoms
         
     def get_data_at_time_from_h5(self, t, dset_name):
+        """This subroutine gets trajectory data from "dset_name" array at a certain time"""
+        
         h5f = h5py.File("working.hdf5", "r")
         groupname = "traj_" + self.label
         filename = "working.hdf5"
@@ -446,6 +422,10 @@ class traj(fmsobj):
         return data
 
     def get_all_qm_data_at_time_from_h5(self, t, suffix=""):
+        """This subroutine pulls all arrays from the trajectory at a certain time and assigns
+        results to the same variable names with _qm suffix. The _qm variables essentially
+        match the values at _t, added for clarity."""
+        
         h5f = h5py.File("working.hdf5", "r")
         groupname = "traj_" + self.label
         filename = "working.hdf5"
@@ -464,11 +444,13 @@ class traj(fmsobj):
             data = dset[ipoint, :]
             comm = "self." + dset_name + "_qm" + suffix + " = data"
             exec(comm)
-            #print "comm ", comm
+#             print "comm ", comm
             #print "dset[ipoint,:] ", dset[ipoint,:]        
         h5f.close()
             
     def get_all_qm_data_at_time_from_h5_half_step(self, t):
+        "Same as get_all_qm_data_at_time_from_h5, but pulls data from a half timestep"
+        
         h5f = h5py.File("working.hdf5", "r")
         groupname = "traj_" + self.label
         filename = "working.hdf5"

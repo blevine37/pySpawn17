@@ -2,6 +2,7 @@
 # now everything is hard coded for adiabatic/diabatic representation, but
 # it shouldn't be hard to modify for DGAS
 
+import sys
 import types
 import math
 import cmath
@@ -53,8 +54,29 @@ def overlap_nuc(ti, tj,positions_i="positions", positions_j="positions",\
         xwi = widthsi[idim]
         xwj = widthsj[idim]
         Sij *= overlap_nuc_1d(xi, xj, di, dj, xwi, xwj)
-
+    
     return Sij
+
+def overlap_nuc_1d(xi, xj, di, dj, xwi, xwj):
+    """Compute 1-dimensional nuclear overlaps"""
+    
+    c1i = (complex(0.0, 1.0))
+    deltax = xi - xj
+    pdiff = di - dj
+    osmwid = 1.0 / (xwi + xwj)
+    
+    xrarg = osmwid * (xwi*xwj*deltax*deltax + 0.25*pdiff*pdiff)
+    if (xrarg < 10.0):
+        gmwidth = math.sqrt(xwi*xwj)
+        ctemp = (di*xi - dj*xj)
+        ctemp = ctemp - osmwid * (xwi*xi + xwj*xj) * pdiff
+        cgold = math.sqrt(2.0 * gmwidth * osmwid)
+        cgold = cgold * math.exp(-1.0 * xrarg)
+        cgold = cgold * cmath.exp(ctemp * c1i)
+    else:
+        cgold = 0.0
+           
+    return cgold
 
 def kinetic_nuc_elec(ti, tj, positions_i="positions", positions_j="positions",\
                      momenta_i="momenta", momenta_j="momenta"):
@@ -79,7 +101,7 @@ def kinetic_nuc(ti, tj, positions_i="positions", positions_j="positions",\
         
     widthsi = ti.widths
     widthsj = tj.widths
-
+    
     massesi = ti.masses
 
     ndim = ti.numdims
@@ -111,6 +133,18 @@ def kinetic_nuc(ti, tj, positions_i="positions", positions_j="positions",\
         #print "Tij ", Tij
 
     return Tij
+
+def kinetic_nuc_1d(xi, xj, di, dj, xwi, xwj):
+    """compute 1-dimensional nuclear kinetic energy matrix elements"""
+    c1i = (complex(0.0, 1.0))
+    psum = di + dj
+    deltax = xi - xj
+    dkerfac = xwi + 0.25 * psum * psum - xwi * xwi * deltax * deltax
+    dkeifac = xwi * deltax * psum
+    olap = overlap_nuc_1d(xi, xj, di, dj, xwi, xwj)
+    kinetic = (dkerfac + c1i * dkeifac) * olap
+
+    return kinetic
 
 def Sdot_nuc_elec(ti, tj, positions_i="positions", positions_j="positions",\
                   momenta_i="momenta", momenta_j="momenta", forces_j="forces"):
@@ -156,38 +190,3 @@ def Sdot_nuc(ti, tj, positions_i="positions", positions_j="positions", momenta_i
     Sdot_ij = Ctemp * Sij
     
     return Sdot_ij
-
-def overlap_nuc_1d(xi, xj, di, dj, xwi, xwj):
-    """Compute 1-dimensional nuclear overlaps"""
-    
-    c1i = (complex(0.0, 1.0))
-    deltax = xi - xj
-    pdiff = di - dj
-    osmwid = 1.0 / (xwi + xwj)
-    
-    xrarg = osmwid * (xwi*xwj*deltax*deltax + 0.25*pdiff*pdiff)
-    
-    if (xrarg < 10.0):
-        gmwidth = math.sqrt(xwi*xwj)
-        ctemp = (di*xi - dj*xj)
-        ctemp = ctemp - osmwid * (xwi*xi + xwj*xj) * pdiff
-        cgold = math.sqrt(2.0 * gmwidth * osmwid)
-        cgold = cgold * math.exp(-1.0 * xrarg)
-        cgold = cgold * cmath.exp(ctemp * c1i)
-    else:
-        cgold = 0.0
-        
-    return cgold
-
-def kinetic_nuc_1d(xi, xj, di, dj, xwi, xwj):
-    """compute 1-dimensional nuclear kinetic energy matrix elements"""
-    c1i = (complex(0.0, 1.0))
-    psum = di + dj
-    deltax = xi - xj
-    dkerfac = xwi + 0.25 * psum * psum - xwi * xwi * deltax * deltax
-    dkeifac = xwi * deltax * psum
-    olap = overlap_nuc_1d(xi, xj, di, dj, xwi, xwj)
-    kinetic = (dkerfac + c1i * dkeifac) * olap
-
-    return kinetic
-

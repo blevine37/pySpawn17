@@ -3,10 +3,11 @@ import numpy.linalg as la
 import math
 
 ######################################################
-# adaptive RK2 quantum integrator
+# exponential integrator
 ######################################################
 
 def qm_propagate_step(self, zoutput_first_step=False):
+    
     c1i = (complex(0.0, 1.0))
     self.compute_num_traj_qm()
     qm_t = self.quantum_time
@@ -16,8 +17,8 @@ def qm_propagate_step(self, zoutput_first_step=False):
     
     amps_t = self.qm_amplitudes
     #print "amps_t", amps_t
-    
-    self.build_Heff_first_half()
+    print "Building effective Hamiltonian for the first half step"
+    self.build_Heff_half_timestep()
     
     # output the first step before propagating
     if zoutput_first_step:
@@ -51,10 +52,12 @@ def qm_propagate_step(self, zoutput_first_step=False):
     amps = np.matmul(R, tmp2)
 
     #print "fulldiag amps2", amps
-    
+#     print "V after first half =\n", self.V
+#     print "S after first half =\n", self.S_elec
     self.quantum_time = qm_tpdt
-
-    self.build_Heff_second_half()
+    print "Building effective Hamiltonian for the second half step"
+    self.build_Heff_half_timestep()
+#     print "\nS_elec second half =", self.S_elec
     print "Effective Hamiltonian built"    
     #print "fulldiag Heff2", self.Heff
  
@@ -84,5 +87,5 @@ def qm_propagate_step(self, zoutput_first_step=False):
     #print "fulldiag amps4", amps
     
     self.qm_amplitudes = amps
-                
+    print "Done with quantum propagation"            
 ######################################################

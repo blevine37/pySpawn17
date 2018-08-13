@@ -22,7 +22,7 @@ t0 = 0.0
 ts = 0.05
 
 # final simulation time
-tfinal = 100.0
+tfinal = 30.0
 
 # number of dimensions                                                                                           
 numdims = 2
@@ -39,8 +39,6 @@ traj_params = {
     # final simulation time
     "maxtime": tfinal,
     # coupling threshhold
-#     "spawnthresh": (0.5 * np.pi) / ts / 20.0,
-    # coupling threshhold
     "clonethresh": 0.10,
     # initial electronic state (indexed such that 0 is the ground state)
     "istate": 1,
@@ -49,9 +47,9 @@ traj_params = {
     # nuclear masses (in a.u)    
     "masses": np.asarray([1822.0, 1822.0]),
     # initial positions
-    "positions": np.asarray([-0.2, 0.0]),
+    "positions": np.asarray([-0.2, -0.2]),
     # inition momenta
-    "momenta": np.asarray([10.0, 10.0]),
+    "momenta": np.asarray([1.0, 1.0]),
     #
     "numstates": numstates,
     }
@@ -66,7 +64,11 @@ sim_params = {
     # initial qm amplitudes
     "qm_amplitudes": np.ones(1, dtype=np.complex128),
     # energy shift used in quantum propagation
-    "qm_energy_shift": 0.0,
+    "qm_energy_shift": -2.9413,
+    # cloning probability threshold
+    "p_threshold": 0.018,
+    # cloning minimum population parameter
+    "pop_threshold": 0.15,
 }
 
 # import routines needed for propagation

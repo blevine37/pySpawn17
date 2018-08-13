@@ -30,8 +30,8 @@ class simulation(fmsobj):
         self.olapmax = 0.8
         
         # if pij > p_threshold  and pop > pop_threshold cloning is initiated 
-        self.pop_threshold = 0.03
-        self.p_threshold = 0.05
+        self.pop_threshold = 0.1
+        self.p_threshold = 0.03
         
         # quantum time is the current time of the quantum amplitudes
         self.quantum_time = 0.0
@@ -63,32 +63,32 @@ class simulation(fmsobj):
         # maximium walltime in seconds
         self.max_walltime = -1.0
 
-    def from_dict(self,**tempdict):
+    def from_dict(self, **tempdict):
         """convert dict to simulation data structure"""
         for key in tempdict:
-            if isinstance(tempdict[key],types.UnicodeType) :
+            if isinstance(tempdict[key], types.UnicodeType) :
                 tempdict[key] = str(tempdict[key])
-            if isinstance(tempdict[key],types.ListType) :
-                if isinstance((tempdict[key])[0],types.FloatType) :
+            if isinstance(tempdict[key], types.ListType) :
+                if isinstance((tempdict[key])[0], types.FloatType) :
                     # convert 1d float lists to np arrays
                     tempdict[key] = np.asarray(tempdict[key])
-                if isinstance((tempdict[key])[0],types.StringTypes) :
+                if isinstance((tempdict[key])[0], types.StringTypes) :
                     if (tempdict[key])[0][0] == "^":
                         for i in range(len(tempdict[key])):
                             tempdict[key][i] = eval(tempdict[key][i][1:])
-                        tempdict[key] = np.asarray(tempdict[key],dtype=np.complex128)
+                        tempdict[key] = np.asarray(tempdict[key], dtype=np.complex128)
                 else:
-                    if isinstance((tempdict[key])[0],types.ListType):
-                        if isinstance((tempdict[key])[0][0],types.FloatType) :
+                    if isinstance((tempdict[key])[0], types.ListType):
+                        if isinstance((tempdict[key])[0][0], types.FloatType) :
                             # convert 2d float lists to np arrays
                            tempdict[key] = np.asarray(tempdict[key])
-                        if isinstance((tempdict[key])[0][0],types.StringTypes) :
+                        if isinstance((tempdict[key])[0][0], types.StringTypes) :
                             if (tempdict[key])[0][0][0] == "^":
                                 for i in range(len(tempdict[key])):
                                     for j in range(len(tempdict[key][i])):
                                         tempdict[key][i][j] = eval(tempdict[key][i][j][1:])
-                                tempdict[key] = np.asarray(tempdict[key],dtype=np.complex128)
-            if isinstance(tempdict[key],types.DictType) :
+                                tempdict[key] = np.asarray(tempdict[key], dtype=np.complex128)
+            if isinstance(tempdict[key], types.DictType) :
                 if 'fmsobjlabel' in (tempdict[key]).keys():
                     fmsobjlabel = (tempdict[key]).pop('fmsobjlabel')
                     obj = eval(fmsobjlabel[8:])()
@@ -96,7 +96,7 @@ class simulation(fmsobj):
                     tempdict[key] = obj
                 else:
                     for key2 in tempdict[key]:
-                        if isinstance((tempdict[key])[key2],types.DictType) :
+                        if isinstance((tempdict[key])[key2], types.DictType) :
                             fmsobjlabel = ((tempdict[key])[key2]).pop('fmsobjlabel')
                             obj = eval(fmsobjlabel[8:])()
                             obj.from_dict(**((tempdict[key])[key2]))
@@ -120,10 +120,6 @@ class simulation(fmsobj):
         self.traj_map[key] = index
         #sort traj_map by mintime
 
-    def get_numtasks(self):
-        """get the number of tasks in the queue"""
-        return (len(self.queue)-1)
-
     def propagate(self):
         """this is the main propagation loop for the simulation"""
         gen.print_splash()
@@ -134,6 +130,7 @@ class simulation(fmsobj):
             self.update_queue()
 
             # if the queue is empty, we're done!
+            print "Time =", self.quantum_time
             print "Checking if we are at the end of the simulation"
             #if (self.queue[0] == "END"):
             if (self.quantum_time + 1.0e-6 > self.max_quantum_time):
@@ -164,6 +161,11 @@ class simulation(fmsobj):
             print "Propagating quantum amplitudes if we have enough information to do so"
             self.propagate_quantum_as_necessary()
             
+            if np.shape(self.qm_amplitudes)[0] == 2:
+                amp1 = self.qm_amplitudes[0]
+                amp2 = self.qm_amplitudes[1]
+                print "Populations of nuclear wf =", np.conjugate(amp1)*amp1, np.conjugate(amp2)*amp2
+            print "Qm_amplitudes =", self.qm_amplitudes
             # print restart output - this must be the last line in this loop!
             print "Updating restart output"
             self.restart_output()    
@@ -203,6 +205,8 @@ class simulation(fmsobj):
         self.qm_amplitudes[0] = 1.0
         
     def compute_num_traj_qm(self):
+        """Get number of trajectories"""
+        
         n = 0
         qm_time = self.quantum_time
         for key in self.traj:
@@ -210,89 +214,161 @@ class simulation(fmsobj):
                 n += 1
         self.num_traj_qm = n
         while n > len(self.qm_amplitudes):
-            self.qm_amplitudes = np.append(self.qm_amplitudes,0.0)
-                
-    def get_qm_data_from_h5(self):
-        """get the necessary geometries and energies from hdf5"""
-        qm_time = self.quantum_time
-        ntraj = self.num_traj_qm
-        for key in self.traj:
-            if self.traj_map[key] < ntraj:
-                self.traj[key].get_all_qm_data_at_time_from_h5(qm_time)
-            
-    def get_qm_data_from_h5_half_step(self):
-        qm_time = self.quantum_time_half_step
-        ntraj = self.num_traj_qm
-        for key in self.traj:
-            if self.traj_map[key] < ntraj:
-                self.traj[key].get_all_qm_data_at_time_from_h5_half_step(qm_time)
-                        
-    def build_S(self):
-        """Building overlap matrix"""
-        ntraj = self.num_traj_qm
-        self.S = np.zeros((ntraj,ntraj), dtype=np.complex128)
-        for keyi in self.traj:
-            i = self.traj_map[keyi]
-            if i < ntraj:
-                for keyj in self.traj:
-                    j = self.traj_map[keyj]
-                    if j < ntraj:
-                        self.S[i,j] = cg.overlap_nuc_elec(self.traj[keyi], self.traj[keyj],\
-                                                          positions_i="positions_qm",\
-                                                          positions_j="positions_qm",\
-                                                          momenta_i="momenta_qm",\
-                                                          momenta_j="momenta_qm")
-    
-    def build_Sdot(self):
-        """build the right-acting time derivative operator"""
-        ntraj = self.num_traj_qm
-        self.Sdot = np.zeros((ntraj,ntraj), dtype=np.complex128)
-        for keyi in self.traj:
-            i = self.traj_map[keyi]
-            if i < ntraj:
-                for keyj in self.traj:
-                    j = self.traj_map[keyj]
-                    if j < ntraj:
-                        self.Sdot[i,j] = cg.Sdot_nuc_elec(self.traj[keyi],\
-                                                          self.traj[keyj],\
-                                                          positions_i="positions_qm",\
-                                                          positions_j="positions_qm",\
-                                                          momenta_i="momenta_qm",\
-                                                          momenta_j="momenta_qm",\
-                                                          forces_j="av_force")
-
+            self.qm_amplitudes = np.append(self.qm_amplitudes, 0.0)
+                                        
     def invert_S(self):
         """compute Sinv from S"""
+        
         self.Sinv = np.linalg.inv(self.S)
         
-    def build_H(self):
-        """building the Hamiltonian matrix, H
-        this routine assumes that S is already built"""
+    def build_Heff(self):
+        """built Heff form H, Sinv, and Sdot"""
         
-        print "Building potential energy matrix"
+        c1i = (complex(0.0,1.0))
+        self.Heff = np.matmul(self.Sinv, (self.H - c1i * self.Sdot))
+
+    def build_S_elec(self):
+        """Build matrix of electronic overlaps"""
+        
+        ntraj = self.num_traj_qm
+        self.S_elec = np.zeros((ntraj,ntraj))
+        for keyi in self.traj:
+            i = self.traj_map[keyi]
+            if i < ntraj:
+                for keyj in self.traj:
+                    j = self.traj_map[keyj]
+                    if j < ntraj:
+                        if i == j:
+                            self.S_elec[i,j] = 1.0
+                        else:
+                            Stmp = np.dot(np.transpose(np.conjugate(self.traj[keyi].td_wf_full_ts_qm)),\
+                                          self.traj[keyj].td_wf_full_ts_qm)
+                            self.S_elec[i,j] = np.real(Stmp)
+
+        print "S_elec = ", self.S_elec
+    
+    def build_S(self):
+        """Build the overlap matrix, S"""
+        
+        ntraj = self.num_traj_qm
+        self.S = np.zeros((ntraj,ntraj), dtype=np.complex128)
+        self.S_nuc = np.zeros((ntraj,ntraj), dtype=np.complex128)
+        for keyi in self.traj:
+            i = self.traj_map[keyi]
+            if i < ntraj:
+                for keyj in self.traj:
+                    j = self.traj_map[keyj]
+                    if j < ntraj:
+                        self.S_nuc[i,j] = cg.overlap_nuc(self.traj[keyi],\
+                                                         self.traj[keyj],\
+                                                         positions_i="positions_qm",\
+                                                         positions_j="positions_qm",\
+                                                         momenta_i="momenta_qm",\
+                                                         momenta_j="momenta_qm") 
+                        
+                        self.S[i,j] = self.S_nuc[i,j] * self.S_elec[i,j]
+    
+    def build_Sdot(self, first_half = None):
+        """build the right-acting time derivative operator"""
+        
+        ntraj = self.num_traj_qm
+        self.Sdot = np.zeros((ntraj,ntraj), dtype=np.complex128)
+        
+        self.S_elec_dot = np.zeros((ntraj,ntraj), dtype=np.complex128)
+        self.S_nuc_dot = np.zeros((ntraj,ntraj), dtype=np.complex128)
+        for keyi in self.traj:
+            i = self.traj_map[keyi]
+            if i < ntraj:
+                for keyj in self.traj:
+                    j = self.traj_map[keyj]
+                    if j < ntraj:
+                        S_dot_nuc = cg.Sdot_nuc(self.traj[keyi],\
+                                                     self.traj[keyj],\
+                                                     positions_i="positions_qm",\
+                                                     positions_j="positions_qm",\
+                                                     momenta_i="momenta_qm",\
+                                                     momenta_j="momenta_qm",\
+                                                     forces_j="av_force_qm")
+                        
+                        wf_dot = -1j * np.dot(self.traj[keyj].H_elec, self.traj[keyj].td_wf_full_ts_qm)
+                        S_dot_elec =  np.dot(np.conjugate(np.transpose(self.traj[keyi].td_wf_full_ts_qm)), wf_dot)
+
+#                         print "positions_qm_i =", self.traj[keyi].positions_qm
+#                         print "positions_i =", self.traj[keyi].positions
+#                         print "positions_i_tpdt =", self.traj[keyi].positions_tpdt
+#                         print "momenta_qm_i =", self.traj[keyi].momenta_qm
+#                         print "momenta_i =", self.traj[keyi].momenta
+#                         print "momenta_i_tpdt =", self.traj[keyi].momenta_tpdt
+#                         print "momenta_i_t =", self.traj[keyi].momenta_t                                                
+                        self.S_nuc_dot[i, j] = S_dot_nuc 
+                        self.S_elec_dot[i, j] = S_dot_elec
+                        self.Sdot[i,j] = S_dot_elec * self.S_nuc[i,j] + self.S_elec[i,j] * S_dot_nuc
+#         self.Sdot = np.dot(self.S_elec_dot, self.S_nuc) + np.dot(self.S_elec, self.S_nuc_dot)
+        print "S_dot_nuc =\n", self.S_nuc_dot
+        print "S_dot_elec =\n", self.S_elec_dot
+        print "Sdot =\n", self.Sdot
+    
+        norm = 0.0
+        for i in range(ntraj):
+            norm += np.dot(np.conjugate(self.qm_amplitudes[i]), self.qm_amplitudes[i])
+    
+        print "Build Sdot: norm =", norm
+    
+    def build_H(self):
+        """Building the Hamiltonian"""
+        
+    #     print "Building potential energy matrix"
         self.build_V()
-        print "Building kinetic energy matrix"
+    #     print "Building kinetic energy matrix"
         self.build_T()
         ntraj = self.num_traj_qm
         shift = self.qm_energy_shift * np.identity(ntraj)
-        print "Summing Hamiltonian"
         self.H = self.T + self.V + shift
-
+    #     print "Hamiltonian built"
+        
     def build_V(self):
         """build the potential energy matrix, V
         This routine assumes that S is already built"""
+        
         c1i = (complex(0.0, 1.0))
         cm1i = (complex(0.0, -1.0))
         ntraj = self.num_traj_qm
         self.V = np.zeros((ntraj, ntraj), dtype=np.complex128)
-        for key in self.traj:
-            i = self.traj_map[key]
-            istate = self.traj[key].istate
+        for keyi in self.traj:
+            i = self.traj_map[keyi]
             if i < ntraj:
-                self.V[i,i] = self.traj[key].energies_qm[istate]
-                
+                for keyj in self.traj:
+                    j = self.traj_map[keyj]
+                    if j < ntraj:
+                        if i == j:
+                            self.V[i, j] = self.traj[keyi].av_energy_qm
+                        else:
+                            nuc_overlap = cg.overlap_nuc(self.traj[keyi], self.traj[keyj],\
+                                                         positions_i="positions_qm",\
+                                                         positions_j="positions_qm",\
+                                                         momenta_i="momenta_qm",\
+                                                         momenta_j="momenta_qm")
+                            H_elec_i, Hx_i, Hy_i\
+                            = self.traj[keyi].construct_el_H(self.traj[keyi].positions_qm[0],\
+                                                               self.traj[keyi].positions_qm[1])
+                            H_elec_j, Hx_j, Hy_j\
+                            = self.traj[keyj].construct_el_H(self.traj[keyj].positions_qm[0],\
+                                                               self.traj[keyj].positions_qm[1])
+                                                    
+                            wf_i = self.traj[keyi].td_wf_full_ts_qm
+                            wf_i_T = np.transpose(np.conjugate(wf_i))
+                            wf_j = self.traj[keyj].td_wf_full_ts_qm
+                            wf_j_T = np.transpose(np.conjugate(wf_j))
+                            H_i = np.dot(wf_i_T, np.dot(H_elec_i, wf_j_T))
+                            H_j = np.dot(wf_i_T, np.dot(H_elec_j, wf_j_T))
+                            V_ij = 0.5 * (H_i + H_j)
+                            self.V[i, j] = V_ij * nuc_overlap
+        
+#         print "V =", self.V
+        
     def build_T(self):
-        """building the kinetic energy matrix, T"""
+        "Building kinetic energy, needs electronic overlap S_elec"
+        
         ntraj = self.num_traj_qm
         self.T = np.zeros((ntraj,ntraj), dtype=np.complex128)
         for keyi in self.traj:
@@ -301,48 +377,11 @@ class simulation(fmsobj):
                 for keyj in self.traj:
                     j = self.traj_map[keyj]
                     if j < ntraj:
-                        self.T[i,j] = cg.kinetic_nuc_elec(self.traj[keyi],\
-                                                          self.traj[keyj],\
-                                                          positions_i="positions_qm",\
-                                                          positions_j="positions_qm",\
-                                                          momenta_i="momenta_qm",\
-                                                          momenta_j="momenta_qm")
-  
-    def build_Heff(self):
-        """built Heff form H, Sinv, and Sdot"""
-        print "Building effective Hamiltonian"
-        c1i = (complex(0.0,1.0))
-        self.Heff = np.matmul(self.Sinv, (self.H - c1i * self.Sdot))
-
-    def pop_task(self):
-        """pop the task from the top of the queue"""
-        return self.queue.pop(0)
-
-    def update_queue(self):
-        """build a list of all tasks that need to be completed"""
-        while self.queue[0] != "END":
-            self.queue.pop(0)
-        tasktimes=[1e10]
-        
-        # forward propagation tasks
-        for key in self.traj:
-            if (self.traj[key].maxtime + 1.0e-6) > self.traj[key].time:
-                task_tmp = "self.traj[\"" + key  + "\"].propagate_step()"
-                tasktime_tmp = self.traj[key].time
-                self.insert_task(task_tmp,tasktime_tmp, tasktimes)
-                
-        print (len(self.queue)-1), "task(s) in queue:"
-        for i in range(len(self.queue)-1):
-            print self.queue[i] + ", time = " + str(tasktimes[i])
-        print ""
-
-    def insert_task(self,task,tt,tasktimes):
-        """add a task to the queue"""
-        for i in range(len(tasktimes)):
-            if tt < tasktimes[i]:
-                self.queue.insert(i,task)
-                tasktimes.insert(i,tt)
-                return
+                        self.T[i,j] = cg.kinetic_nuc(self.traj[keyi], self.traj[keyj],\
+                                                     positions_i="positions_qm",\
+                                                     positions_j="positions_qm",\
+                                                     momenta_i="momenta_qm",\
+                                                     momenta_j="momenta_qm") * self.S_elec[i,j]
 
     def clone_as_necessary(self):
         """Cloning routine. Trajectories that are cloning will be established from the 
@@ -351,12 +390,15 @@ class simulation(fmsobj):
         clonetraj = dict()
         for key in self.traj:
             for istate in range(self.traj[key].numstates):
-                for jstate in range(istate, self.traj[key].numstates):
+                for jstate in range(self.traj[key].numstates):
                 # is this trajectory marked to spawn to state j?
                     if self.traj[key].clone_p[istate, jstate] > self.p_threshold\
-                    and self.traj[key].populations[jstate] > self.pop_threshold:
+                    and self.traj[key].populations[jstate] > self.pop_threshold\
+                    and self.traj[key].populations[istate] > self.pop_threshold\
+                    and self.traj[key].populations[istate] > self.traj[key].populations[jstate]:
                         print "Cloning from ", istate, "to", jstate, " state at time", self.traj[key].time,\
-                        "p =", self.traj[key].clone_p[istate, jstate]
+                        "p =\n", self.traj[key].clone_p[istate, jstate]
+                        print self.p_threshold
                         # create label that indicates parentage
                         # for example: a trajectory labeled 00b1b5 means that the initial
                         # trajectory "00" spawned a trajectory "1" (its
@@ -531,4 +573,52 @@ class simulation(fmsobj):
         self.h5_types["Sdot"] = "complex128"
         self.h5_types["Sinv"] = "complex128"
         self.h5_types["num_traj_qm"] = "int32"
+
+    def get_qm_data_from_h5(self):
+        """get the necessary geometries and energies from hdf5"""
+        qm_time = self.quantum_time
+        ntraj = self.num_traj_qm
+        for key in self.traj:
+            if self.traj_map[key] < ntraj:
+                self.traj[key].get_all_qm_data_at_time_from_h5(qm_time)
+            
+    def get_qm_data_from_h5_half_step(self):
+        qm_time = self.quantum_time_half_step
+        ntraj = self.num_traj_qm
+        for key in self.traj:
+            if self.traj_map[key] < ntraj:
+                self.traj[key].get_all_qm_data_at_time_from_h5_half_step(qm_time)
+    
+    def get_numtasks(self):
+        """get the number of tasks in the queue"""
+        return (len(self.queue)-1)
+
+    def pop_task(self):
+        """pop the task from the top of the queue"""
+        return self.queue.pop(0)
+
+    def update_queue(self):
+        """build a list of all tasks that need to be completed"""
+        while self.queue[0] != "END":
+            self.queue.pop(0)
+        tasktimes=[1e10]
         
+        # forward propagation tasks
+        for key in self.traj:
+            if (self.traj[key].maxtime + 1.0e-6) > self.traj[key].time:
+                task_tmp = "self.traj[\"" + key  + "\"].propagate_step()"
+                tasktime_tmp = self.traj[key].time
+                self.insert_task(task_tmp,tasktime_tmp, tasktimes)
+                
+        print (len(self.queue)-1), "task(s) in queue:"
+        for i in range(len(self.queue)-1):
+            print self.queue[i] + ", time = " + str(tasktimes[i])
+        print ""
+
+    def insert_task(self,task,tt,tasktimes):
+        """add a task to the queue"""
+        for i in range(len(tasktimes)):
+            if tt < tasktimes[i]:
+                self.queue.insert(i,task)
+                tasktimes.insert(i,tt)
+                return

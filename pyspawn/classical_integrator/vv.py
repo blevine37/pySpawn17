@@ -12,7 +12,7 @@ import sys
 def prop_first_step(self):
     
     print "Performing the VV propagation for the first timestep"
-    print "self.first_step =", self.first_step
+#     print "self.first_step =", self.first_step
     dt = self.timestep
     x_t = self.positions
     p_t = self.momenta
@@ -26,6 +26,7 @@ def prop_first_step(self):
     a_t = f_t / m
     e_t = self.energies
     e_av_t = self.av_energy    
+    wf_t = self.td_wf_full_ts
     
     # propagating velocity half a timestep
     v_tphdt = v_t + 0.5 * a_t * dt
@@ -42,6 +43,7 @@ def prop_first_step(self):
     f_tpdt = self.av_force
     e_tpdt = self.energies
     e_av_tpdt = self.av_energy
+    wf_tpdt = self.td_wf_full_ts
     a_tpdt = f_tpdt / m
         
     # we can compute momentum value at full timestep (t0 + dt)
@@ -83,11 +85,18 @@ def prop_first_step(self):
     self.av_energy_t = e_av_t
     self.av_energy_tpdt = e_av_tpdt
     
+    self.td_wf_full_ts_t = wf_t
+    self.td_wf_full_ts_tpdt = wf_tpdt
+
+    self.av_force_t = f_t
+    self.av_force_tpdt = f_tpdt
+        
     self.first_step = False 
     
 def prop_not_first_step(self):
-    
-#     print "\nPerforming the VV propagation for NOT first timestep"
+    """Velocity Verlet propagator for not first timestep. Here we call electronic structure
+    property calculation only once """
+
     dt = self.timestep
 
     x_tpdt = self.positions
@@ -97,6 +106,7 @@ def prop_not_first_step(self):
     f_tpdt = self.av_force
     e_tpdt = self.energies
     e_av_tpdt = self.av_energy
+    wf_tpdt = self.td_wf_full_ts
     p_tphdt = self.momenta
     v_tphdt = p_tphdt / m
     a_tpdt = f_tpdt / m
@@ -121,11 +131,19 @@ def prop_not_first_step(self):
     self.momenta_tmdt = self.momenta_t
     self.momenta_t = self.momenta_tpdt
     self.momenta_tpdt = p_tpdt
+
+    self.td_wf_full_ts_tmdt = self.td_wf_full_ts_t
+    self.td_wf_full_ts_t = self.td_wf_full_ts_tpdt
+    self.td_wf_full_ts_tpdt = wf_tpdt
+    
+    self.av_force_tmdt = self.av_force_t
+    self.av_force_t = self.av_force_tpdt
+    self.av_force_tpdt = f_tpdt
     
     # Computing momenta at t + dt and outputting paramaters
     self.momenta = p_tpdt
     
-    print "VV: total energy =", self.calc_kin_en(self.momenta, m) + self.av_energy
+#     print "VV: total energy =", self.calc_kin_en(self.momenta, m) + self.av_energy
     
     t_half = t + 0.5 * dt
     t += dt
@@ -144,5 +162,4 @@ def prop_not_first_step(self):
     # Propagating positions to t + dt
     x_tp2dt = x_tpdt + v_tp3hdt * dt
     self.positions = x_tp2dt
-    
 ### end velocity Verlet (vv) integrator section ###
