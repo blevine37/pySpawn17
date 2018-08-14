@@ -10,17 +10,6 @@ import numpy as np
 from pyspawn.fmsobj import fmsobj
 from pyspawn.traj import traj
 
-def overlap_nuc_elec(ti, tj,positions_i="positions", positions_j="positions",\
-                     momenta_i="momenta", momenta_j="momenta"):
-    """Compute the overlap of two virbonic TBFs (electronic part included)"""
-    
-    if ti.istate == tj.istate:
-        Sij = overlap_nuc(ti, tj, positions_i=positions_i, positions_j=positions_j,\
-                          momenta_i=momenta_i, momenta_j=momenta_j)
-    else:
-        Sij = complex(0.0,0.0)
-    return Sij
-
 def overlap_nuc(ti, tj,positions_i="positions", positions_j="positions",\
                 momenta_i="momenta", momenta_j="momenta"):
     """Compute the overlap of two nuclear TBFs (electronic part not included)"""
@@ -78,18 +67,6 @@ def overlap_nuc_1d(xi, xj, di, dj, xwi, xwj):
            
     return cgold
 
-def kinetic_nuc_elec(ti, tj, positions_i="positions", positions_j="positions",\
-                     momenta_i="momenta", momenta_j="momenta"):
-    """Compute the kinetic energy matrix element between two virbonic TBFs"""
-    
-    if ti.istate == tj.istate:
-        Tij = kinetic_nuc(ti, tj, positions_i=positions_i, positions_j=positions_j,\
-                          momenta_i=momenta_i, momenta_j=momenta_j)
-    else:
-        Tij = complex(0.0, 0.0)
-    
-    return Tij
-
 def kinetic_nuc(ti, tj, positions_i="positions", positions_j="positions",\
                 momenta_i="momenta", momenta_j="momenta"):
     """compute the kinetic energy matrix element between two nuclear TBFs"""
@@ -136,6 +113,7 @@ def kinetic_nuc(ti, tj, positions_i="positions", positions_j="positions",\
 
 def kinetic_nuc_1d(xi, xj, di, dj, xwi, xwj):
     """compute 1-dimensional nuclear kinetic energy matrix elements"""
+    
     c1i = (complex(0.0, 1.0))
     psum = di + dj
     deltax = xi - xj
@@ -145,18 +123,6 @@ def kinetic_nuc_1d(xi, xj, di, dj, xwi, xwj):
     kinetic = (dkerfac + c1i * dkeifac) * olap
 
     return kinetic
-
-def Sdot_nuc_elec(ti, tj, positions_i="positions", positions_j="positions",\
-                  momenta_i="momenta", momenta_j="momenta", forces_j="forces"):
-    """Compute the Sdot matrix element between two vibronic TBFs"""
-    
-    if ti.istate == tj.istate:
-        Sdot_ij = Sdot_nuc(ti, tj, positions_i=positions_i, positions_j=positions_j,\
-                           momenta_i=momenta_i, momenta_j=momenta_j, forces_j=forces_j)
-    else:
-        Sdot_ij = complex(0.0, 0.0)
-    
-    return Sdot_ij
 
 def Sdot_nuc(ti, tj, positions_i="positions", positions_j="positions", momenta_i="momenta",\
              momenta_j="momenta", forces_j="forces"):
