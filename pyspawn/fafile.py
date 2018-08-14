@@ -111,11 +111,13 @@ class fafile(object):
         of = open(filename,"w")
         t = self.datasets[times][:, 0]
         for i in range(len(t)):
-            of.write(str(round(t[i],8)) + " ")
+            number =  np.format_float_scientific(t[i], unique=False, precision=8)
+            of.write(str(number) + " ")
             for iset in range(len(dsets)):
                 dat = self.datasets[dsets[iset]][i,:]
                 for j in range(len(dat)):
-                    of.write(str(round(dat[j],8)) + " ")
+                    number =  np.format_float_scientific(dat[j], unique=False, precision=8)
+                    of.write(str(number) + " ")
             of.write("\n")
         of.close()
         
