@@ -6,7 +6,7 @@ import pyspawn.general
 # Velocity Verlet classical propagator
 clas_prop = "vv"
 
-# adapative 2nd-order Runge-Kutta quantum propagator
+# fulldiag exponential quantum propagator
 qm_prop = "fulldiag"
 
 # diabatic ehrenfest Hamiltonian
@@ -19,10 +19,10 @@ potential = "test_cone_td"
 t0 = 0.0
 
 # time step
-ts = 0.05
+ts = 0.025
 
 # final simulation time
-tfinal = 30.0
+tfinal = 50.0
 
 # number of dimensions                                                                                           
 numdims = 2
@@ -40,8 +40,8 @@ traj_params = {
     "maxtime": tfinal,
     # coupling threshhold
     "clonethresh": 0.10,
-    # initial electronic state (indexed such that 0 is the ground state)
-    "istate": 1,
+#     # initial electronic state (indexed such that 0 is the ground state)
+#     "istate": 1,
     # Gaussian widths
     "widths": np.asarray([6.0, 6.0]),
     # nuclear masses (in a.u)    
@@ -49,7 +49,7 @@ traj_params = {
     # initial positions
     "positions": np.asarray([-0.2, -0.2]),
     # inition momenta
-    "momenta": np.asarray([1.0, 1.0]),
+    "momenta": np.asarray([0.5, 0.0]),
     #
     "numstates": numstates,
     }
@@ -64,11 +64,11 @@ sim_params = {
     # initial qm amplitudes
     "qm_amplitudes": np.ones(1, dtype=np.complex128),
     # energy shift used in quantum propagation
-    "qm_energy_shift": -2.9413,
+    "qm_energy_shift": -3.13596,
     # cloning probability threshold
-    "p_threshold": 0.018,
+    "p_threshold": 0.013,
     # cloning minimum population parameter
-    "pop_threshold": 0.15,
+    "pop_threshold": 0.1,
 }
 
 # import routines needed for propagation

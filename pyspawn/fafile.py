@@ -15,7 +15,7 @@ class fafile(object):
         self.datasets = {}
         self.h5file = h5py.File(h5filename, "r")
         self.labels = self.h5file["sim"].attrs["labels"]
-        self.istates = self.h5file["sim"].attrs["istates"]
+#         self.istates = self.h5file["sim"].attrs["istates"]
         self.retrieve_num_traj_qm()
         self.fill_quantum_times()
         self.fill_qm_amplitudes()
@@ -30,7 +30,8 @@ class fafile(object):
         return self.num_traj
 
     def get_max_state(self):
-        return (np.amax(self.istates)+1)
+        """Temporary workaround to get the max state, which is equal to number of states?"""
+        return 2
 
     def compute_expec(self, Op, c, zreal=True):
         expec = np.matmul(c.conjugate(), np.matmul(Op, c))
@@ -39,9 +40,9 @@ class fafile(object):
         return expec
 
     def compute_expec_istate_not_normalized(self, Op, c, istate, zreal=True):
-        ctmp = np.zeros(len(c),dtype=np.complex128)
+        ctmp = np.zeros(len(c), dtype=np.complex128)
         for i in range(len(c)):
-            if self.istates[i] == istate:
+            if i == istate:
                 ctmp[i] = c[i]
         expec = np.matmul(ctmp.conjugate(), np.matmul(Op, ctmp))
         if zreal:
@@ -64,6 +65,8 @@ class fafile(object):
         self.datasets["quantum_times"] = times
 
     def fill_traj_time(self):
+        """Creates a dataset with times for a given trajectory"""
+        
         for key in self.labels:
             trajgrp = "traj_" + key
             time = self.h5file[trajgrp]['time'][()]
@@ -92,14 +95,14 @@ class fafile(object):
         trajgrp = "traj_" + label
         return self.h5file[trajgrp].attrs[key]
 
-    def get_traj_dataset(self,label,key):
+    def get_traj_dataset(self, label, key):
         return self.datasets[label + "_" + key]
 
-    def get_traj_num_times(self,label):
+    def get_traj_num_times(self, label):
         key = label + "_time"
         return len(self.datasets[key])
 
-    def get_traj_num_times_half_step(self,label):
+    def get_traj_num_times_half_step(self, label):
         key = label + "_time_half_step"
         return len(self.datasets[key])
 
@@ -108,6 +111,9 @@ class fafile(object):
             print key
 
     def write_columnar_data_file(self,times,dsets,filename):
+        """Subroutine to write to text files. Currently outputs in scientific notation
+        in single precision for readability"""
+        
         of = open(filename,"w")
         t = self.datasets[times][:, 0]
         for i in range(len(t)):
@@ -193,26 +199,34 @@ class fafile(object):
         if column_filename != None:
             self.write_columnar_data_file("quantum_times",[dset_expec],column_filename)
 
-    def fill_electronic_state_populations(self, column_filename=None):
+    def fill_nuclear_bf_populations(self, column_filename=None):
+        """Printing the population on each nuclear bf (BUG!: shuffles the states)"""
+        
+        ntraj = self.get_num_traj()
         times = self.datasets["quantum_times"][:, 0]
         ntimes = len(times)
-        maxstates = self.get_max_state()
-        Nstate = np.zeros((ntimes, maxstates + 1))
+        Nstate = np.zeros((ntimes, ntraj+1))
+        norm = np.zeros((ntimes))
+        
         for i in range(ntimes):
             nt = self.ntraj[i]
             c_t = self.get_amplitude_vector(i)
             S_t = self.get_overlap_matrix(i)
-            for ist in range(maxstates):
-                Nstate[i,ist] =  self.compute_expec_istate_not_normalized(S_t, c_t, ist)
-            Nstate[i,maxstates] = self.compute_expec(S_t, c_t)
-        self.datasets["electronic_state_populations"] = Nstate
+            norm[i] = np.dot(np.conjugate(c_t), c_t)
+#             print "c_t =", c_t
+            for ist in range(nt):
+                Nstate[i, 0] = norm[i]
+                Nstate[i, ist+1] = np.dot(np.conjugate(c_t[ist]), c_t[ist])
+        self.datasets["nuclear_bf_populations"] = Nstate
             
         if column_filename != None:
-            self.write_columnar_data_file("quantum_times", ["electronic_state_populations"], column_filename)
+            self.write_columnar_data_file("quantum_times", ["nuclear_bf_populations"], column_filename)
 
         return 
     
     def fill_trajectory_populations(self, column_file_prefix=None):
+        """Prints out Ehrenfest state populations for a trajectory"""
+        
         for key in self.labels:
             times =  self.get_traj_dataset(key, "time")[:, 0]
             ntimes = self.get_traj_num_times(key)
@@ -235,6 +249,8 @@ class fafile(object):
                                               column_filename)        
     
     def write_xyzs(self):
+        """Prints out geometries into .xyz file"""
+        
         for key in self.labels:
             times = self.get_traj_dataset(key,"time")[:,0]
             ntimes = self.get_traj_num_times(key)
@@ -256,6 +272,10 @@ class fafile(object):
             of.close()
 
     def fill_trajectory_energies(self, column_file_prefix=None):
+        """Writes a text file for a trajectory named [traj_name].dat
+        The text file contains (from left to right):
+        time -> potential energy -> kinetic energy -> average energy -> total energy"""
+        
         for key in self.labels:
             times =  self.get_traj_dataset(key,"time")[:, 0]
             ntimes = self.get_traj_num_times(key)
@@ -265,7 +285,7 @@ class fafile(object):
             av_energy = self.get_traj_data_from_h5(key, "av_energy")
             nstates = poten.size/ntimes
 
-            istate = self.get_traj_attr_from_h5(key,'istate')
+#             istate = self.get_traj_attr_from_h5(key,'istate')
 
             m = self.get_traj_attr_from_h5(key, 'masses')
 
@@ -290,10 +310,10 @@ class fafile(object):
             if column_file_prefix != None:
                 column_filename = column_file_prefix + "_" + key + ".dat"
                 self.write_columnar_data_file(key + "_time",\
-                                              [dset_poten, dset_kinen, dset_toten, dset_aven],\
+                                              [dset_poten, dset_kinen, dset_aven, dset_toten],\
                                               column_filename)
 
-    def fill_trajectory_bonds(self,bonds,column_file_prefix):
+    def fill_trajectory_bonds(self, bonds, column_file_prefix):
         for key in self.labels:
             times = self.get_traj_dataset(key,"time")[:,0]
             ntimes = self.get_traj_num_times(key)
@@ -358,7 +378,7 @@ class fafile(object):
 
             if column_file_prefix != None:
                 column_filename = column_file_prefix + "_" + key + ".dat"
-                self.write_columnar_data_file(key+"_time",[dset_angles],column_filename)
+                self.write_columnar_data_file(key+"_time", [dset_angles], column_filename)
 
     def fill_trajectory_diheds(self,diheds,column_file_prefix):
         for key in self.labels:
@@ -501,23 +521,3 @@ class fafile(object):
             if column_file_prefix != None:
                 column_filename = column_file_prefix + "_" + key + ".dat"
                 self.write_columnar_data_file(key+"_time",[dset_pyrs],column_filename)
-
-
-    def fill_trajectory_tdcs(self,column_file_prefix=None):
-        for key in self.labels:
-            times =  self.get_traj_dataset(key,"time_half_step")[:,0]
-            ntimes = self.get_traj_num_times_half_step(key)
-            mom = self.get_traj_data_from_h5(key,"momenta")
-            nmom = mom.size / ntimes
-            tdc = self.get_traj_data_from_h5(key,"timederivcoups")
-            nstates = tdc.size/ntimes
-
-            istate = self.get_traj_attr_from_h5(key,'istate')
-
-            dset_tdc = key + "_tdc"
-
-            self.datasets[dset_tdc] = tdc
-
-            if column_file_prefix != None:
-                column_filename = column_file_prefix + "_" + key + ".dat"
-                self.write_columnar_data_file(key+"_time_half_step",[dset_tdc],column_filename)

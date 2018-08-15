@@ -16,14 +16,13 @@ from Cython.Compiler.PyrexTypes import c_ref_type
 
 
 def compute_elec_struct(self):
-    """electronic structure model for a 2d Jahn Teller model for MCE
+    """Electronic structure model for a 2d Jahn Teller model for MCE
     This subroutine solves the electronic SE and propagates electronic 
     ehrenfest wave function one nuclear time step that's split into 
     smaller electronic timesteps"""
+    
     wf = self.td_wf
-    prev_wf = wf
     print "Performing electronic structure calculations:"
-#     print "Norm of the wf before propagation = ", np.dot(np.transpose(np.conjugate(prev_wf)), prev_wf)
     x = self.positions[0]
     y = self.positions[1]
     r = math.sqrt( x * x + y * y )
@@ -32,13 +31,11 @@ def compute_elec_struct(self):
     time = self.time
     el_timestep = self.timestep / n_el_steps
 
-
     # Constructing Hamiltonian, computing derivatives, for now solving the eigenvalue problem to get adiabatic states
     # for real systems it will be replaced by approximate eigenstates
-    H_elec, Hx, Hy = self.construct_el_H(x, y) 
+    H_elec, Force = self.construct_el_H(x, y) 
     ss_energies, eigenvectors = lin.eigh(H_elec)
     eigenvectors_T = np.transpose(np.conjugate(eigenvectors))
-    
     
     pop = np.zeros(self.numstates)
     amp = np.zeros((self.numstates), dtype=np.complex128) 
@@ -55,8 +52,8 @@ def compute_elec_struct(self):
     av_energy = np.real(np.dot(np.dot(wf_T, H_elec), wf))    
     
     av_force = np.zeros((self.numdims))    
-    av_force[0] = -np.real(np.dot(np.dot(wf_T, Hx), wf))
-    av_force[1] = -np.real(np.dot(np.dot(wf_T, Hy), wf))
+    for n in range(self.numdims):
+        av_force[n] = -np.real(np.dot(np.dot(wf_T, Force[n]), wf))
       
     for j in range(self.numstates):
         amp[j] = np.dot(np.conjugate(np.transpose(eigenvectors[:, j])), wf)
@@ -81,12 +78,14 @@ def compute_elec_struct(self):
 #         print "Time =", self.time
 #         print "Position =", self.positions
 #         print "Hamiltonian =\n", H_elec
+        print "positions =", self.positions
+        print "H_elec =\n", H_elec
         print "Average energy =", self.av_energy
-        print "Energies =", ss_energies[0], ss_energies[1]
+        print "Energies =", ss_energies
 #         print "Force =", av_force
 #         print "Wave function =\n", wf
 #         print "Eigenvectors =\n", eigenvectors
-        print "Population =", pop[0], pop[1]
+        print "Population =", pop
     print_stuff()
     # DEBUGGING
     
@@ -112,24 +111,27 @@ def construct_el_H(self, x, y):
     force computation. Later will be replaced with the electronic structure program call"""
     
     a = 6
-    k = 3
+    k = 1
+    w = 0.3
     
     H_elec = np.zeros((self.numstates, self.numstates))
-    H_elec[0, 0] = 0.25 * (x + a/2)**2 + 0.25 * (y)**2
-    H_elec[1, 1] = 0.25 * (x - a/2)**2 + 0.25 * (y)**2
+    H_elec[0, 0] = w * (x + a/2)**2 + w * (y)**2
+    H_elec[1, 1] = w * (x - a/2)**2 + w * (y)**2
     H_elec[0, 1] = k * y
     H_elec[1, 0] = k * y
 
     Hx = np.zeros((self.numstates, self.numstates))
     Hy = np.zeros((self.numstates, self.numstates))
-    Hx[0, 0] = 0.5 * (x + a/2)
-    Hx[1, 1] = 0.5 * (x - a/2)
-    Hy[0, 0] = 0.5 * y
-    Hy[1, 1] = 0.5 * y
+#     Hz = np.zeros((self.numstates, self.numstates))
+    Hx[0, 0] = 2 * w * (x + a/2)
+    Hx[1, 1] = 2 * w * (x - a/2)
+    Hy[0, 0] = 2 * w * y
+    Hy[1, 1] = 2 * w * y
     Hy[0, 1] = k
     Hy[1, 0] = k
-        
-    return H_elec, Hx, Hy
+    
+    Force = [Hx, Hy]    
+    return H_elec, Force
 
 def propagate_symplectic(self, H, wf, timestep, nsteps):
     """Symplectic split propagator, similar to classical Velocity-Verlet"""
@@ -148,6 +150,7 @@ def propagate_symplectic(self, H, wf, timestep, nsteps):
         c_r = c_r + 0.5 * el_timestep * c_r_dot  
     
     wf = c_r + 1j * c_i
+    
     return wf
     
 def init_h5_datasets(self):

@@ -24,7 +24,6 @@ class traj(fmsobj):
         self.momenta = np.zeros(self.numdims)
         self.widths = np.zeros(self.numdims)
         self.masses = np.zeros(self.numdims)
-        self.istate = 0
         self.label = "00"
         self.h5_datasets = dict()
         self.h5_datasets_half_step = dict()
@@ -72,7 +71,7 @@ class traj(fmsobj):
         #In the following block there are variables needed for ehrenfest
         self.H_elec = np.zeros((self.numstates, self.numstates), dtype = np.complex128)
         self.first_step = False
-        self.n_el_steps = 4000
+        self.n_el_steps = 1000
         self.td_wf_full_ts = np.zeros((self.numstates), dtype = np.complex128)
         self.td_wf = np.zeros((self.numstates), dtype = np.complex128)
         self.mce_amps = np.zeros((self.numstates), dtype = np.complex128)
@@ -100,14 +99,12 @@ class traj(fmsobj):
         self.masses = m
         self.label = lab
         self.numstates = nstates
-        self.istate = istat
         self.firsttime = t
 
     def init_clone_traj(self, parent, istate, jstate, label):
 
         self.numstates = parent.numstates
 
-        self.istate = istate
         time = parent.time 
         self.time = time
         self.label = label
@@ -152,11 +149,11 @@ class traj(fmsobj):
         eigenvectors_T = np.transpose(np.conjugate(parent.approx_eigenvecs))    
         parent_wf_T = np.transpose(np.conjugate(parent_wf))
         
-        H_elec, Hx, Hy = self.construct_el_H(self.positions[0], self.positions[1])
+        H_elec, Force = self.construct_el_H(self.positions[0], self.positions[1])
         
         av_force = np.zeros((self.numdims))    
-        av_force[0] = -np.real(np.dot(np.dot(parent_wf_T, Hx), parent_wf))
-        av_force[1] = -np.real(np.dot(np.dot(parent_wf_T, Hy), parent_wf))
+        for n in range(self.numdims):
+            av_force[n] = -np.real(np.dot(np.dot(parent_wf_T, Force[n]), parent_wf))
         a_tpdt = av_force / parent.masses
         child_energy = np.real(np.dot(np.dot(np.transpose(np.conjugate(child_wf)), H_elec), child_wf))
         parent_energy = np.real(np.dot(np.dot(np.transpose(np.conjugate(parent_wf)), H_elec), parent_wf))
@@ -197,11 +194,7 @@ class traj(fmsobj):
             self.electronic_phases = parent.electronic_phases
         
         self.timestep = parent.timestep
-
-        z_dont = np.zeros(parent.numstates)
-        z_dont[parent.istate] = 1.0
         self.clonethresh = parent.clonethresh
-        
         self.potential_specific_traj_copy(parent)
 
         child_rescale_ok = self.rescale_momentum(e_av)
@@ -260,7 +253,6 @@ class traj(fmsobj):
         return True
     
     def rescale_parent_momentum(self, v_ini, v_fin, accel):
-        
         """This subroutine rescales the momentum of the child basis function
         The difference from spawning here is that the average Ehrenfest energy is rescaled,
         not of the pure elecronic states"""
@@ -334,7 +326,7 @@ class traj(fmsobj):
                         dE = np.abs(self.energies[jstate] - self.energies[istate])
                         tau[istate, jstate] = (1 + self.t_decoherence_par / ke_tot) / dE
                         p[istate, jstate] = 1 - np.exp(-self.timestep / tau[istate, jstate])
-        print "p =", p
+#         print "p =", p
         return p
             
     def h5_output(self, zdont_half_step=False):
@@ -393,7 +385,7 @@ class traj(fmsobj):
             else:
                 dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n), dtype="float64")
         # add some metadata
-        trajgrp.attrs["istate"] = self.istate
+#         trajgrp.attrs["istate"] = self.istate
         trajgrp.attrs["masses"] = self.masses
         trajgrp.attrs["widths"] = self.widths
         if hasattr(self,"atoms"):

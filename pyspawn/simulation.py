@@ -105,6 +105,7 @@ class simulation(fmsobj):
 
     def add_traj(self, t1):
         """add a trajectory to the simulation"""
+        
         key = t1.label
         print "Trajectory added:", key
         mintime = t1.mintime
@@ -122,7 +123,9 @@ class simulation(fmsobj):
 
     def propagate(self):
         """this is the main propagation loop for the simulation"""
+        
         gen.print_splash()
+        t0 = time.clock()
         while True:
 
             # update the queue (list of tasks to be computed)
@@ -164,11 +167,13 @@ class simulation(fmsobj):
             if np.shape(self.qm_amplitudes)[0] == 2:
                 amp1 = self.qm_amplitudes[0]
                 amp2 = self.qm_amplitudes[1]
-                print "Populations of nuclear wf =", np.conjugate(amp1)*amp1, np.conjugate(amp2)*amp2
-            print "Qm_amplitudes =", self.qm_amplitudes
+#                 print "Populations of nuclear wf =", np.conjugate(amp1)*amp1,\
+#                 np.conjugate(amp2)*amp2
+#             print "Qm_amplitudes =", self.qm_amplitudes
             # print restart output - this must be the last line in this loop!
             print "Updating restart output"
-            self.restart_output()    
+            self.restart_output()
+            print "Elapsed wall time: %6.1f" % (time.clock() - t0)    
         
     def propagate_quantum_as_necessary(self):
         """here we will propagate the quantum amplitudes if we have
@@ -192,7 +197,8 @@ class simulation(fmsobj):
                 print "Propagating quantum amplitudes at time", self.quantum_time
                 self.qm_propagate_step()
             else:
-                print "Propagating quantum amplitudes at time", self.quantum_time, " (first step)"
+                print "Propagating quantum amplitudes at time", self.quantum_time,\
+                " (first step)"
                 self.qm_propagate_step(zoutput_first_step=True)
                 
             print "\nOutputing quantum information to hdf5"
@@ -219,6 +225,10 @@ class simulation(fmsobj):
     def invert_S(self):
         """compute Sinv from S"""
         
+        if np.linalg.cond(self.S) > 10:
+            print "BAD S matrix: condition number =", np.linalg.cond(S)
+            sys.exit()
+        
         self.Sinv = np.linalg.inv(self.S)
         
     def build_Heff(self):
@@ -241,11 +251,12 @@ class simulation(fmsobj):
                         if i == j:
                             self.S_elec[i,j] = 1.0
                         else:
-                            Stmp = np.dot(np.transpose(np.conjugate(self.traj[keyi].td_wf_full_ts_qm)),\
-                                          self.traj[keyj].td_wf_full_ts_qm)
-                            self.S_elec[i,j] = np.real(Stmp)
+                            wf_i_T = np.transpose(\
+                                     np.conjugate(self.traj[keyi].td_wf_full_ts_qm))
+                            wf_j = self.traj[keyj].td_wf_full_ts_qm
+                            self.S_elec[i,j] = np.real(np.dot(wf_i_T, wf_j))
 
-        print "S_elec = ", self.S_elec
+#         print "S_elec = ", self.S_elec
     
     def build_S(self):
         """Build the overlap matrix, S"""
@@ -273,9 +284,9 @@ class simulation(fmsobj):
         
         ntraj = self.num_traj_qm
         self.Sdot = np.zeros((ntraj,ntraj), dtype=np.complex128)
+        self.S_dot_elec = np.zeros((ntraj,ntraj), dtype=np.complex128)
+        self.S_dot_nuc = np.zeros((ntraj,ntraj), dtype=np.complex128)
         
-        self.S_elec_dot = np.zeros((ntraj,ntraj), dtype=np.complex128)
-        self.S_nuc_dot = np.zeros((ntraj,ntraj), dtype=np.complex128)
         for keyi in self.traj:
             i = self.traj_map[keyi]
             if i < ntraj:
@@ -290,31 +301,25 @@ class simulation(fmsobj):
                                                      momenta_j="momenta_qm",\
                                                      forces_j="av_force_qm")
                         
-                        wf_dot = -1j * np.dot(self.traj[keyj].H_elec, self.traj[keyj].td_wf_full_ts_qm)
-                        S_dot_elec =  np.dot(np.conjugate(np.transpose(self.traj[keyi].td_wf_full_ts_qm)), wf_dot)
-
-#                         print "positions_qm_i =", self.traj[keyi].positions_qm
-#                         print "positions_i =", self.traj[keyi].positions
-#                         print "positions_i_tpdt =", self.traj[keyi].positions_tpdt
-#                         print "momenta_qm_i =", self.traj[keyi].momenta_qm
-#                         print "momenta_i =", self.traj[keyi].momenta
-#                         print "momenta_i_tpdt =", self.traj[keyi].momenta_tpdt
-#                         print "momenta_i_t =", self.traj[keyi].momenta_t                                                
-                        self.S_nuc_dot[i, j] = S_dot_nuc 
-                        self.S_elec_dot[i, j] = S_dot_elec
-                        self.Sdot[i,j] = S_dot_elec * self.S_nuc[i,j] + self.S_elec[i,j] * S_dot_nuc
-#         self.Sdot = np.dot(self.S_elec_dot, self.S_nuc) + np.dot(self.S_elec, self.S_nuc_dot)
-#         print "S_dot_nuc =\n", self.S_nuc_dot
-#         print "S_dot_elec =\n", self.S_elec_dot
+                        H_elec, Force\
+                        = self.traj[keyj].construct_el_H(self.traj[keyj].positions_qm[0],\
+                                                         self.traj[keyj].positions_qm[1])
+                        wf_dot = -1j * np.dot(H_elec,\
+                                              self.traj[keyj].td_wf_full_ts_qm)
+                        wf_i_T = np.conjugate(np.transpose(self.traj[keyi].td_wf_full_ts_qm))
+                        S_dot_elec =  np.dot(wf_i_T, wf_dot)                                             
+                        self.S_dot_nuc[i, j] = S_dot_nuc
+                        self.S_dot_elec[i, j] = S_dot_elec
+                        self.Sdot[i,j] = S_dot_elec * self.S_nuc[i,j]\
+                                       + self.S_elec[i,j] * S_dot_nuc
+#         self.Sdot= np.dot(self.S_dot_elec, self.S_nuc)\
+#                  + np.dot(self.S_elec, self.S_dot_nuc)                                
 #         print "Sdot =\n", self.Sdot
-    
     
     def build_H(self):
         """Building the Hamiltonian"""
         
-    #     print "Building potential energy matrix"
         self.build_V()
-    #     print "Building kinetic energy matrix"
         self.build_T()
         ntraj = self.num_traj_qm
         shift = self.qm_energy_shift * np.identity(ntraj)
@@ -343,19 +348,18 @@ class simulation(fmsobj):
                                                          positions_j="positions_qm",\
                                                          momenta_i="momenta_qm",\
                                                          momenta_j="momenta_qm")
-                            H_elec_i, Hx_i, Hy_i\
-                            = self.traj[keyi].construct_el_H(self.traj[keyi].positions_qm[0],\
-                                                               self.traj[keyi].positions_qm[1])
-                            H_elec_j, Hx_j, Hy_j\
-                            = self.traj[keyj].construct_el_H(self.traj[keyj].positions_qm[0],\
-                                                               self.traj[keyj].positions_qm[1])
+                            H_elec_i, Force_i\
+                            =self.traj[keyi].construct_el_H(self.traj[keyi].positions_qm[0],\
+                                                             self.traj[keyi].positions_qm[1])
+                            H_elec_j, Force_j\
+                            =self.traj[keyj].construct_el_H(self.traj[keyj].positions_qm[0],\
+                                                             self.traj[keyj].positions_qm[1])
                                                     
                             wf_i = self.traj[keyi].td_wf_full_ts_qm
                             wf_i_T = np.transpose(np.conjugate(wf_i))
                             wf_j = self.traj[keyj].td_wf_full_ts_qm
-                            wf_j_T = np.transpose(np.conjugate(wf_j))
-                            H_i = np.dot(wf_i_T, np.dot(H_elec_i, wf_j_T))
-                            H_j = np.dot(wf_i_T, np.dot(H_elec_j, wf_j_T))
+                            H_i = np.dot(wf_i_T, np.dot(H_elec_i, wf_j))
+                            H_j = np.dot(wf_i_T, np.dot(H_elec_j, wf_j))
                             V_ij = 0.5 * (H_i + H_j)
                             self.V[i, j] = V_ij * nuc_overlap
         
@@ -365,7 +369,7 @@ class simulation(fmsobj):
         "Building kinetic energy, needs electronic overlap S_elec"
         
         ntraj = self.num_traj_qm
-        self.T = np.zeros((ntraj,ntraj), dtype=np.complex128)
+        self.T = np.zeros((ntraj, ntraj), dtype=np.complex128)
         for keyi in self.traj:
             i = self.traj_map[keyi]
             if i < ntraj:
@@ -376,33 +380,36 @@ class simulation(fmsobj):
                                                      positions_i="positions_qm",\
                                                      positions_j="positions_qm",\
                                                      momenta_i="momenta_qm",\
-                                                     momenta_j="momenta_qm") * self.S_elec[i,j]
+                                                     momenta_j="momenta_qm")\
+                                                     *self.S_elec[i,j]
 
     def clone_as_necessary(self):
         """Cloning routine. Trajectories that are cloning will be established from the 
-        cloning probabilities variable clone_p"""
+        cloning probabilities variable clone_p.
+        When a new basis function is added the labeling is done in a following way:
+        a trajectory labeled 00b1b5 means that the initial trajectory "00" spawned
+        a trajectory "1" (its second child) which then spawned another (it's 6th child)"""
         
         clonetraj = dict()
         for key in self.traj:
             for istate in range(self.traj[key].numstates):
                 for jstate in range(self.traj[key].numstates):
-                # is this trajectory marked to spawn to state j?
-                    if self.traj[key].clone_p[istate, jstate] > self.p_threshold\
-                    and self.traj[key].populations[jstate] > self.pop_threshold\
-                    and self.traj[key].populations[istate] > self.pop_threshold\
-                    and self.traj[key].populations[istate] > self.traj[key].populations[jstate]:
-                        print "Cloning from ", istate, "to", jstate, " state at time", self.traj[key].time,\
-                        "p =\n", self.traj[key].clone_p[istate, jstate]
-                        print self.p_threshold
-                        # create label that indicates parentage
-                        # for example: a trajectory labeled 00b1b5 means that the initial
-                        # trajectory "00" spawned a trajectory "1" (its
-                        # second child) which then spawned another (it's 6th child)
-                        label = str(self.traj[key].label) + "b" + str(self.traj[key].numchildren)
+                # is this the state i to clone to state j?
+                    if self.traj[key].clone_p[istate, jstate] > self.p_threshold and\
+                    self.traj[key].populations[jstate] > self.pop_threshold and\
+                    self.traj[key].populations[istate] > self.pop_threshold and\
+                    self.traj[key].populations[istate] > self.traj[key].populations[jstate]:
+                        print "Cloning from ", istate, "to", jstate, " state at time",\
+                        self.traj[key].time, "with p =",\
+                        self.traj[key].clone_p[istate, jstate]
+#                         print self.p_threshold
 
+                        label = str(self.traj[key].label) + "b" +\
+                        str(self.traj[key].numchildren)
                         # create and initiate new trajectory structure
                         newtraj = traj()
-                        clone_ok = newtraj.init_clone_traj(self.traj[key], istate, jstate, label)
+                        clone_ok = newtraj.init_clone_traj(self.traj[key],\
+                                                           istate, jstate, label)
 
                         # checking to see if overlap with existing trajectories
                         # is too high.  If so, we abort cloning
@@ -423,6 +430,7 @@ class simulation(fmsobj):
     def check_overlap(self, newtraj):
         """check to make sure that a cloned trajectory doesn't overlap too much
         with any existing trajectory (IS THIS NEEDED?)"""
+        
         z_add_traj = True
         for key2 in self.traj:
             # compute the overlap
@@ -436,11 +444,13 @@ class simulation(fmsobj):
 
             # let the user know what happened
             if not z_add_traj:
-                print "Aborting spawn due to large overlap with existing trajectory"
+                print "Aborting cloning due to large overlap with existing trajectory"
         return z_add_traj
 
     def restart_from_file(self, json_file, h5_file):
-        """restarts from the current json file and copies the simulation data into working.hdf5"""
+        """restarts from the current json file and copies
+        the simulation data into working.hdf5"""
+        
         self.read_from_file(json_file)
         shutil.copy2(h5_file, "working.hdf5")
         
@@ -449,9 +459,10 @@ class simulation(fmsobj):
         The json file is meant to represent the *current* state of the
         simulation.  There is a separate hdf5 file that stores the history of
         the simulation.  Both are needed for restart."""
-        print "Creating new sim.json" 
-        # we keep copies of the last 3 json files just to be safe
-        extensions = [3,2,1,0]
+
+#         print "Creating new sim.json" 
+#         we keep copies of the last 3 json files just to be safe
+        extensions = [3, 2, 1, 0]
         for i in extensions :
             if i==0:
                 ext = ""
@@ -471,10 +482,10 @@ class simulation(fmsobj):
                         
         # now we write the current json file
         self.write_to_file("sim.json")
-        print "Synchronizing sim.hdf5"
-        extensions = [3,2,1,0]
+#         print "Synchronizing sim.hdf5"
+        extensions = [3, 2, 1, 0]
         for i in extensions :
-            if i==0:
+            if i == 0:
                 ext = ""
             else:
                 ext = str(i) + "."
@@ -483,7 +494,7 @@ class simulation(fmsobj):
                 if (i == extensions[0]):
                     os.remove(filename)
                 else:
-                    ext = str(i+1) + "."
+                    ext = str(i + 1) + "."
                     filename2 = "sim." + ext + "hdf5"
                     if (i == extensions[-1]):
                         shutil.copy2(filename, filename2)
@@ -493,6 +504,8 @@ class simulation(fmsobj):
         print "hdf5 and json output are synchronized"
         
     def h5_output(self):
+        """"Writes output  to h5 file"""
+        
         self.init_h5_datasets()
         filename = "working.hdf5"
         h5f = h5py.File(filename, "a")
@@ -533,23 +546,24 @@ class simulation(fmsobj):
     def create_new_h5_map(self, grp):
         ntraj = self.num_traj_qm
         labels = np.empty(ntraj, dtype="S512")
-        istates = np.zeros(ntraj, dtype=np.int32)
         for key in self.traj_map:
             if self.traj_map[key] < ntraj:
                 labels[self.traj_map[key]] = key
-                istates[self.traj_map[key]] = self.traj[key].istate
         grp.attrs["labels"] = labels
-        grp.attrs["istates"] = istates
         
     def create_h5_sim(self, h5f, groupname):
         trajgrp = h5f.create_group(groupname)
         for key in self.h5_datasets:
             n = self.h5_datasets[key]
-            dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,None), dtype=self.h5_types[key])
+            dset = trajgrp.create_dataset(key, (0,n), maxshape=(None, None),\
+                                          dtype=self.h5_types[key])
 
     def init_h5_datasets(self):
+        """Initialization of the h5 datasets within the simulation object"""
+        
         ntraj = self.num_traj_qm
         ntraj2 = ntraj * ntraj
+        
         self.h5_datasets = dict()
         self.h5_datasets["quantum_time"] = 1
         self.h5_datasets["qm_amplitudes"] = ntraj
@@ -559,6 +573,7 @@ class simulation(fmsobj):
         self.h5_datasets["Sdot"] = ntraj2
         self.h5_datasets["Sinv"] = ntraj2
         self.h5_datasets["num_traj_qm"] = 1
+        
         self.h5_types = dict()
         self.h5_types["quantum_time"] = "float64"
         self.h5_types["qm_amplitudes"] = "complex128"
@@ -571,6 +586,7 @@ class simulation(fmsobj):
 
     def get_qm_data_from_h5(self):
         """get the necessary geometries and energies from hdf5"""
+        
         qm_time = self.quantum_time
         ntraj = self.num_traj_qm
         for key in self.traj:
@@ -578,6 +594,8 @@ class simulation(fmsobj):
                 self.traj[key].get_all_qm_data_at_time_from_h5(qm_time)
             
     def get_qm_data_from_h5_half_step(self):
+        """Pull all qm data at a half timestep"""
+        
         qm_time = self.quantum_time_half_step
         ntraj = self.num_traj_qm
         for key in self.traj:
@@ -586,10 +604,12 @@ class simulation(fmsobj):
     
     def get_numtasks(self):
         """get the number of tasks in the queue"""
+        
         return (len(self.queue)-1)
 
     def pop_task(self):
         """pop the task from the top of the queue"""
+        
         return self.queue.pop(0)
 
     def update_queue(self):
@@ -603,15 +623,16 @@ class simulation(fmsobj):
             if (self.traj[key].maxtime + 1.0e-6) > self.traj[key].time:
                 task_tmp = "self.traj[\"" + key  + "\"].propagate_step()"
                 tasktime_tmp = self.traj[key].time
-                self.insert_task(task_tmp,tasktime_tmp, tasktimes)
+                self.insert_task(task_tmp, tasktime_tmp, tasktimes)
                 
         print (len(self.queue)-1), "task(s) in queue:"
         for i in range(len(self.queue)-1):
             print self.queue[i] + ", time = " + str(tasktimes[i])
         print ""
 
-    def insert_task(self,task,tt,tasktimes):
+    def insert_task(self, task, tt, tasktimes):
         """add a task to the queue"""
+        
         for i in range(len(tasktimes)):
             if tt < tasktimes[i]:
                 self.queue.insert(i,task)

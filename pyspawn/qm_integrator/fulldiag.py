@@ -91,7 +91,9 @@ def qm_propagate_step(self, zoutput_first_step=False):
     state_pop = np.zeros((ntraj), dtype=np.complex128)
     for i in range(ntraj):
         state_pop[i] = np.dot(np.conjugate(self.qm_amplitudes[i]), self.qm_amplitudes[i])
-        norm += state_pop[i]
+#         norm += state_pop[i]
+#     
+    norm = np.matmul(np.conjugate(np.transpose(amps)), np.matmul(self.S, amps))
     print "Populations =", state_pop
     print "Norm =", norm
     

@@ -9,15 +9,15 @@ def qm_propagate_step(self,zoutput_first_step=False):
     maxcut = 16
     c1i = (complex(0.0,1.0))
     self.compute_num_traj_qm()
-    qm_t = self.get_quantum_time()
-    dt = self.get_timestep()
+    qm_t = self.quantum_time
+    dt = self.timestep
     qm_tpdt = qm_t + dt 
-    ntraj = self.get_num_traj_qm()
+    ntraj = self.num_traj_qm
     
-    amps_t = self.get_qm_amplitudes()
+    amps_t = self.qm_amplitudes
     #print "amps_t", amps_t
     
-    self.build_Heff_first_half()
+    self.build_Heff_half_timestep()
     
     #print "rk2 Heff ", self.Heff
 
@@ -65,9 +65,9 @@ def qm_propagate_step(self,zoutput_first_step=False):
 
     amps_tphdt = amps
         
-    self.set_quantum_time(qm_tpdt)
+    self.quantum_time = qm_tpdt
 
-    self.build_Heff_second_half()
+    self.build_Heff_half_timestep()
         
     #print "rk2 Heff2 ", self.Heff
 
@@ -107,7 +107,7 @@ def qm_propagate_step(self,zoutput_first_step=False):
 
     #print "amps_tpdt ", amps
 
-    self.set_qm_amplitudes(amps)
+    self.qm_amplitudes = amps
         
     #print "amps saved ", self.get_qm_amplitudes()
             

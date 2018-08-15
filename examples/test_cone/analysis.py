@@ -11,7 +11,7 @@ traj = "00"
 an = pyspawn.fafile("sim.hdf5")
 work = pyspawn.fafile("working.hdf5")
 # create N.dat and store the data in times and N
-an.fill_electronic_state_populations(column_filename = "N.dat")
+an.fill_nuclear_bf_populations(column_filename = "N.dat")
 an.fill_trajectory_populations(column_file_prefix = "Pop")
 
 times = an.datasets[traj + "_time"]
