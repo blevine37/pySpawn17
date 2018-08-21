@@ -310,7 +310,7 @@ class fafile(object):
             if column_file_prefix != None:
                 column_filename = column_file_prefix + "_" + key + ".dat"
                 self.write_columnar_data_file(key + "_time",\
-                                              [dset_poten, dset_kinen, dset_aven, dset_toten],\
+                                              [dset_kinen, dset_aven, dset_toten],\
                                               column_filename)
 
     def fill_trajectory_bonds(self, bonds, column_file_prefix):

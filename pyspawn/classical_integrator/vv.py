@@ -30,10 +30,11 @@ def prop_first_step(self):
     
     # propagating velocity half a timestep
     v_tphdt = v_t + 0.5 * a_t * dt
-    
+    print "VV time =", t
+    print "E =", e_av_t
     # Output of parameters at t0
     if not self.first_step:
-        # after cloning we treat it as first step, h5 already has this timestep
+       # after cloning we treat it as first step, h5 already has this timestep
         self.h5_output(zdont_half_step=True)
     
     # now we can propagate position full timestep
@@ -90,7 +91,9 @@ def prop_first_step(self):
 
     self.av_force_t = f_t
     self.av_force_tpdt = f_tpdt
-        
+#     if self.first_step and self.time > self.timestep:
+#         print "EXIT IN VV"
+#         sys.exit()    
     self.first_step = False 
     
 def prop_not_first_step(self):

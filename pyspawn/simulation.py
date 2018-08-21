@@ -161,7 +161,7 @@ class simulation(fmsobj):
             self.clone_as_necessary()
             
             # propagate quantum variables if possible
-            print "Propagating quantum amplitudes if we have enough information to do so"
+            print "\nPropagating quantum amplitudes if we have enough information to do so"
             self.propagate_quantum_as_necessary()
             
             if np.shape(self.qm_amplitudes)[0] == 2:
@@ -225,8 +225,9 @@ class simulation(fmsobj):
     def invert_S(self):
         """compute Sinv from S"""
         
-        if np.linalg.cond(self.S) > 10:
-            print "BAD S matrix: condition number =", np.linalg.cond(S)
+        if np.linalg.cond(self.S) > 50:
+            print self.H
+            print "BAD S matrix: condition number =", np.linalg.cond(self.S)
             sys.exit()
         
         self.Sinv = np.linalg.inv(self.S)
@@ -302,8 +303,7 @@ class simulation(fmsobj):
                                                      forces_j="av_force_qm")
                         
                         H_elec, Force\
-                        = self.traj[keyj].construct_el_H(self.traj[keyj].positions_qm[0],\
-                                                         self.traj[keyj].positions_qm[1])
+                        = self.traj[keyj].construct_el_H(self.traj[keyj].positions_qm[0])
                         wf_dot = -1j * np.dot(H_elec,\
                                               self.traj[keyj].td_wf_full_ts_qm)
                         wf_i_T = np.conjugate(np.transpose(self.traj[keyi].td_wf_full_ts_qm))
@@ -349,11 +349,9 @@ class simulation(fmsobj):
                                                          momenta_i="momenta_qm",\
                                                          momenta_j="momenta_qm")
                             H_elec_i, Force_i\
-                            =self.traj[keyi].construct_el_H(self.traj[keyi].positions_qm[0],\
-                                                             self.traj[keyi].positions_qm[1])
+                            =self.traj[keyi].construct_el_H(self.traj[keyi].positions_qm[0])
                             H_elec_j, Force_j\
-                            =self.traj[keyj].construct_el_H(self.traj[keyj].positions_qm[0],\
-                                                             self.traj[keyj].positions_qm[1])
+                            =self.traj[keyj].construct_el_H(self.traj[keyj].positions_qm[0])
                                                     
                             wf_i = self.traj[keyi].td_wf_full_ts_qm
                             wf_i_T = np.transpose(np.conjugate(wf_i))
@@ -393,39 +391,54 @@ class simulation(fmsobj):
         clonetraj = dict()
         for key in self.traj:
             for istate in range(self.traj[key].numstates):
-                for jstate in range(self.traj[key].numstates):
-                # is this the state i to clone to state j?
+#               # sorting jstate according to decreasing cloning probabilty
+                jstates = (-self.traj[key].clone_p[istate, :]).argsort()
+                
+                for jstate in jstates:
+                    # is this the state i to clone to state j?
+                    # If the following conditions are satisfied then we clone to that state
+                    # and we're done. If done we go to another state with lower probabilty
                     if self.traj[key].clone_p[istate, jstate] > self.p_threshold and\
-                    self.traj[key].populations[jstate] > self.pop_threshold and\
                     self.traj[key].populations[istate] > self.pop_threshold and\
+                    self.traj[key].populations[jstate] > self.pop_threshold and\
                     self.traj[key].populations[istate] > self.traj[key].populations[jstate]:
-                        print "Cloning from ", istate, "to", jstate, " state at time",\
+                        print "Trajectory " + key + " cloning from ", istate,\
+                        "to", jstate, " state at time",\
                         self.traj[key].time, "with p =",\
                         self.traj[key].clone_p[istate, jstate]
-#                         print self.p_threshold
-
+    #                         print self.p_threshold
+    
                         label = str(self.traj[key].label) + "b" +\
                         str(self.traj[key].numchildren)
                         # create and initiate new trajectory structure
                         newtraj = traj()
                         clone_ok = newtraj.init_clone_traj(self.traj[key],\
                                                            istate, jstate, label)
-
-                        # checking to see if overlap with existing trajectories
-                        # is too high.  If so, we abort cloning
-                        # z_add_traj_olap = self.check_overlap(newtraj)
-
+#                         if clone_ok:
+#                             overlap_ok = self.check_overlap(newtraj)
+#                         else:
+#                             overlap_ok = False
+                        
                         # okay, now we finally decide whether to clone or not
-                        if clone_ok: 
+                        if clone_ok:# and overlap_ok:
+
+                            # this makes sure the parent trajectory in VV propagated as first step
+                            
                             print "Creating new trajectory ", label
                             clonetraj[label] = newtraj
                             self.traj[key].numchildren += 1
+                            print "Cloning successful"
+                            self.add_traj(clonetraj[label])
+                            return
+                     
+                        else:
+                            continue
 
         # okay, now it's time to add the cloned trajectories
-        for label in clonetraj:
-            print "Cloning successful"
-            self.add_traj(clonetraj[label])
-        print ""
+#         for label in clonetraj:
+#             print "Cloning successful"
+#             self.add_traj(clonetraj[label])
+#         print ""
             
     def check_overlap(self, newtraj):
         """check to make sure that a cloned trajectory doesn't overlap too much
@@ -434,12 +447,19 @@ class simulation(fmsobj):
         z_add_traj = True
         for key2 in self.traj:
             # compute the overlap
-            overlap = cg.overlap_nuc_elec(newtraj, self.traj[key2],\
+                                
+            wf_i_T = np.transpose(\
+                     np.conjugate(newtraj.td_wf))
+            wf_j = self.traj[key2].td_wf_full_ts
+            S_elec = np.real(np.dot(wf_i_T, wf_j))
+            overlap = cg.overlap_nuc(newtraj, self.traj[key2],\
                                           positions_j="positions_tmdt",\
-                                          momenta_j="momenta_tmdt")
+                                          momenta_j="momenta_tmdt")\
+                    * S_elec
 
             # if the overlap is too high, don't spawn!
             if np.absolute(overlap) > self.olapmax:
+                print "HIGH OVERLAP:", np.absolute(overlap)
                 z_add_traj=False
 
             # let the user know what happened

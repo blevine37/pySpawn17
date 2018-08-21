@@ -63,9 +63,9 @@ plt.legend()
 # Plotting population
 g = plt.figure(1)
 plt.plot(times, pop[:, 0], "b", label = "TBF1: GS ")
-plt.plot(times, pop[:, 1], "r", label = "TBF2: 1exc")
+plt.plot(times, pop[:, 2], "r", label = "TBF1: 1exc")
 plt.plot(times_b0, pop_b0[:, 0], "--b", markersize=1, label = "TBF2: GS ")
-plt.plot(times_b0, pop_b0[:, 1], "--r", markersize=1, label = "TBF2: 1exc")
+plt.plot(times_b0, pop_b0[:, 2], "--r", markersize=1, label = "TBF2: 1exc")
 # plt.plot(times_b1, pop_b1[:, 0], "b", linewidth=3, label = "TBF3: GS ")
 # plt.plot(times_b1, pop_b1[:, 1], "r", linewidth=3, label = "TBF3: 1exc")
 

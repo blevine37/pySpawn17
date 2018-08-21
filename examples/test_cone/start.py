@@ -13,22 +13,22 @@ qm_prop = "fulldiag"
 qm_ham = "ehrenfest"
 
 # use TeraChem CASSCF or CASCI to compute potentials
-potential = "test_cone_td"
+potential = "linear_slope"
 
 # initial time
 t0 = 0.0
 
 # time step
-ts = 0.025
+ts = 0.050
 
 # final simulation time
 tfinal = 50.0
 
 # number of dimensions                                                                                           
-numdims = 2
+numdims = 1
 
 # number of electronic states                                                                                                                    
-numstates = 2
+numstates = 5
 
 # trajectory parameters
 traj_params = {
@@ -43,13 +43,13 @@ traj_params = {
 #     # initial electronic state (indexed such that 0 is the ground state)
 #     "istate": 1,
     # Gaussian widths
-    "widths": np.asarray([6.0, 6.0]),
+    "widths": np.asarray([6.0]),
     # nuclear masses (in a.u)    
-    "masses": np.asarray([1822.0, 1822.0]),
+    "masses": np.asarray([1822.0]),
     # initial positions
-    "positions": np.asarray([-0.2, -0.2]),
+    "positions": np.asarray([-0.2]),
     # inition momenta
-    "momenta": np.asarray([0.5, 0.0]),
+    "momenta": np.asarray([0.5]),
     #
     "numstates": numstates,
     }
@@ -64,9 +64,9 @@ sim_params = {
     # initial qm amplitudes
     "qm_amplitudes": np.ones(1, dtype=np.complex128),
     # energy shift used in quantum propagation
-    "qm_energy_shift": -3.13596,
+    "qm_energy_shift": 0.0,
     # cloning probability threshold
-    "p_threshold": 0.013,
+    "p_threshold": 0.005,
     # cloning minimum population parameter
     "pop_threshold": 0.1,
 }
