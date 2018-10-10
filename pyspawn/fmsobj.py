@@ -16,6 +16,7 @@ class fmsobj(object):
             # numpy objects
             if type(tempdict[key]).__module__ == np.__name__ :
                 tempdict[key] = tempdict[key].tolist()
+#                 print "key", key
                 for i in range(len(tempdict[key])):
                     # complex elements of 1d arrays are encoded here
                     if isinstance(tempdict[key][i], complex):

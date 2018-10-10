@@ -10,7 +10,7 @@ import numpy as np
 from pyspawn.fmsobj import fmsobj
 from pyspawn.traj import traj
 
-def overlap_nuc(ti, tj,positions_i="positions", positions_j="positions",\
+def overlap_nuc(ti, tj, positions_i="positions", positions_j="positions",\
                 momenta_i="momenta", momenta_j="momenta"):
     """Compute the overlap of two nuclear TBFs (electronic part not included)"""
     

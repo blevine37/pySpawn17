@@ -11,11 +11,10 @@ import h5py
 import math
 
 class fafile(object):
-    def __init__(self,h5filename):
+    def __init__(self, h5filename):
         self.datasets = {}
         self.h5file = h5py.File(h5filename, "r")
         self.labels = self.h5file["sim"].attrs["labels"]
-#         self.istates = self.h5file["sim"].attrs["istates"]
         self.retrieve_num_traj_qm()
         self.fill_quantum_times()
         self.fill_qm_amplitudes()
@@ -212,13 +211,26 @@ class fafile(object):
             nt = self.ntraj[i]
             c_t = self.get_amplitude_vector(i)
             S_t = self.get_overlap_matrix(i)
-            norm[i] = np.dot(np.conjugate(c_t), c_t)
+            norm[i] = np.dot(np.transpose(np.conjugate(c_t)), np.dot(S_t, c_t))
 #             print "c_t =", c_t
+#             print "c_t\n", c_tmp
+#             print "S_t\n", S_t
+            Nstate[i, 0] = norm[i]
+            sum_pop = 0.0
             for ist in range(nt):
-                Nstate[i, 0] = norm[i]
-                Nstate[i, ist+1] = np.dot(np.conjugate(c_t[ist]), c_t[ist])
+                pop_ist = 0.0
+                for ist2 in range(nt):
+                    pop_ist += 0.5 * (np.dot(np.conjugate(c_t[ist]),\
+                                       np.dot(S_t[ist, ist2], c_t[ist2]))\
+                                    + np.dot(np.conjugate(c_t[ist2]),\
+                                       np.dot(S_t[ist2, ist], c_t[ist]))) 
+                sum_pop += pop_ist
+                Nstate[i, ist+1] = pop_ist #* S_t[ist, ist]
+#             print "sum_pop =", sum_pop
+#             print "error =", norm[i] - sum_pop
+        print "S =", S_t
         self.datasets["nuclear_bf_populations"] = Nstate
-            
+    
         if column_filename != None:
             self.write_columnar_data_file("quantum_times", ["nuclear_bf_populations"], column_filename)
 

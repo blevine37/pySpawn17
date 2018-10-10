@@ -19,10 +19,10 @@ potential = "linear_slope"
 t0 = 0.0
 
 # time step
-ts = 0.050
+ts = 0.025
 
 # final simulation time
-tfinal = 50.0
+tfinal = 40.0
 
 # number of dimensions                                                                                           
 numdims = 1
@@ -66,9 +66,9 @@ sim_params = {
     # energy shift used in quantum propagation
     "qm_energy_shift": 0.0,
     # cloning probability threshold
-    "p_threshold": 0.005,
+    "p_threshold": 0.10,
     # cloning minimum population parameter
-    "pop_threshold": 0.1,
+    "pop_threshold": 0.10,
 }
 
 # import routines needed for propagation

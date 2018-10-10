@@ -74,7 +74,7 @@ def compute_elec_struct(self):
     # DEBUGGING
     
     def print_stuff():
-        print "ES Time =", self.time
+#         print "ES Time =", self.time
 #         print "Position =", self.positions
 #         print "Hamiltonian =\n", H_elec
         print "positions =", self.positions
@@ -83,7 +83,7 @@ def compute_elec_struct(self):
         print "Average energy =", self.av_energy
         print "Energies =", ss_energies
         print "Force =", av_force
-#         print "Wave function =\n", wf
+        print "Wave function =\n", wf
 #         print "Eigenvectors =\n", eigenvectors
         print "Population = ", pop 
         print "norm =", sum(pop)

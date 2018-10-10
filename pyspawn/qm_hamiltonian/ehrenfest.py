@@ -14,6 +14,7 @@ def build_Heff_half_timestep(self):
          
     self.build_S_elec()
     self.build_S()
+    print "S = \n", self.S
     self.invert_S()
     self.build_Sdot()
     self.build_H()

@@ -9,6 +9,8 @@ import h5py
 from scipy import linalg as lin
 from numpy import dtype
 from pyspawn.potential.linear_slope import propagate_symplectic
+import cmath
+from scipy.optimize import fsolve, root, broyden1
 
 class traj(fmsobj):
         
@@ -74,6 +76,8 @@ class traj(fmsobj):
         #In the following block there are variables needed for ehrenfest
         self.H_elec = np.zeros((self.numstates, self.numstates), dtype = np.complex128)
         self.first_step = False
+        self.new_amp = np.zeros((1), dtype = np.complex128)
+        self.rescale_amp = np.zeros((1), dtype = np.complex128)
         self.n_el_steps = 1000
         self.td_wf_full_ts = np.zeros((self.numstates), dtype = np.complex128)
         self.td_wf = np.zeros((self.numstates), dtype = np.complex128)
@@ -85,7 +89,113 @@ class traj(fmsobj):
         self.z_clone_now = np.zeros(self.numstates)        
         self.clonethresh = 0.0
         self.clone_p = np.zeros((self.numstates, self.numstates))
+    
+    def solve_nonlin_system(self, S12nuc, norm_abk, norm_abi, norm_abj, guess):
+    
+        def Jacobian(X, *data):
+            S12nuc, norm_abk, norm_abi, norm_abj = data
+            J = np.zeros((6, 6))
+#             print (X)
+#             print "data=\n", data
+            c1 = X[0]
+            c2 = X[1]
+            b1k = X[2]
+            b2k = X[3]
+            b1j = X[4]
+            b2i = X[5]
+            
+            J[0, 0] = 0.0                   # d/dc1
+            J[0, 1] = 0.0                   # d/dc2
+            J[0, 2] = 2 * b1k * norm_abk    # d/db1k
+            J[0, 3] = 0.0                   # d/db2k
+            J[0, 4] = 2 * b1j * norm_abj    # d/b1j
+            J[0, 5] = 0.0                   # d/b2i
+            
+            J[1, 0] = 0.0                   # d/dc1
+            J[1, 1] = 0.0                   # d/dc2
+            J[1, 2] = 0.0                   # d/db1k
+            J[1, 3] = 2 * b2k * norm_abk    # d/db2k
+            J[1, 4] = 0.0                   # d/b1j
+            J[1, 5] = 2 * b2i * norm_abi    # d/b2i
+            
+            J[2, 0] = 2 * c1 * b1j**2 * (norm_abj - 1)\
+                    + norm_abk * (2 * c1 * b1k**2 + 2 * c2 * b1k * b2k)     # d/dc1
+            J[2, 1] = 2 * c2 * b2i**2 * norm_abi\
+                    + norm_abk * (2 * c2 * b2k**2 + 2 * c1 * b1k * b2k)     # d/dc2
+            J[2, 2] = norm_abk * (c1**2 * 2 * b1k + 2 * c1 * c2 * b2k)      # d/db1k
+            J[2, 3] = norm_abk * (c2**2 * 2 * b2k + 2 * c1 * c2 * b1k)      # d/db2k
+            J[2, 4] = (norm_abj - 1) * c1**2 * 2 * b1j                      # d/b1j
+            J[2, 5] = norm_abi * c2**2 * 2 * b2i                            # d/b2i
+            
+            J[3, 0] = 2 * c1 * b1j**2 * (norm_abj)\
+                    + norm_abk * (2 * c1 * b1k**2 + 2 * c2 * b1k * b2k)     # d/dc1
+            J[3, 1] = 2 * c2 * b2i**2 * (norm_abi-1)\
+                    + norm_abk * (2 * c2 * b2k**2 + 2 * c1 * b1k * b2k)     # d/dc2
+            J[3, 2] = norm_abk * (c1**2 * 2 * b1k + 2 * c1 * c2 * b2k)      # d/db1k
+            J[3, 3] = norm_abk * (c2**2 * 2 * b2k + 2 * c1 * c2 * b1k)      # d/db2k
+            J[3, 4] = (norm_abj) * c1**2 * 2 * b1j                          # d/b1j
+            J[3, 5] = (norm_abi-1) * c2**2 * 2 * b2i                        # d/b2i
+            
+            J[4, 0] = 2 * c1 * b1j**2 * (norm_abj)\
+                    + (norm_abk-1) * (2 * c1 * b1k**2 + 2 * c2 * b1k * b2k)     # d/dc1
+            J[4, 1] = 2 * c2 * b2i**2 * (norm_abi)\
+                    + (norm_abk-1) * (2 * c2 * b2k**2 + 2 * c1 * b1k * b2k)     # d/dc2
+            J[4, 2] = (norm_abk-1) * (c1**2 * 2 * b1k + 2 * c1 * c2 * b2k)      # d/db1k
+            J[4, 3] = (norm_abk-1) * (c2**2 * 2 * b2k + 2 * c1 * c2 * b1k)      # d/db2k
+            J[4, 4] = (norm_abj) * c1**2 * 2 * b1j                              # d/b1j
+            J[4, 5] = (norm_abi) * c2**2 * 2 * b2i                              # d/b2i
+            
+            J[5, 0] = 2 * c1 + 2 * S12nuc * c2 * b1k * b2k * norm_abk   # d/dc1
+            J[5, 1] = 2 * c2 + 2 * S12nuc * c1 * b1k * b2k * norm_abk   # d/dc2
+            J[5, 2] = 2 * S12nuc * c1 * c2 * b2k * norm_abk             # d/db1k
+            J[5, 3] = 2 * S12nuc * c1 * c2 * b1k * norm_abk             # d/db2k
+            J[5, 4] = 0.0                                               # d/b1j
+            J[5, 5] = 0.0                                               # d/b2i
+            return J
         
+        def equations(p, *data):
+        
+            c1, c2, b1k, b2k, b1j, b2i  = p
+#             print "p =\n", p
+            S12nuc, norm_abk, norm_abi, norm_abj = data
+            tot_el_norm = norm_abk + norm_abi + norm_abj
+            
+            return (b1j**2 * norm_abj + b1k**2 * norm_abk - 1,\
+                b2i**2 * norm_abi + b2k**2 * norm_abk - 1,\
+                c1 * b1j - np.sqrt(c1**2 * b1j**2 * norm_abj + c2**2 * b2i**2 * norm_abi +\
+                                  (c1 * b1k + c2 * b2k)**2 * norm_abk),\
+                c2 * b2i - np.sqrt(c1**2 * b1j**2 * norm_abj + c2**2 * b2i**2 * norm_abi +\
+                                  (c1 * b1k + c2 * b2k)**2 * norm_abk),\
+                (c1*b1k + c2 * b2k) - np.sqrt(c1**2 * b1j**2 * norm_abj + c2**2 * b2i**2 * norm_abi +\
+                                  (c1 * b1k + c2 * b2k)**2 * norm_abk),\
+                c1**2 + c2**2 + 2 * S12nuc * c1 * c2 * b1k * b2k * norm_abk-1)
+    
+        data = (S12nuc, norm_abk, norm_abi, norm_abj)
+#         print "data =\n", data
+        q =  root(equations, guess, method="hybr", tol=None, jac=Jacobian,\
+                                     args=data)
+        print (q["message"])
+        c1 = q["x"][0]
+        c2 = q["x"][1]
+        b1k = q["x"][2]
+        b2k = q["x"][3]
+        b1j = q["x"][4]
+        b2i = q["x"][5]
+        
+        print("C1 = {}\nC2 = {}\nb1k = {}\nb2k = {}\nb1j = {}\nb2i = {}".format(c1, c2, b1k, b2k, b1j, b2i))
+        print("check:")
+        print (b1j**2 * norm_abj + b1k**2 * norm_abk - 1)
+        print(b2i**2 * norm_abi + b2k**2 * norm_abk - 1)
+        print(c1**2 * b1j**2 - (c1**2 * b1j**2 * norm_abj + c2**2 * b2i**2 * norm_abi +\
+                                      (c1 * b1k + c2 * b2k)**2 * norm_abk))
+        print(c2**2 * b2i**2 - (c1**2 * b1j**2 * norm_abj + c2**2 * b2i**2 * norm_abi +\
+                                      (c1 * b1k + c2 * b2k)**2 * norm_abk))
+        print((c1*b1k + c2 * b2k)**2 - (c1**2 * b1j**2 * norm_abj + c2**2 * b2i**2 * norm_abi +\
+                                      (c1 * b1k + c2 * b2k)**2 * norm_abk))
+        print(c1**2 + c2**2 + 2 * S12nuc * c1 * c2 * b1k * b2k * norm_abk - 1)
+        
+        return c1, c2, b1k, b2k, b1j, b2i  
+           
     def calc_kin_en(self, p, m):
         ke = 0.0
         for idim in range(self.numdims):
@@ -104,7 +214,38 @@ class traj(fmsobj):
         self.numstates = nstates
         self.firsttime = t
 
-    def init_clone_traj(self, parent, istate, jstate, label):
+    def propagate_half_step(self):
+        """This is needed to obtain ES properties for the basis functions that are not cloned
+        but have overlap with the cloning functions"""
+        
+        pos_t = self.positions
+        mom_tmhdt = self.momenta 
+    
+        H_elec, Force = self.construct_el_H(pos_t)
+        tmp_wf_tmhdt = self.td_wf
+        tmp_wf_t = self.propagate_symplectic(H_elec, tmp_wf_tmhdt,\
+                                             self.timestep/2, self.n_el_steps/2)
+        eigenvals, eigenvectors = lin.eigh(H_elec)
+        tmp_wf_t_T = np.transpose(np.conjugate(tmp_wf_t))
+        tmp_energy = np.real(np.dot(np.dot(tmp_wf_t_T, H_elec), tmp_wf_t))    
+    
+        tmp_force = np.zeros((self.numdims))    
+        for n in range(self.numdims):
+            tmp_force[n] = -np.real(np.dot(np.dot(tmp_wf_t_T, Force[n]), tmp_wf_t))
+
+        tmp_pop = np.zeros(self.numstates)
+        tmp_amp = np.zeros((self.numstates), dtype=np.complex128)       
+        
+        for j in range(self.numstates):
+            tmp_amp[j] = np.dot(np.conjugate(np.transpose(eigenvectors[:, j])), tmp_wf_t)
+            tmp_pop[j] = np.real(np.dot(np.transpose(np.conjugate(tmp_amp[j])), tmp_amp[j]))
+
+        a_t = tmp_force / self.masses
+        mom_t = mom_tmhdt + a_t * self.timestep / 2 * self.masses
+        
+        return tmp_wf_t, mom_t
+        
+    def init_clone_traj(self, parent, istate, jstate, label, nuc_norm):
 
         self.numstates = parent.numstates
         self.timestep = parent.timestep
@@ -112,6 +253,22 @@ class traj(fmsobj):
         
         self.widths = parent.widths
         self.masses = parent.masses
+
+        if hasattr(parent,'atoms'):
+            self.atoms = parent.atoms
+        if hasattr(parent,'civecs'):
+            self.civecs = parent.civecs
+            self.ncivecs = parent.ncivecs
+        if hasattr(parent,'orbs'):
+            self.orbs = parent.orbs
+            self.norbs = parent.norbs
+        if hasattr(parent,'prev_wf_positions'):
+            self.prev_wf_positions = parent.prev_wf_positions
+        if hasattr(parent,'electronic_phases'):
+            self.electronic_phases = parent.electronic_phases
+        
+        self.clonethresh = parent.clonethresh
+        self.potential_specific_traj_copy(parent)
         
         time = parent.time
         self.time = time
@@ -145,116 +302,156 @@ class traj(fmsobj):
         mom_t = mom_tmhdt + a_t * self.timestep / 2 * self.masses
 
 #        During the cloning procedure we look at pairwise decoherence times, all population is going from
-#        istate to jstate. The rest of the amplitudes remain unchanged
-        child_wf = np.zeros((self.numstates), dtype=np.complex128) 
-        parent_wf = np.zeros((self.numstates), dtype=np.complex128) 
-        child_wf_T = np.conjugate(np.transpose(child_wf))
-        parent_wf_T = np.conjugate(np.transpose(parent_wf))
-
-        for kstate in range(self.numstates):
-            if kstate == istate:
-                # the population is removed from this state, so nothing to do here
-                scaling_factor = np.sqrt(1 + tmp_pop[jstate] / tmp_pop[kstate])
-                parent_wf += eigenvectors[:, kstate] * tmp_amp[kstate] * scaling_factor
-                 
-            elif kstate == jstate:
-                # the population from istate is transferred to jstate
-                scaling_factor = np.sqrt(1 + tmp_pop[istate] / tmp_pop[kstate])                 
-                child_wf += eigenvectors[:, kstate] * tmp_amp[kstate] * scaling_factor
-             
-            else:
-                # the rest of the states remain unchanged 
-                child_wf += eigenvectors[:, kstate] * tmp_amp[kstate]
-                parent_wf += eigenvectors[:, kstate] * tmp_amp[kstate]
-                       
-        child_pop = np.zeros(self.numstates)
-        child_amp = np.zeros((self.numstates), dtype=np.complex128) 
-        parent_pop = np.zeros(self.numstates)
-        parent_amp = np.zeros((self.numstates), dtype=np.complex128)         
-
-        for j in range(self.numstates):
-            child_amp[j] = np.dot(eigenvectors[:, j], child_wf)
-            child_pop[j] = np.real(np.dot(np.conjugate(child_amp[j]), child_amp[j]))
-            parent_amp[j] = np.dot(eigenvectors[:, j], parent_wf)
-            parent_pop[j] = np.real(np.dot(np.conjugate(parent_amp[j]), parent_amp[j]))
-        
-        parent_force = np.zeros((self.numdims))    
-        child_force = np.zeros((self.numdims)) 
-        for n in range(self.numdims):
-            parent_force[n] = -np.real(np.dot(np.dot(parent_wf_T, Force[n]), parent_wf))
-        for n in range(self.numdims):
-            child_force[n] = -np.real(np.dot(np.dot(child_wf_T, Force[n]), child_wf))
-        
-        a_t = parent_force / parent.masses
-        child_energy = np.real(np.dot(np.dot(np.transpose(np.conjugate(child_wf)), H_elec), child_wf))
-        parent_energy = np.real(np.dot(np.dot(np.transpose(np.conjugate(parent_wf)), H_elec), parent_wf))
-        
-        # updating quantum parameters for child    
-        self.td_wf_full_ts = child_wf
-        self.td_wf = child_wf
-        self.av_energy = float(child_energy)
-        self.mce_amps = child_amp
-        self.populations = child_pop
-        self.av_force = child_force
-        self.first_step = True
-        
-        # Also need to update momentum 
-        self.momenta = mom_t
+#        istate to jstate. The rest of the amplitudes change too in order to conserve nuclear norm
+    
+        norm_abk = 0.0
                 
-        # Setting mintime to current time to avoid backpropagation
-        mintime = parent.time
-        self.mintime = mintime
-        self.firsttime = time
-
-        if hasattr(parent,'atoms'):
-            self.atoms = parent.atoms
-        if hasattr(parent,'civecs'):
-            self.civecs = parent.civecs
-            self.ncivecs = parent.ncivecs
-        if hasattr(parent,'orbs'):
-            self.orbs = parent.orbs
-            self.norbs = parent.norbs
-        if hasattr(parent,'prev_wf_positions'):
-            self.prev_wf_positions = parent.prev_wf_positions
-        if hasattr(parent,'electronic_phases'):
-            self.electronic_phases = parent.electronic_phases
+        for i in range(self.numstates):
+            if i == istate:
+                norm_abi = tmp_pop[i]
+            elif i == jstate:
+                norm_abj = tmp_pop[i]
+            else:
+                norm_abk += tmp_pop[i]
         
-        self.clonethresh = parent.clonethresh
-        self.potential_specific_traj_copy(parent)
+        print "total pop =", sum(tmp_pop)
         
-        print "Rescaling child's momentum:"
-        child_rescale_ok = self.rescale_momentum(tmp_energy, child_energy, mom_t)
-        print "child_rescale =", child_rescale_ok
-
-        if child_rescale_ok:
-            parent_E_total = tmp_energy + parent.calc_kin_en(mom_t, parent.masses)
-            child_E_total = child_energy + self.calc_kin_en(self.momenta, self.masses)
-            print "child_E after rescale =", child_E_total
-            print "parent E before rescale=", parent_E_total 
-            print "Rescaling parent's momentum"
-            parent_rescale_ok = parent.rescale_momentum(tmp_energy, float(parent_energy), mom_t)
-            print "parent E after rescale = ", parent.calc_kin_en(parent.momenta, parent.masses) + parent_energy
+        S_act = 1.01
+        S_trial = 0.8
+        S_prev_trial= 0.81
+        tol = 1e-10
+        guess = (0.2, 0.9, 0.5, 0.7, 0.2, 0.9)  
+        print "norm_abi =", norm_abi
+        print "norm_abj =", norm_abj
+        print "norm_abk =", norm_abk
         
-#             sys.exit()
+        while abs(S_act - S_prev_trial) > tol:
+            
+            c1, c2, b1k, b2k, b1j, b2i \
+            = self.solve_nonlin_system(S_trial, norm_abk, norm_abi, norm_abj, guess)
+            print "guess = ", ["%0.6f" % i for i in guess]
+            guess = (c1, c2, b1k, b2k, b1j, b2i)
+#             guess = ((c1+guess[0])/2, (c2+guess[1])/2, (b1k+guess[2])/2,\
+#                      (b2k+guess[3])/2, (b1j+guess[4])/2, (b2i+guess[5])/2)
+            print "new guess =", ["%0.6f" % i for i in guess]
+            child_wf = np.zeros((self.numstates), dtype=np.complex128) 
+            parent_wf = np.zeros((self.numstates), dtype=np.complex128) 
+            child_wf_T = np.conjugate(np.transpose(child_wf))
+            parent_wf_T = np.conjugate(np.transpose(parent_wf))
+            
+            for kstate in range(self.numstates):
+                if kstate == istate:
+                    # the population is removed from this state, so nothing to do here
+                    scaling_factor = b2i
+                    parent_wf += eigenvectors[:, kstate] * tmp_amp[kstate] * scaling_factor
+                     
+                elif kstate == jstate:
+                    # the population from istate is transferred to jstate
+                    scaling_factor = b1j                 
+                    child_wf += eigenvectors[:, kstate] * tmp_amp[kstate] * scaling_factor
+                 
+                else:
+                    # the rest of the states remain unchanged 
+                    child_wf += eigenvectors[:, kstate] * tmp_amp[kstate] * b1k
+                    parent_wf += eigenvectors[:, kstate] * tmp_amp[kstate] * b2k
+                           
+            child_pop = np.zeros(self.numstates)
+            child_amp = np.zeros((self.numstates), dtype=np.complex128) 
+            parent_pop = np.zeros(self.numstates)
+            parent_amp = np.zeros((self.numstates), dtype=np.complex128)         
+    
+            for j in range(self.numstates):
+                child_amp[j] = np.dot(eigenvectors[:, j], child_wf)
+                child_pop[j] = np.real(np.dot(np.conjugate(child_amp[j]), child_amp[j]))
+                parent_amp[j] = np.dot(eigenvectors[:, j], parent_wf)
+                parent_pop[j] = np.real(np.dot(np.conjugate(parent_amp[j]), parent_amp[j]))
+            
+            parent_force = np.zeros((self.numdims))    
+            child_force = np.zeros((self.numdims)) 
+            for n in range(self.numdims):
+                parent_force[n] = -np.real(np.dot(np.dot(parent_wf_T, Force[n]), parent_wf))
+            for n in range(self.numdims):
+                child_force[n] = -np.real(np.dot(np.dot(child_wf_T, Force[n]), child_wf))
+            
+            a_t = parent_force / parent.masses
+            child_energy = np.real(np.dot(np.dot(np.transpose(np.conjugate(child_wf)), H_elec), child_wf))
+            parent_energy = np.real(np.dot(np.dot(np.transpose(np.conjugate(parent_wf)), H_elec), parent_wf))
+            
+            # Also need to update momentum 
+    #         self.momenta = mom_t
+            
+            print "Rescaling child's momentum:"
+            child_rescale_ok, child_rescaled_momenta = self.rescale_momentum(tmp_energy, child_energy, mom_t)
+    #         print "child_rescale =", child_rescale_ok
+            
+            if child_rescale_ok:
+                print "\nmom_t=", mom_t
+                parent_E_total = tmp_energy + parent.calc_kin_en(mom_t, parent.masses)
+                child_E_total = child_energy +\
+                self.calc_kin_en(child_rescaled_momenta, self.masses)
+                print "child_E after rescale =", child_E_total
+                print "parent E before rescale=", parent_E_total 
+                print "Rescaling parent's momentum"
+                parent_rescale_ok, parent_rescaled_momenta\
+                = parent.rescale_momentum(tmp_energy, float(parent_energy), mom_t)
+                print "parent E after rescale = ",\
+                parent.calc_kin_en(parent_rescaled_momenta, parent.masses) + parent_energy
+                
+                Sij = self.overlap_nuc(pos_t, pos_t, parent_rescaled_momenta,\
+                                       child_rescaled_momenta, parent.widths,\
+                                       parent.widths)
+                S_act = np.real(Sij)
+                 
+                print "S_act =", S_act
+                print "S_trial =", S_trial
+                S_prev_trial = S_trial
+                S_trial = S_act
+                print "S_trial_next_step =", S_trial
+                if S_act < 1e-6:
+                    sys.exit()  
+#         sys.exit()
         # need to update wave function at half step since the parent changed ES properties 
         # during cloning
-            if parent_rescale_ok:
-                parent.td_wf = parent_wf
-                parent.td_wf_full_ts_qm = parent_wf
-                parent.av_energy = float(parent_energy)
-                parent.mce_amps = parent_amp
-                parent.populations = parent_pop
-                # this makes sure the parent trajectory in VV propagated as first step
-                parent.first_step = True
+        if parent_rescale_ok:
+            # Setting mintime to current time to avoid backpropagation
+            mintime = parent.time
+            self.mintime = mintime
+            self.firsttime = time
+            # updating quantum parameters for child    
+            self.td_wf_full_ts = child_wf
+            self.td_wf = child_wf
+            self.av_energy = float(child_energy)
+            self.mce_amps = child_amp
+            self.populations = child_pop
+            self.av_force = child_force
+            self.first_step = True
+            self.momenta = child_rescaled_momenta
+            
+            parent.momenta = parent_rescaled_momenta
+            parent.td_wf = parent_wf
+#             parent.td_wf_full_ts_qm = parent_wf
+            parent.td_wf_full_ts = parent_wf
+            parent.av_energy = float(parent_energy)
+            parent.mce_amps = parent_amp
+            parent.populations = parent_pop
+            # this makes sure the parent trajectory in VV propagated as first step
+            # because the wave function is at the full TS, should be half step ahead
+            parent.first_step = True
 #                 self.first_step = True
-                print "child av_energy", self.av_energy
-                print "parent av_energy", parent.av_energy
+#                 print "child av_energy", self.av_energy
+#                 print "parent av_energy", parent.av_energy
+            
+            self.rescale_amp[0] = c1 * np.sqrt(nuc_norm)
+            parent.rescale_amp[0] = c2 * np.sqrt(nuc_norm)
+            
+            print "parent rescale factor =", parent.rescale_amp
+            print "child rescale factor =", self.rescale_amp
 #                 sys.exit()
-                return True
-            else:
-                return False
-        else:    
+            return True
+        else:
             return False
+#     else:    
+#         return False
 
     def rescale_momentum(self, v_ini, v_fin, p_ini):
         """This subroutine rescales the momentum of the child basis function
@@ -271,11 +468,11 @@ class traj(fmsobj):
 
         if factor < 0.0:
             print "Aborting cloning because because there is not enough energy for momentum adjustment"
-            return False
+            return False, factor
         factor = math.sqrt(factor)
         print "Rescaling momentum by factor ", factor
         p_fin = factor * p_ini
-        self.momenta = p_fin
+#         self.momenta = p_fin
                 
         # Computing kinetic energy of child to make sure energy is conserved
         t_fin = 0.0
@@ -284,45 +481,7 @@ class traj(fmsobj):
         if v_ini + t_ini - v_fin - t_fin > 1e-9: 
             print "ENERGY NOT CONSERVED!!!"
             sys.exit
-        return True
-    
-#     def rescale_parent_momentum(self, v_ini, v_fin, accel):
-#         """This subroutine rescales the momentum of the child basis function
-#         The difference from spawning here is that the average Ehrenfest energy is rescaled,
-#         not of the pure elecronic states"""
-#         
-#         # computing kinetic energy of parent.  Remember that, at this point,
-#         # the child's momentum is still that of the parent, so we compute
-#         # t_parent from the child's momentum
-# 
-#         p_ini = self.momenta_tpdt
-#         m = self.masses
-#         t_ini = self.calc_kin_en(p_ini, m)
-# #         print "pot energies: initial and final", v_ini, v_fin
-# #         print "kinetic energy: initial", t_ini
-#                 
-#         factor = ( ( v_ini + t_ini - v_fin ) / t_ini )
-#         if factor < 0.0:
-#             print "Aborting cloning because parent does not have enough energy for momentum adjustment"
-#             return False
-#         factor = math.sqrt(factor)
-#         print "Rescaling  parent momentum by factor ", factor
-#         p_fin = factor * p_ini
-#         self.momenta_tpdt = p_fin
-# 
-# #         # need to update velocity at half step and position at step ahead
-#         self.momenta = self.momenta_tpdt
-#         self.positions = self.positions_tpdt
-#         
-#         # Computing kinetic energy of child to make sure energy is conserved
-#         t_fin = 0.0
-#         for idim in range(self.numdims):
-#             t_fin += 0.5 * p_fin[idim] * p_fin[idim] / m[idim]
-#         if v_ini + t_ini - v_fin - t_fin > 1e-9: 
-#             print "ENERGY NOT CONSERVED!!!"
-#             sys.exit
-#         
-#         return True
+        return True, factor*p_ini
 
     def propagate_step(self):
         """When cloning happens we start a parent wf
@@ -339,14 +498,12 @@ class traj(fmsobj):
         
     def compute_cloning_probabilities(self):
         """Computing pairwise cloning probabilities according to:
-        tau_ij = (1 + t_dec / KE) / (E_i - E_j)
-        p_ij = 1 - exp( -dt / tau_ij)"""
+        tau_ij = (1 + t_dec / KE) / (E_i - E_j)"""
         
         print "Computing cloning probabilities"
         
         m = self.masses
         ke_tot = 0.0
-        p = np.zeros((self.numstates, self.numstates))
         tau = np.zeros((self.numstates, self.numstates))
         for idim in range(self.numdims):
             ke_tot += 0.5 * self.momenta_tpdt[idim] * self.momenta_tpdt[idim] / m[idim]
@@ -355,13 +512,12 @@ class traj(fmsobj):
                 for jstate in range(self.numstates):
                     if istate == jstate:
                         tau[istate, jstate] = 0.0
-                        p[istate, jstate] = 0.0
                     else:
                         dE = np.abs(self.energies[jstate] - self.energies[istate])
-                        tau[istate, jstate] = (1 + self.t_decoherence_par / ke_tot) / dE
-                        p[istate, jstate] = 1 - np.exp(-self.timestep / tau[istate, jstate])
-        print "p =\n", p
-        return p
+                        tau[istate, jstate] = 1 / ((1 + self.t_decoherence_par / ke_tot) / dE)
+
+        print "tau =\n", tau
+        return tau
             
     def h5_output(self, zdont_half_step=False):
         """This subroutine outputs all datasets into an h5 file at each timestep"""
@@ -572,4 +728,39 @@ class traj(fmsobj):
 
         print "ZPE = ", zpe
         print "Kinetic energy = ", ke
+
+    def overlap_nuc_1d(self, xi, xj, di, dj, xwi, xwj):
+        """Compute 1-dimensional nuclear overlaps"""
+        
+        c1i = (complex(0.0, 1.0))
+        deltax = xi - xj
+        pdiff = di - dj
+        osmwid = 1.0 / (xwi + xwj)
+        
+        xrarg = osmwid * (xwi*xwj*deltax*deltax + 0.25*pdiff*pdiff)
+        if (xrarg < 10.0):
+            gmwidth = math.sqrt(xwi*xwj)
+            ctemp = (di*xi - dj*xj)
+            ctemp = ctemp - osmwid * (xwi*xi + xwj*xj) * pdiff
+            cgold = math.sqrt(2.0 * gmwidth * osmwid)
+            cgold = cgold * math.exp(-1.0 * xrarg)
+            cgold = cgold * cmath.exp(ctemp * c1i)
+        else:
+            cgold = 0.0
+               
+        return cgold
+    
+    def overlap_nuc(self, pos_i, pos_j, mom_i, mom_j, widths_i, widths_j):
+        
+        Sij = 1.0
+        for idim in range(self.numdims):
+            xi = pos_i[idim]
+            xj = pos_j[idim]
+            di = mom_i[idim]
+            dj = mom_j[idim]
+            xwi = widths_i[idim]
+            xwj = widths_j[idim]
+            Sij *= self.overlap_nuc_1d(xi, xj, di, dj, xwi, xwj)
+
+        return Sij
         
