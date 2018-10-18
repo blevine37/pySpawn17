@@ -40,12 +40,14 @@ def compute_elec_struct(self):
     amp = np.zeros((self.numstates), dtype=np.complex128) 
         
     if np.dot(np.transpose(np.conjugate(wf)), wf)  < 1e-8:
-        print "Constructing electronic wf for the first timestep", wf
+        print "WF = 0, constructing electronic wf for the first timestep", wf
         wf = eigenvectors[:, 4]
     else:
-#         print "\nPropagating electronic wave function first half of timestep to compute forces, energies"
         if not self.first_step:
+            print "\nPropagating electronic wave function not first step"
             wf = propagate_symplectic(self, (H_elec), wf, self.timestep/2, n_el_steps/2)
+        if self.first_step:
+            print "\n first step, skipping electronic wave function propagation"
     
     wf_T = np.transpose(np.conjugate(wf))
     av_energy = np.real(np.dot(np.dot(wf_T, H_elec), wf))    
@@ -77,16 +79,16 @@ def compute_elec_struct(self):
 #         print "ES Time =", self.time
 #         print "Position =", self.positions
 #         print "Hamiltonian =\n", H_elec
-        print "positions =", self.positions
+#         print "positions =", self.positions
 #         print "momentum =", self.momenta
 #         print "H_elec =\n", H_elec
-        print "Average energy =", self.av_energy
-        print "Energies =", ss_energies
-        print "Force =", av_force
-        print "Wave function =\n", wf
+#         print "Average energy =", self.av_energy
+#         print "Energies =", ss_energies
+#         print "Force =", av_force
+#         print "Wave function =\n", wf
 #         print "Eigenvectors =\n", eigenvectors
         print "Population = ", pop 
-        print "norm =", sum(pop)
+#         print "norm =", sum(pop)
 #         print "amps =", amp
     print_stuff()
     # DEBUGGING

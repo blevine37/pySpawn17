@@ -19,7 +19,7 @@ potential = "linear_slope"
 t0 = 0.0
 
 # time step
-ts = 0.025
+ts = 0.05
 
 # final simulation time
 tfinal = 40.0

@@ -158,13 +158,16 @@ class simulation(fmsobj):
                 print "Done with " + current
             else:
                 print "Task queue is empty"
-            print "\nNow we will clone new trajectories if necessary:"
-            self.clone_as_necessary()
+
             
             # propagate quantum variables if possible
             print "\nPropagating quantum amplitudes if we have enough information to do so"
             self.propagate_quantum_as_necessary()
-            
+
+            # moved cloning routine into the propagation to update h5 file on time
+#             print "\nNow we will clone new trajectories if necessary:"
+#             self.clone_as_necessary()
+                        
             # print restart output - this must be the last line in this loop!
             print "Updating restart output"
             self.restart_output()
@@ -181,13 +184,15 @@ class simulation(fmsobj):
 
             timestep = self.traj[key].timestep
             time = self.traj[key].time
-            if (time - timestep) < max_info_time:
-                max_info_time = time - timestep
+            if time  < max_info_time:
+                max_info_time = time #- timestep
 
         print "We have enough information to propagate to time ", max_info_time
 
         # now, if we have the necessary info, we propagate
         while max_info_time > (self.quantum_time + 1.0e-6):
+#         while max_info_time > (self.quantum_time - 1.0e-6):
+
             if self.quantum_time > 1.0e-6:
                 print "Propagating quantum amplitudes at time", self.quantum_time
                 self.qm_propagate_step()
@@ -195,10 +200,13 @@ class simulation(fmsobj):
                 print "Propagating quantum amplitudes at time", self.quantum_time,\
                 " (first step)"
                 self.qm_propagate_step(zoutput_first_step=True)
-                
+            
+            print "\nNow we will clone new trajectories if necessary:"
+            self.clone_as_necessary()
             print "\nOutputing quantum information to hdf5"
             self.h5_output()
 
+            
     def init_amplitudes_one(self):
         """sets the first amplitude to 1.0 and all others to zero"""
         self.compute_num_traj_qm()
@@ -207,37 +215,41 @@ class simulation(fmsobj):
 #         self.qm_amplitudes[0] = 0.5
         
     def compute_num_traj_qm(self):
-        """Get number of trajectories"""
-        
+        """Get number of trajectories. Note that the order of trajectories in the dictionary 
+        is not the same as in Hamiltonian!"""
         n = 0
         qm_time = self.quantum_time
+#         print "qm_time =", qm_time
         for key in self.traj:
-            if qm_time > (self.traj[key].mintime - 1.0e-6):
-                n += 1
-                if n > len(self.qm_amplitudes):
-                    self.qm_amplitudes = np.append(self.qm_amplitudes, self.traj[key].new_amp)
-                    self.traj[key].new_amp = np.zeros((n), dtype=np.complex128)
-                     
-                    # when new trajectory added we need to update the amplitude of parent
-                    for key2 in self.traj:
-                        if np.abs(self.traj[key2].new_amp[0]) > 1e-6 and key2 != key:
-                            print "traj key =", key2
-                            print "amp =", self.traj[key2].new_amp[0]
-                            self.qm_amplitudes[self.traj_map[key2]] = self.traj[key2].new_amp
-                            self.traj[key2].new_amp = np.zeros((n), dtype=np.complex128)
-#                 while n > len(self.qm_amplitudes):
-#                     self.qm_amplitudes = np.append(self.qm_amplitudes, 0.0)                    
-        self.num_traj_qm = n
+            n += 1
+#             print key
 
+#             print "index =", self.traj_map[key], "time =", self.traj[key].time
+#             if qm_time > (self.traj[key].mintime - 1.0e-6):
+
+            if self.traj_map[key] + 1 > len(self.qm_amplitudes):
+                self.qm_amplitudes = np.append(self.qm_amplitudes, self.traj[key].new_amp)
+                self.traj[key].new_amp = 0.0 
+#                 print "INCREASING DIM" 
+                # when new trajectory added we need to update the amplitude of parent
+                for key2 in self.traj:
+                    if np.abs(self.traj[key2].new_amp) > 1e-6 and key2 != key:
+#                         print "traj key =", key2
+#                         print "amp =", self.traj[key2].new_amp[0]
+                        self.qm_amplitudes[self.traj_map[key2]] = self.traj[key2].new_amp
+                        self.traj[key2].new_amp = 0.0 
+                  
+        self.num_traj_qm = n
+#         print self.qm_amplitudes
                                         
     def invert_S(self):
         """compute Sinv from S"""
-        
-        if np.linalg.cond(self.S) > 500:
-            print self.H
-            print "BAD S matrix: condition number =", np.linalg.cond(self.S)
+        cond_num = np.linalg.cond(self.S)
+        if cond_num > 500:
+            print "BAD S matrix: condition number =", cond_num
             sys.exit()
-        
+        else:
+            print "S condition number =", cond_num
         self.Sinv = np.linalg.inv(self.S)
         
     def build_Heff(self):
@@ -251,7 +263,7 @@ class simulation(fmsobj):
         """Build matrix of electronic overlaps"""
         
         ntraj = self.num_traj_qm
-        self.S_elec = np.zeros((ntraj,ntraj))
+        self.S_elec = np.zeros((ntraj,ntraj), dtype=np.complex128)
         for keyi in self.traj:
             i = self.traj_map[keyi]
             if i < ntraj:
@@ -261,10 +273,13 @@ class simulation(fmsobj):
                         if i == j:
                             self.S_elec[i,j] = 1.0
                         else:
+#                             print "keyi =", keyi, " keyj =", keyj
+#                             print "wf_i =\n", self.traj[keyi].td_wf_full_ts_qm
+#                             print "wf_j =\n", self.traj[keyj].td_wf_full_ts_qm
                             wf_i_T = np.transpose(\
                                      np.conjugate(self.traj[keyi].td_wf_full_ts_qm))
                             wf_j = self.traj[keyj].td_wf_full_ts_qm
-                            self.S_elec[i,j] = np.real(np.dot(wf_i_T, wf_j))
+                            self.S_elec[i, j] = np.dot(wf_i_T, wf_j)
     
     def build_S(self):
         """Build the overlap matrix, S"""
@@ -417,13 +432,16 @@ class simulation(fmsobj):
                         str(self.traj[key].numchildren)
                         # create and initiate new trajectory structure
                         newtraj = traj()
+                        parent_copy = traj()
+                        parent_copy = self.traj[key]
                         # Here we need to calculate the population on the state that is being cloned
                         # Since the overlap is not identity matrix this is tricky
 #                         nuc_norm = np.dot(np.conjugate(np.transpose(self.qm_amplitudes)),\
 #                                           np.dot(self.S, self.qm_amplitudes))
                         nuc_norm = 1.0
-                        clone_ok = newtraj.init_clone_traj(self.traj[key],\
+                        clone_ok = newtraj.init_clone_traj(parent_copy,\
                                                            istate, jstate, label, nuc_norm)
+                        self.traj[key] = parent_copy
 #                         if clone_ok:
 #                             overlap_ok = self.check_overlap(newtraj)
 #                         else:
@@ -453,10 +471,12 @@ class simulation(fmsobj):
                             traj_1 = self.traj[key]
                             traj_2 = self.traj[label]
                             
+                            amps = np.zeros((np.shape(self.S)[0]+1), dtype=np.complex128)
                             new_amp_1 = self.qm_amplitudes[ind_1] * traj_1.rescale_amp
                             new_amp_2 = self.qm_amplitudes[ind_1] * traj_2.rescale_amp
                             
                             # check for overlap S12
+
                             wf_1_T = np.transpose(np.conjugate(traj_1.td_wf_full_ts))
                             wf_2 = traj_2.td_wf_full_ts
                             S_elec_12 = np.real(np.dot(wf_1_T, wf_2))
@@ -469,11 +489,14 @@ class simulation(fmsobj):
                             
                             S = np.zeros((np.shape(self.S)[0]+1, np.shape(self.S)[0]+1),\
                                          dtype=np.complex128)
+
                             S[ind_1, ind_2] = S_elec_12 * S_nuc_12
                             S[ind_2, ind_1] = np.conjugate(S[ind_1, ind_2])                            
                             
                             pop_12 = 0.0
                             pop_12n = 0.0
+                            pop_n = 0.0
+                            
                             pop_12 = np.dot(np.conjugate(new_amp_1), new_amp_1)\
                                    + np.dot(np.conjugate(new_amp_2), new_amp_2)\
                                    + np.dot(np.conjugate(new_amp_1), new_amp_2)\
@@ -485,36 +508,32 @@ class simulation(fmsobj):
                             print "S_nuc_12 =", S_nuc_12
                             print "pop_12 =", pop_12
 
-                            pop_n = 0.0
                             x = 1.0
 
-                            amps = np.zeros((np.shape(self.S)[0]+1), dtype=np.complex128)
-                            
                             for ind in range(np.shape(self.S)[0]+1): S[ind, ind] = 1.0
                             
                             if np.shape(self.S)[0] != 1:
                                 for key_n in self.traj:
                                     
                                     ind_n = self.traj_map[key_n]
-                                    
                                     if key_n != key and key_n != label:                            
                                         traj_n = self.traj[key_n]
-                                        print "key_n =", key_n
-                                        print "n =", ind_n
+                                        
                                         amp_n = self.qm_amplitudes[ind_n]
                                         amps[ind_n] = amp_n
                                         
-                                        wf_1 = traj_1.td_wf_full_ts_qm
+                                        wf_1 = traj_1.td_wf_full_ts
                                         wf_1_T = np.transpose(np.conjugate(wf_1))
                                         
-                                        wf_n, mom_t_n = traj_n.propagate_half_step()
+                                        wf_n = traj_n.td_wf_full_ts
                                         S_elec_1n = np.dot(wf_1_T, wf_n)
                                         S_nuc_1n = self.overlap_nuc(traj_1.positions,\
                                                                     traj_n.positions,\
-                                                                    traj_1.momenta, mom_t_n, \
-                                                                    traj_1.widths, traj_1.widths) 
+                                                                    traj_1.momenta, traj_n.momenta_qm, \
+                                                                    traj_1.widths, traj_n.widths) 
+                                        
                                         S[ind_1, ind_n] = S_elec_1n * S_nuc_1n
-                                        S[ind_n, ind_1] = np.conjugate(S[ind_n, ind_1])
+                                        S[ind_n, ind_1] = np.conjugate(S[ind_1, ind_n])
                                         
                                         
                                         wf_2 = traj_2.td_wf_full_ts
@@ -523,60 +542,75 @@ class simulation(fmsobj):
                                         S_elec_2n = np.dot(wf_2_T, wf_n)
                                         S_nuc_2n = self.overlap_nuc(traj_2.positions,\
                                                                     traj_n.positions,\
-                                                                    traj_2.momenta, mom_t_n,\
-                                                                    traj_2.widths, traj_2.widths) 
+                                                                    traj_2.momenta, traj_n.momenta_qm,\
+                                                                    traj_2.widths, traj_n.widths) 
                                         
                                         S[ind_2, ind_n] = S_elec_2n * S_nuc_2n
                                         S[ind_n, ind_2] = np.conjugate(S[ind_2, ind_n])
                                         
-                                        
-                                        pop_12n += 0.5 * (np.dot(np.conjugate(new_amp_1), amp_n)\
+                                        pop_12n += np.dot(np.conjugate(new_amp_1), amps[ind_n])\
                                                  * S[ind_1, ind_n]\
-                                                 + np.dot(np.conjugate(amp_n), new_amp_1)\
+                                                 + np.dot(np.conjugate(amps[ind_n]), new_amp_1)\
                                                  * S[ind_n, ind_1]\
-                                                 + np.dot(np.conjugate(new_amp_2), amp_n)\
+                                                 + np.dot(np.conjugate(new_amp_2), amps[ind_n])\
                                                  * S[ind_2, ind_n]\
-                                                 + np.dot(np.conjugate(amp_n), new_amp_2)\
-                                                 * S[ind_n, ind_2])
+                                                 + np.dot(np.conjugate(amps[ind_n]), new_amp_2)\
+                                                 * S[ind_n, ind_2]
+
                                         
                                         pop_n += np.dot(np.conjugate(amp_n), amp_n)
                                         
                                         for key_n2 in self.traj:
                                             
-                                            if key_n2 != key and key_n2 != label and key_n != key_n2:
+                                            if key_n2 != key and key_n2 != label and key_n2 != key_n:
                                                 
+                                                traj_n2 = self.traj[key_n2]
                                                 ind_n2 = self.traj_map[key_n2]
                                                 amp_n2 = self.qm_amplitudes[ind_n2]
-                                                S[ind_n, ind_n2] = self.S[ind_n, ind_n2]
-                                                pop_n +=  0.5 * (S[ind_n, ind_n2] * np.dot(np.conjugate(amp_n), amp_n2)\
-                                                               + S[ind_n2, ind_n] * np.dot(np.conjugate(amp_n2), amp_n))
+                                                amps[ind_n2] = amp_n2                                                
+                                                
+                                                wf_n2 = traj_n2.td_wf_full_ts
+                                                wf_n2_T = np.transpose(np.conjugate(wf_n2))    
+                                                S_elec_n2_n = np.dot(wf_n2_T, wf_n)
+                                                S_nuc_n2_n = self.overlap_nuc(traj_n2.positions,\
+                                                                    traj_n.positions,\
+                                                                    traj_n2.momenta_qm, traj_n.momenta_qm,\
+                                                                    traj_n2.widths, traj_n.widths) 
+                                        
+                                                S[ind_n2, ind_n] = S_elec_n2_n * S_nuc_n2_n
+                                                S[ind_n, ind_n2] = np.conjugate(S[ind_n2, ind_n])
+
+#                                                 S[ind_n, ind_n2] = self.S[ind_n, ind_n2]
+#                                                 S[ind_n2, ind_n] = self.S[ind_n2, ind_n]
+                                                pop_n +=  S[ind_n, ind_n2] * np.dot(np.conjugate(amps[ind_n]), amps[ind_n2])\
+                                                               + S[ind_n2, ind_n] * np.dot(np.conjugate(amps[ind_n2]), amps[ind_n])
                                                 print "S between", key_n, "and", key_n2, "is ", S[ind_n, ind_n2]
                                                 
                                         print "S_elec_1n =", S_elec_1n
                                         print "S_nuc_1n =", S_nuc_1n
                                         print "S_elec_2n =", S_elec_2n
                                         print "S_nuc_2n =", S_nuc_2n
+                            
                             print "pop_12n =", pop_12n
                             print "pop_n", pop_n        
                             x = (-pop_12n + np.sqrt(pop_12n**2 - 4 * (pop_n-1.0) * pop_12)) / (2 * pop_12) 
                             alpha = np.dot(np.conjugate(x), x)
                             if alpha == 0.0: alpha = 1.0
                             print "alpha =", alpha
-                            print "total_pop =", pop_n + np.sqrt(alpha) * pop_12n + pop_12 * alpha
-                            traj_1.new_amp = new_amp_1 * np.sqrt(alpha)
-                            traj_2.new_amp = new_amp_2 * np.sqrt(alpha)
+                            print "total_pop =", pop_n + x * pop_12n + pop_12 * alpha
+                            print "total pop before rescale =", pop_n + pop_12n + pop_12
+                            traj_1.new_amp = new_amp_1 * x
+                            traj_2.new_amp = new_amp_2 * x
                             amps[ind_1] = traj_1.new_amp
                             amps[ind_2] = traj_2.new_amp
                             norm = np.dot(np.conjugate(np.transpose(amps)), np.dot(S, amps))
                             
-                            print "child new amp = ", new_amp_2
-                            print "parent new amp = ", new_amp_1
-                            print "\namps =\n", amps
                             print "NORM =", norm
-                            print "S =\n", S
-                            print "positions"
-                            for trajectory in self.traj: print self.traj[trajectory].positions
-
+                            print "S =\n", S             
+                            print "qm_time =", self.quantum_time
+                            print "positions:"               
+                            for key in self.traj: print self.traj[key].positions
+                            print "amps =\n", amps
                             return
                      
                         else:
@@ -595,8 +629,8 @@ class simulation(fmsobj):
             wf_j = self.traj[key2].td_wf_full_ts
             S_elec = np.real(np.dot(wf_i_T, wf_j))
             overlap = cg.overlap_nuc(newtraj, self.traj[key2],\
-                                          positions_j="positions_tmdt",\
-                                          momenta_j="momenta_tmdt")\
+                                          positions_j="positions_t",\
+                                          momenta_j="momenta_t")\
                     * S_elec
 
             # if the overlap is too high, don't spawn!
