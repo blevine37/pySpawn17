@@ -41,6 +41,7 @@ class simulation(fmsobj):
         self.quantum_time_half_step = 0.0
         # timestep for quantum propagation
         self.timestep = 0.0
+        self.clone_again = False
         # quantum propagator
         #self.qm_propagator = "RK2"
         # quantum hamiltonian
@@ -203,6 +204,8 @@ class simulation(fmsobj):
             
             print "\nNow we will clone new trajectories if necessary:"
             self.clone_as_necessary()
+            if self.clone_again:
+                self.clone_as_necessary()
             print "\nOutputing quantum information to hdf5"
             self.h5_output()
 
@@ -433,8 +436,7 @@ class simulation(fmsobj):
                         # making a copy of a parent BF in order not to overwrite the original
                         # in case cloning fails due to large overlap 
                         parent_copy = copy.deepcopy(self.traj[key])
-                        # Here we need to calculate the population on the state that is being cloned
-                        # Since the overlap is not identity matrix this is tricky
+                        # total nuclear norm
                         nuc_norm = np.dot(np.conjugate(np.transpose(self.qm_amplitudes)),\
                                           np.dot(self.S, self.qm_amplitudes))
 #                         nuc_norm = 1.0
@@ -493,9 +495,9 @@ class simulation(fmsobj):
                                    + np.dot(np.conjugate(new_amp_2), new_amp_1)\
                                    * S[ind_2, ind_1]
                                    
-                            print "S_elec_12 =", S_elec_12
-                            print "S_nuc_12 =", S_nuc_12
-                            print "pop_12 =", pop_12
+#                             print "S_elec_12 =", S_elec_12
+#                             print "S_nuc_12 =", S_nuc_12
+#                             print "pop_12 =", pop_12
 
                             x = 1.0
 
@@ -518,8 +520,10 @@ class simulation(fmsobj):
                                         S_elec_1n = np.dot(wf_1_T, wf_n)
                                         S_nuc_1n = self.overlap_nuc(traj_1.positions,\
                                                                     traj_n.positions,\
-                                                                    traj_1.momenta, traj_n.momenta_qm, \
-                                                                    traj_1.widths, traj_n.widths) 
+                                                                    traj_1.momenta,\
+                                                                    traj_n.momenta_qm,\
+                                                                    traj_1.widths,\
+                                                                    traj_n.widths) 
                                         
                                         S[ind_1, ind_n] = S_elec_1n * S_nuc_1n
                                         S[ind_n, ind_1] = np.conjugate(S[ind_1, ind_n])
@@ -531,28 +535,38 @@ class simulation(fmsobj):
                                         S_elec_2n = np.dot(wf_2_T, wf_n)
                                         S_nuc_2n = self.overlap_nuc(traj_2.positions,\
                                                                     traj_n.positions,\
-                                                                    traj_2.momenta, traj_n.momenta_qm,\
-                                                                    traj_2.widths, traj_n.widths) 
+                                                                    traj_2.momenta,\
+                                                                    traj_n.momenta_qm,\
+                                                                    traj_2.widths,\
+                                                                    traj_n.widths) 
                                         
                                         S[ind_2, ind_n] = S_elec_2n * S_nuc_2n
                                         S[ind_n, ind_2] = np.conjugate(S[ind_2, ind_n])
                                         
-                                        # adding population from the overlap of cloning BFs with noncloning
-                                        pop_12n += np.dot(np.conjugate(new_amp_1), amps[ind_n])\
+                                        # adding population from the overlap of cloning BFs
+                                        # with noncloning
+                                        pop_12n += np.dot(np.conjugate(new_amp_1),\
+                                                          amps[ind_n])\
                                                  * S[ind_1, ind_n]\
-                                                 + np.dot(np.conjugate(amps[ind_n]), new_amp_1)\
+                                                 + np.dot(np.conjugate(amps[ind_n]),\
+                                                          new_amp_1)\
                                                  * S[ind_n, ind_1]\
-                                                 + np.dot(np.conjugate(new_amp_2), amps[ind_n])\
+                                                 + np.dot(np.conjugate(new_amp_2),\
+                                                          amps[ind_n])\
                                                  * S[ind_2, ind_n]\
-                                                 + np.dot(np.conjugate(amps[ind_n]), new_amp_2)\
+                                                 + np.dot(np.conjugate(amps[ind_n]),\
+                                                          new_amp_2)\
                                                  * S[ind_n, ind_2]
                                         
-                                        # adding population from noncloning BFs, only diagonal contribution
+                                        # adding population from noncloning BFs, 
+                                        # only diagonal contribution
                                         pop_n += np.dot(np.conjugate(amp_n), amp_n)
                                         
                                         for key_n2 in self.traj:
                                             
-                                            if key_n2 != key and key_n2 != label and key_n2 != key_n:
+                                            if key_n2 != key\
+                                            and key_n2 != label\
+                                            and key_n2 != key_n:
                                                 
                                                 traj_n2 = self.traj[key_n2]
                                                 ind_n2 = self.traj_map[key_n2]
@@ -561,22 +575,29 @@ class simulation(fmsobj):
 
                                                 S[ind_n, ind_n2] = self.S[ind_n, ind_n2]
                                                 S[ind_n2, ind_n] = self.S[ind_n2, ind_n]
-                                                # adding population of noncloning BFs, off-diagonal contributions
-                                                pop_n +=  S[ind_n, ind_n2] * np.dot(np.conjugate(amps[ind_n]), amps[ind_n2])\
-                                                               + S[ind_n2, ind_n] * np.dot(np.conjugate(amps[ind_n2]), amps[ind_n])
+                                                # adding population of noncloning BFs, 
+                                                # only off-diagonal contributions
+                                                pop_n +=  S[ind_n, ind_n2]\
+                                                        * np.dot(np.conjugate(amps[ind_n]),\
+                                                          amps[ind_n2])\
+                                                        + S[ind_n2, ind_n]\
+                                                        * np.dot(np.conjugate(amps[ind_n2]),\
+                                                                amps[ind_n])
                                                 
-                                        print "S_elec_1n =", S_elec_1n
-                                        print "S_nuc_1n =", S_nuc_1n
-                                        print "S_elec_2n =", S_elec_2n
-                                        print "S_nuc_2n =", S_nuc_2n
+#                                         print "S_elec_1n =", S_elec_1n
+#                                         print "S_nuc_1n =", S_nuc_1n
+#                                         print "S_elec_2n =", S_elec_2n
+#                                         print "S_nuc_2n =", S_nuc_2n
                             
-                            print "pop_12n =", pop_12n
-                            print "pop_n", pop_n        
-                            # Solving quadratic equation for the factor that ensures norm conservation
-                            x = (-pop_12n + np.sqrt(pop_12n**2 - 4 * (pop_n-nuc_norm) * pop_12)) / (2 * pop_12) 
+#                             print "pop_12n =", pop_12n
+#                             print "pop_n", pop_n        
+                            # Solving quadratic equation for the factor 
+                            # that ensures norm conservation
+                            x = (-pop_12n + np.sqrt(pop_12n**2\
+                                - 4 * (pop_n-nuc_norm) * pop_12)) / (2 * pop_12) 
                             alpha = np.dot(np.conjugate(x), x)
                             if alpha == 0.0: alpha = 1.0
-                            print "alpha =", alpha
+#                             print "alpha =", alpha
                             print "total_pop =", pop_n + x * pop_12n + pop_12 * alpha
                             print "total pop before rescale =", pop_n + pop_12n + pop_12
                             traj_1.new_amp = new_amp_1 * x
@@ -588,7 +609,7 @@ class simulation(fmsobj):
                             norm = np.dot(np.conjugate(np.transpose(amps)), np.dot(S, amps))
                             
                             print "NORM =", norm
-                            print "S =\n", S             
+
 #                             print "qm_time =", self.quantum_time
 #                             print "positions:"               
 #                             for key in self.traj: print self.traj[key].positions
@@ -600,11 +621,14 @@ class simulation(fmsobj):
                             
                             if s > new_dim:
                                 
-                                print "Aborting cloning due to large overlap with existing trajectory"
+                                print "Aborting cloning due to large overlap with\
+                                existing trajectory"
+                                self.clone_again = False
                                 continue
                             
                             else:
-                                # if overlap is less than threshold we can update the actual parent
+                                # if overlap is less than threshold
+                                #we can update the actual parent
 
                                 self.traj[key] = traj_1
                             
@@ -613,10 +637,13 @@ class simulation(fmsobj):
                                 self.traj[key].numchildren += 1
                                 print "Cloning successful"
                                 self.add_traj(clonetraj[label])
-                            
+                                self.compute_num_traj_qm()
+                                self.build_Heff_half_timestep()
+                                self.clone_again = True
                                 return
                      
                         else:
+                            self.clone_again = False
                             continue
             
     def restart_from_file(self, json_file, h5_file):
@@ -705,7 +732,8 @@ class simulation(fmsobj):
             ipos=l
 #             getcom = "self.get_" + key + "()"
             getcom = "self." + key
-            #print getcom
+#             print getcom
+
             tmp = eval(getcom)
             if type(tmp).__module__ == np.__name__:
                 tmp = np.ndarray.flatten(tmp)

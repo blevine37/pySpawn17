@@ -211,7 +211,7 @@ class fafile(object):
             nt = self.ntraj[i]
             c_t = self.get_amplitude_vector(i)
             S_t = self.get_overlap_matrix(i)
-            norm[i] = np.dot(np.transpose(np.conjugate(c_t)), np.dot(S_t, c_t))
+            norm[i] = np.real(np.dot(np.transpose(np.conjugate(c_t)), np.dot(S_t, c_t)))
 #             print "c_t =", c_t
 #             print "c_t\n", c_tmp
 #             print "S_t\n", S_t
@@ -220,15 +220,15 @@ class fafile(object):
             for ist in range(nt):
                 pop_ist = 0.0
                 for ist2 in range(nt):
-                    pop_ist += 0.5 * (np.dot(np.conjugate(c_t[ist]),\
+                    pop_ist += np.real(0.5 * (np.dot(np.conjugate(c_t[ist]),\
                                        np.dot(S_t[ist, ist2], c_t[ist2]))\
                                     + np.dot(np.conjugate(c_t[ist2]),\
-                                       np.dot(S_t[ist2, ist], c_t[ist]))) 
+                                       np.dot(S_t[ist2, ist], c_t[ist])))) 
                 sum_pop += pop_ist
                 Nstate[i, ist+1] = pop_ist #* S_t[ist, ist]
 #             print "sum_pop =", sum_pop
 #             print "error =", norm[i] - sum_pop
-        print "S =", S_t
+#         print "S =", S_t
         self.datasets["nuclear_bf_populations"] = Nstate
     
         if column_filename != None:

@@ -12,7 +12,6 @@ import sys
 def prop_first_step(self):
     
     print "Performing the VV propagation for the first timestep"
-#     print "self.first_step =", self.first_step
     dt = self.timestep
     x_t = self.positions
     p_t = self.momenta
@@ -30,19 +29,10 @@ def prop_first_step(self):
 #     print "Population = ", self.populations
 #     print "momenta", self.momenta 
 #     if not self.first_step:
-    print "wf:\n", self.td_wf
+#     print "wf:\n", self.td_wf
     self.compute_elec_struct()
     self.first_step = False 
 
-    print "wf:\n", self.td_wf
-#     print "test 2\nwf =", self.td_wf_full_ts
-#     print "eigenvecs =", self.approx_eigenvecs
-#     print "mce_amps", self.mce_amps
-#     print "Average energy =", self.av_energy
-#     print "Energies =", self.energies
-#     print "Force =", self.av_force
-#     print "Population = ", self.populations
-#     print "momenta", self.momenta 
     f_t = self.av_force
     a_t = f_t / m
     e_t = self.energies
@@ -88,32 +78,8 @@ def prop_first_step(self):
     v_tp3hdt = v_tpdt + 0.5 * a_tpdt * dt
     p_tp3hdt = v_tp3hdt * m
     self.momenta = p_tp3hdt
-    
-    # Saving position at t0 + 2dt for the next iteration
-#     x_tp2dt = x_tpdt + v_tp3hdt * dt
-#     self.positions = x_tp2dt
-    
-    # Also saving positions, momenta and energies at t0 and t0 + dt
-    self.positions_t = x_t
-    self.positions_tpdt = x_tpdt
-    
-    self.momenta_t = p_t
-    self.momenta_tpdt = p_tpdt
-    
-    self.energies_t = e_t
-    self.energies_tpdt = e_tpdt
-    
-    self.av_energy_t = e_av_t
-    self.av_energy_tpdt = e_av_tpdt
-    
-    self.td_wf_full_ts_t = wf_t
-    self.td_wf_full_ts_tpdt = wf_tpdt
 
-    self.av_force_t = f_t
-    self.av_force_tpdt = f_tpdt
-#     if self.first_step and self.time > self.timestep:
-#         print "EXIT IN VV"
-#         sys.exit()    
+    self.momenta_full_ts = p_tpdt
     
 def prop_not_first_step(self):
     """Velocity Verlet propagator for not first timestep. Here we call electronic structure
@@ -146,24 +112,7 @@ def prop_not_first_step(self):
     v_tpdt = v_tphdt + 0.5 * a_tpdt * dt
     p_tpdt = v_tpdt * m
     
-    # Saving everything at t - dt, t, t + dt
-    self.positions_t = self.positions_tpdt
-    self.positions_tpdt = x_tpdt
-    
-    self.energies_t = self.energies_tpdt
-    self.energies_tpdt = e_tpdt
-        
-    self.av_energy_t = self.av_energy_tpdt
-    self.av_energy_tpdt = e_av_tpdt
-
-    self.momenta_t = self.momenta_tpdt
-    self.momenta_tpdt = p_tpdt
-
-    self.td_wf_full_ts_t = self.td_wf_full_ts_tpdt
-    self.td_wf_full_ts_tpdt = wf_tpdt
-    
-    self.av_force_t = self.av_force_tpdt
-    self.av_force_tpdt = f_tpdt
+    self.momenta_full_ts = p_tpdt
     
     self.momenta = p_tpdt    
     
@@ -180,8 +129,5 @@ def prop_not_first_step(self):
     v_tp3hdt = v_tpdt + 0.5 * a_tpdt * dt
     p_tp3hdt = v_tp3hdt * m
     self.momenta = p_tp3hdt
-    
-    # Propagating positions to t + dt
-#     x_tp2dt = x_tpdt + v_tp3hdt * dt
-#     self.positions = x_tp2dt
+
 ### end velocity Verlet (vv) integrator section ###

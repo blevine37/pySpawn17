@@ -44,7 +44,7 @@ class traj(fmsobj):
 
         self.positions_tpdt = np.zeros(self.numdims)
         self.positions_t = np.zeros(self.numdims)
-        self.momenta_tpdt = np.zeros(self.numdims)
+        self.momenta_full_ts = np.zeros(self.numdims)
         self.momenta_t = np.zeros(self.numdims)
         
         self.energies_tpdt = np.zeros(self.numstates)
@@ -197,6 +197,7 @@ class traj(fmsobj):
         return c1, c2, b1k, b2k, b1j, b2i, success  
            
     def calc_kin_en(self, p, m):
+        """Calculate kinetic energy of a trajectory"""
         ke = 0.0
         for idim in range(self.numdims):
             ke += 0.5 * p[idim] * p[idim] / m[idim]
@@ -204,7 +205,8 @@ class traj(fmsobj):
         return ke
             
     def init_traj(self, t, ndims, pos, mom, wid, m, nstates, istat, lab):
-
+        """Initialize trajectory"""
+        
         self.time = t
         self.positions = pos
         self.momenta = mom
@@ -213,37 +215,6 @@ class traj(fmsobj):
         self.label = lab
         self.numstates = nstates
         self.firsttime = t
-
-    def propagate_half_step(self):
-        """This is needed to obtain ES properties for the basis functions that are not cloned
-        but have overlap with the cloning functions"""
-        
-        pos_t = self.positions
-        mom_tmhdt = self.momenta 
-    
-        H_elec, Force = self.construct_el_H(pos_t)
-        tmp_wf_tmhdt = self.td_wf
-        tmp_wf_t = self.propagate_symplectic(H_elec, tmp_wf_tmhdt,\
-                                             self.timestep/2, self.n_el_steps/2)
-        eigenvals, eigenvectors = lin.eigh(H_elec)
-        tmp_wf_t_T = np.transpose(np.conjugate(tmp_wf_t))
-        tmp_energy = np.real(np.dot(np.dot(tmp_wf_t_T, H_elec), tmp_wf_t))    
-    
-        tmp_force = np.zeros((self.numdims))    
-        for n in range(self.numdims):
-            tmp_force[n] = -np.real(np.dot(np.dot(tmp_wf_t_T, Force[n]), tmp_wf_t))
-
-        tmp_pop = np.zeros(self.numstates)
-        tmp_amp = np.zeros((self.numstates), dtype=np.complex128)       
-        
-        for j in range(self.numstates):
-            tmp_amp[j] = np.dot(np.conjugate(np.transpose(eigenvectors[:, j])), tmp_wf_t)
-            tmp_pop[j] = np.real(np.dot(np.transpose(np.conjugate(tmp_amp[j])), tmp_amp[j]))
-
-        a_t = tmp_force / self.masses
-        mom_t = mom_tmhdt + a_t * self.timestep / 2 * self.masses
-        
-        return tmp_wf_t, mom_t
         
     def init_clone_traj(self, parent, istate, jstate, label, nuc_norm):
 
@@ -274,22 +245,19 @@ class traj(fmsobj):
         self.time = time
         self.label = label
         pos_t = parent.positions
-        mom_t = parent.momenta_tpdt
+        mom_t = parent.momenta_full_ts
         tmp_pop = parent.populations
         tmp_amp = parent.mce_amps
         tmp_force = parent.av_force
         tmp_energy = parent.av_energy
-        print "time =", time
-        print "av_energy =", tmp_energy
-        print "kin energy =", self.calc_kin_en(mom_t, parent.masses)
-        print "total E =", self.calc_kin_en(mom_t, parent.masses) + tmp_energy
 
         tmp_wf = self.td_wf_full_ts
         H_elec, Force = self.construct_el_H(pos_t)
         eigenvals, eigenvectors = lin.eigh(H_elec)
-        print "FORCE= ", Force 
-#        During the cloning procedure we look at pairwise decoherence times, all population is going from
-#        istate to jstate. The rest of the amplitudes change too in order to conserve nuclear norm
+
+#       During the cloning procedure we look at pairwise decoherence times, all population
+#       is going from istate to jstate. The rest of the amplitudes change too in order to
+#       conserve nuclear norm
     
         norm_abk = 0.0
                 
@@ -302,9 +270,10 @@ class traj(fmsobj):
                 norm_abk += tmp_pop[i]
         
         print "total pop =", sum(tmp_pop)
+        
         n_iter = 0
         S_act = 1.01
-        S_trial = 0.5
+        S_trial = 0.8
         S_prev_trial= 0.81
         tol = 1e-10
         guess = (0.2, 0.9, 0.5, 0.7, 0.2, 0.9)  
@@ -379,17 +348,19 @@ class traj(fmsobj):
                 child_force[n] = -np.real(np.dot(np.dot(child_wf_T, Force[n]), child_wf))
             
             child_energy = np.real(np.dot(np.dot(np.transpose(np.conjugate(child_wf)), H_elec), child_wf))
-            parent_energy = np.real(np.dot(np.dot(np.transpose(np.conjugate(parent_wf)), H_elec), parent_wf))
+            parent_energy = np.real(np.dot(np.dot(np.transpose(np.conjugate(parent_wf)),\
+                                                  H_elec), parent_wf))
             
             # Also need to update momentum 
     #         self.momenta = mom_t
             
             print "Rescaling child's momentum:"
-            child_rescale_ok, child_rescaled_momenta = self.rescale_momentum(tmp_energy, child_energy, mom_t)
-    #         print "child_rescale =", child_rescale_ok
+            child_rescale_ok, child_rescaled_momenta = self.rescale_momentum(tmp_energy,\
+                                                                             child_energy,\
+                                                                             mom_t)
             
             if child_rescale_ok:
-#                 print "\nmom_t=", mom_t
+
                 parent_E_total = tmp_energy + parent.calc_kin_en(mom_t, parent.masses)
                 child_E_total = child_energy +\
                 self.calc_kin_en(child_rescaled_momenta, self.masses)
@@ -409,11 +380,8 @@ class traj(fmsobj):
                 print "S_actual =", S_act
                 print "S_trial =", S_trial
                 S_prev_trial = S_trial
-                S_trial = S_act
-#                 print "S_trial_next_step =", S_trial
-                
-        # need to update wave function at half step since the parent changed ES properties 
-        # during cloning
+                S_trial = S_act                
+
         if parent_rescale_ok:
             # Setting mintime to current time to avoid backpropagation
             mintime = parent.time
@@ -437,7 +405,6 @@ class traj(fmsobj):
             
             parent.momenta = parent_rescaled_momenta
             parent.td_wf = parent_wf
-#             parent.td_wf_full_ts_qm = parent_wf
             parent.td_wf_full_ts = parent_wf
             parent.av_energy = float(parent_energy)
             parent.mce_amps = parent_amp
@@ -449,9 +416,6 @@ class traj(fmsobj):
             # this makes sure the parent trajectory in VV propagated as first step
             # because the wave function is at the full TS, should be half step ahead
             parent.first_step = True
-#                 self.first_step = True
-#                 print "child av_energy", self.av_energy
-#                 print "parent av_energy", parent.av_energy
             
             self.rescale_amp[0] = c1 * np.sqrt(nuc_norm)
             parent.rescale_amp[0] = c2 * np.sqrt(nuc_norm)
@@ -461,8 +425,7 @@ class traj(fmsobj):
             return True
         else:
             return False
-#     else:    
-#         return False
+
 
     def rescale_momentum(self, v_ini, v_fin, p_ini):
         """This subroutine rescales the momentum of the child basis function
@@ -481,7 +444,7 @@ class traj(fmsobj):
             print "Aborting cloning because because there is not enough energy for momentum adjustment"
             return False, factor
         factor = math.sqrt(factor)
-        print "Rescaling momentum by factor ", factor
+        print "Rescaling momentum by a factor ", factor
         p_fin = factor * p_ini
 #         self.momenta = p_fin
                 
@@ -517,7 +480,7 @@ class traj(fmsobj):
         ke_tot = 0.0
         tau = np.zeros((self.numstates, self.numstates))
         for idim in range(self.numdims):
-            ke_tot += 0.5 * self.momenta_tpdt[idim] * self.momenta_tpdt[idim] / m[idim]
+            ke_tot += 0.5 * self.momenta_full_ts[idim] * self.momenta_full_ts[idim] / m[idim]
         if ke_tot > 0.0:
             for istate in range(self.numstates):
                 for jstate in range(self.numstates):
@@ -540,7 +503,7 @@ class traj(fmsobj):
         h5f = h5py.File(filename, "a")
         groupname = "traj_" + self.label
         if groupname not in h5f.keys():
-            self.create_h5_traj(h5f,groupname)
+            self.create_h5_traj(h5f, groupname)
         trajgrp = h5f.get(groupname)
         all_datasets = self.h5_datasets.copy()
         if not zdont_half_step:
@@ -550,12 +513,12 @@ class traj(fmsobj):
 #             print "key", key
             dset = trajgrp.get(key)
             l = dset.len()
+#             if self.first_step and l != 0: l = l - 1
             dset.resize(l+1, axis=0)
             ipos=l
-
-#             if key == "forces_i":
-#                 getcom = "self.get_" + key + "()"
-#             else:
+            print "n =", n
+            print "ipos =", ipos
+            print "key =", key
             getcom = "self." + key 
 
 #             print getcom
@@ -585,8 +548,8 @@ class traj(fmsobj):
                 dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n), dtype="complex128")
             else:
                 dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n), dtype="float64")
+
         # add some metadata
-#         trajgrp.attrs["istate"] = self.istate
         trajgrp.attrs["masses"] = self.masses
         trajgrp.attrs["widths"] = self.widths
         if hasattr(self,"atoms"):

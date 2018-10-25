@@ -47,7 +47,7 @@ def compute_elec_struct(self):
             print "\nPropagating electronic wave function not first step"
             wf = propagate_symplectic(self, (H_elec), wf, self.timestep/2, n_el_steps/2)
         if self.first_step:
-            print "\n first step, skipping electronic wave function propagation"
+            print "\nFirst step, skipping electronic wave function propagation"
     
     wf_T = np.transpose(np.conjugate(wf))
     av_energy = np.real(np.dot(np.dot(wf_T, H_elec), wf))    

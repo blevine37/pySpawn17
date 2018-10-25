@@ -22,7 +22,7 @@ t0 = 0.0
 ts = 0.05
 
 # final simulation time
-tfinal = 40.0
+tfinal = 60.0
 
 # number of dimensions                                                                                           
 numdims = 1
@@ -49,7 +49,9 @@ traj_params = {
     # initial positions
     "positions": np.asarray([-0.2]),
     # inition momenta
-    "momenta": np.asarray([0.5]),
+#     "momenta": np.asarray([0.5]),
+    "momenta": np.asarray([0.3]),
+
     #
     "numstates": numstates,
     }
