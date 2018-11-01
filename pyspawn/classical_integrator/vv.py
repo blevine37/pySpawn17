@@ -31,6 +31,7 @@ def prop_first_step(self):
 #     if not self.first_step:
 #     print "wf:\n", self.td_wf
     self.compute_elec_struct()
+    self.h5_output()
     self.first_step = False 
 
     f_t = self.av_force
@@ -45,7 +46,7 @@ def prop_first_step(self):
     # Output of parameters at t0
 #     if not self.first_step:
        # after cloning we treat it as first step, h5 already has this timestep
-    self.h5_output(zdont_half_step=True)
+    
     
     # now we can propagate position full timestep
     x_tpdt = x_t + v_tphdt * dt
@@ -65,11 +66,9 @@ def prop_first_step(self):
     
     self.momenta = p_tpdt
     
-    t_half = t + 0.5 * dt
     t += dt
 
     self.time = t
-    self.time_half_step = t_half
     
     # Output of parameters at t0 + dt
     self.h5_output()
@@ -116,11 +115,9 @@ def prop_not_first_step(self):
     
     self.momenta = p_tpdt    
     
-    t_half = t + 0.5 * dt
     t += dt
 
     self.time = t
-    self.time_half_step = t_half
 
     # Output of parameters at t
     self.h5_output()
