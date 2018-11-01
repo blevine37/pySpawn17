@@ -22,13 +22,13 @@ t0 = 0.0
 ts = 0.05
 
 # final simulation time
-tfinal = 60.0
+tfinal = 30.0
 
 # number of dimensions                                                                                           
 numdims = 1
 
 # number of electronic states                                                                                                                    
-numstates = 5
+numstates = 3
 
 # trajectory parameters
 traj_params = {
@@ -49,9 +49,9 @@ traj_params = {
     # initial positions
     "positions": np.asarray([-0.2]),
     # inition momenta
-#     "momenta": np.asarray([0.5]),
-    "momenta": np.asarray([0.3]),
-
+    "momenta": np.asarray([30.0]),
+#     "momenta": np.asarray([0.3]),
+#     "numdims": numdims,
     #
     "numstates": numstates,
     }
@@ -68,9 +68,9 @@ sim_params = {
     # energy shift used in quantum propagation
     "qm_energy_shift": 0.0,
     # cloning probability threshold
-    "p_threshold": 0.10,
+    "p_threshold": 0.06,
     # cloning minimum population parameter
-    "pop_threshold": 0.10,
+    "pop_threshold": 0.1,
 }
 
 # import routines needed for propagation

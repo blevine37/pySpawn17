@@ -14,13 +14,6 @@ def build_Heff_half_timestep(self):
          
     self.build_S_elec()
     self.build_S()
-    print "qm time =", self.quantum_time
-    print "positions:"
-    for key in self.traj: print self.traj[key].positions_qm
-    print "S=\n", self.S
-    print "amps =\n", self.qm_amplitudes
-#     print "S_elec =\n", self.S_elec
-#     print "S_nuc =\n", self.S_nuc
     self.invert_S()
     self.build_Sdot()
     self.build_H()

@@ -33,7 +33,7 @@ def compute_elec_struct(self):
 
     # Constructing Hamiltonian, computing derivatives, for now solving the eigenvalue problem to get adiabatic states
     # for real systems it will be replaced by approximate eigenstates
-    H_elec, Force = self.construct_el_H(x, y) 
+    H_elec, Force = self.construct_el_H((x, y)) 
     ss_energies, eigenvectors = lin.eigh(H_elec)
     eigenvectors_T = np.transpose(np.conjugate(eigenvectors))
     
@@ -41,12 +41,14 @@ def compute_elec_struct(self):
     amp = np.zeros((self.numstates), dtype=np.complex128) 
         
     if np.dot(np.transpose(np.conjugate(wf)), wf)  < 1e-8:
-        print "Constructing electronic wf for the first timestep", wf
+        print "WF = 0, constructing electronic wf for the first timestep", wf
         wf = eigenvectors[:, 1]
     else:
-#         print "\nPropagating electronic wave function first half of timestep to compute forces, energies"
         if not self.first_step:
+            print "\nPropagating electronic wave function not first step"
             wf = propagate_symplectic(self, (H_elec), wf, self.timestep/2, n_el_steps/2)
+        if self.first_step:
+            print "\nFirst step, skipping electronic wave function propagation"
     
     wf_T = np.transpose(np.conjugate(wf))
     av_energy = np.real(np.dot(np.dot(wf_T, H_elec), wf))    
@@ -75,17 +77,20 @@ def compute_elec_struct(self):
     # DEBUGGING
     
     def print_stuff():
-#         print "Time =", self.time
-#         print "Position =", self.positions
+#         print "ES Time =", self.time
+        print "Position =", self.positions
 #         print "Hamiltonian =\n", H_elec
-        print "positions =", self.positions
-        print "H_elec =\n", H_elec
+#         print "positions =", self.positions
+#         print "momentum =", self.momenta
+#         print "H_elec =\n", H_elec
         print "Average energy =", self.av_energy
         print "Energies =", ss_energies
 #         print "Force =", av_force
-#         print "Wave function =\n", wf
-#         print "Eigenvectors =\n", eigenvectors
-        print "Population =", pop
+        print "Wave function =\n", wf
+        print "Eigenvectors =\n", eigenvectors
+        print "Population = ", pop 
+        print "norm =", sum(pop)
+#         print "amps =", amp
     print_stuff()
     # DEBUGGING
     
@@ -94,7 +99,7 @@ def compute_elec_struct(self):
     wf = propagate_symplectic(self, H_elec, wf, self.timestep/2, n_el_steps/2)
     self.td_wf = wf
     self.H_elec = H_elec
-    
+        
 #     phasing wave function to match previous time step
 #     W = np.matmul(prev_wf,wf.T)
 #      
@@ -106,10 +111,12 @@ def compute_elec_struct(self):
 #         wf[1,:] = -1.0 * wf[1,:]
 #         W[:,1] = -1.0 * W[:,1]
   
-def construct_el_H(self, x, y):
+def construct_el_H(self, pos):
     """Constructing the 2D potential (Jahn-Teller model) and computing d/dx, d/dy for
     force computation. Later will be replaced with the electronic structure program call"""
     
+    x = pos[0]
+    y = pos[1]
     a = 6
     k = 1
     w = 0.3
@@ -165,8 +172,6 @@ def init_h5_datasets(self):
     self.h5_datasets["momenta"] = self.numdims
     self.h5_datasets["populations"] = self.numstates
     self.h5_datasets["td_wf_full_ts"] = self.numstates
-    
-    self.h5_datasets_half_step["time_half_step"] = 1
 
 def potential_specific_traj_copy(self,from_traj):
     return

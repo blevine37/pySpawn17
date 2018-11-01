@@ -51,7 +51,11 @@ class fafile(object):
     def fill_qm_amplitudes(self):
         c = self.h5file["sim/qm_amplitudes"][()]
         self.datasets["qm_amplitudes"] = c
+
+    def fill_labels(self):
         
+        self.datasets["labels"] = self.labels
+            
     def fill_S(self):
         S = self.h5file["sim/S"][()]
         self.datasets["S"] = S
@@ -71,9 +75,6 @@ class fafile(object):
             time = self.h5file[trajgrp]['time'][()]
             key2 = key + "_time"
             self.datasets[key2] = time
-            time = self.h5file[trajgrp]['time_half_step'][()]
-            key3 = key + "_time_half_step"
-            self.datasets[key3] = time
 
     def get_amplitude_vector(self,i):
         nt = self.ntraj[i]
@@ -99,10 +100,6 @@ class fafile(object):
 
     def get_traj_num_times(self, label):
         key = label + "_time"
-        return len(self.datasets[key])
-
-    def get_traj_num_times_half_step(self, label):
-        key = label + "_time_half_step"
         return len(self.datasets[key])
 
     def list_datasets(self):

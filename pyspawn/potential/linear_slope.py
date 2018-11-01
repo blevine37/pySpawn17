@@ -41,7 +41,8 @@ def compute_elec_struct(self):
         
     if np.dot(np.transpose(np.conjugate(wf)), wf)  < 1e-8:
         print "WF = 0, constructing electronic wf for the first timestep", wf
-        wf = eigenvectors[:, 4]
+#         wf = eigenvectors[:, 4]
+        wf = 1 /np.sqrt(self.numstates) * sum(eigenvectors[:, n] for n in range(self.numstates)) 
     else:
         if not self.first_step:
             print "\nPropagating electronic wave function not first step"
@@ -77,18 +78,18 @@ def compute_elec_struct(self):
     
     def print_stuff():
 #         print "ES Time =", self.time
-#         print "Position =", self.positions
+        print "Position =", self.positions
 #         print "Hamiltonian =\n", H_elec
 #         print "positions =", self.positions
 #         print "momentum =", self.momenta
 #         print "H_elec =\n", H_elec
-#         print "Average energy =", self.av_energy
-#         print "Energies =", ss_energies
+        print "Average energy =", self.av_energy
+        print "Energies =", ss_energies
 #         print "Force =", av_force
-#         print "Wave function =\n", wf
-#         print "Eigenvectors =\n", eigenvectors
+        print "Wave function =\n", wf
+        print "Eigenvectors =\n", eigenvectors
         print "Population = ", pop 
-#         print "norm =", sum(pop)
+        print "norm =", sum(pop)
 #         print "amps =", amp
     print_stuff()
     # DEBUGGING
@@ -115,44 +116,73 @@ def construct_el_H(self, x):
     force computation. Later will be replaced with the electronic structure program call"""
     
     a = 6
-    k = 0.2
-    w = 1
+    k = 0.5
+    w = 1.0
     delta = 0.1
-    
+     
     H_elec = np.zeros((self.numstates, self.numstates))
     H_elec[0, 0] = w * (-x) 
     H_elec[1, 1] = w * x 
     H_elec[2, 2] = w * x - delta
-    H_elec[3, 3] = w * x - delta*2
-    H_elec[4, 4] = w * x - delta*3
-    
+#     H_elec[3, 3] = w * x - delta*2
+#     H_elec[4, 4] = w * x - delta*3
+     
     H_elec[0, 1] = k * x
     H_elec[0, 2] = k * x
-    H_elec[0, 3] = k * x
-    H_elec[0, 4] = k * x
-    
+#     H_elec[0, 3] = k #* x
+#     H_elec[0, 4] = k #* x
+        
     H_elec[1, 0] = k * x
     H_elec[2, 0] = k * x
-    H_elec[3, 0] = k * x
-    H_elec[4, 0] = k * x
-    
+#     H_elec[3, 0] = k #* x
+#     H_elec[4, 0] = k #* x
+     
     Hx = np.zeros((self.numstates, self.numstates))
 #     Hy = np.zeros((self.numstates, self.numstates))
 #     Hz = np.zeros((self.numstates, self.numstates))
     Hx[0, 0] = -w
     Hx[1, 1] = w
     Hx[2, 2] = w
-    Hx[3, 3] = w
-    Hx[4, 4] = w
-    
+#     Hx[3, 3] = w
+#     Hx[4, 4] = w
+     
     Hx[0, 1] = k
     Hx[1, 0] = k
     Hx[0, 2] = k
     Hx[2, 0] = k
-    Hx[0, 3] = k
-    Hx[3, 0] = k
-    Hx[0, 4] = k
-    Hx[4, 0] = k
+#     Hx[0, 3] = k
+#     Hx[3, 0] = k
+#     Hx[0, 4] = k
+#     Hx[4, 0] = k
+
+#     k = 0.0
+#     w = 0.5
+#     delta = 0.1
+#     
+#     H_elec = np.zeros((self.numstates, self.numstates))
+#     H_elec[0, 0] = w  
+#     H_elec[1, 1] = w - delta 
+#     H_elec[2, 2] = w - 2 * delta
+#     H_elec[3, 3] = w - 3 * delta
+#     H_elec[4, 4] = w - 4 * delta
+#     
+#     
+#     Hx = np.zeros((self.numstates, self.numstates))
+# #     Hy = np.zeros((self.numstates, self.numstates))
+# #     Hz = np.zeros((self.numstates, self.numstates))
+# 
+# #     Hx[3, 3] = w
+# #     Hx[4, 4] = w
+#     
+# #     Hx[0, 1] = k
+# #     Hx[1, 0] = k
+# #     Hx[0, 2] = k
+# #     Hx[2, 0] = k
+# #     Hx[0, 3] = k
+# #     Hx[3, 0] = k
+# #     Hx[0, 4] = k
+# #     Hx[4, 0] = k
+
 
     
     Force = [Hx]    
@@ -191,8 +221,6 @@ def init_h5_datasets(self):
     self.h5_datasets["populations"] = self.numstates
     self.h5_datasets["td_wf_full_ts"] = self.numstates
     
-    self.h5_datasets_half_step["time_half_step"] = 1
-
 def potential_specific_traj_copy(self,from_traj):
     return
 
