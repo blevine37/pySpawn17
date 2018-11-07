@@ -119,7 +119,7 @@ def construct_el_H(self, pos):
     y = pos[1]
     a = 6
     k = 1
-    w = 0.3
+    w = 0.5
     
     H_elec = np.zeros((self.numstates, self.numstates))
     H_elec[0, 0] = w * (x + a/2)**2 + w * (y)**2
