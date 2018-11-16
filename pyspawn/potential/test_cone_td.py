@@ -65,7 +65,7 @@ def compute_elec_struct(self):
     self.av_energy = float(av_energy)
     self.energies = np.real(ss_energies)
     self.av_force = av_force
-    self.approx_eigenvecs = eigenvectors
+    self.eigenvecs = eigenvectors
     self.mce_amps_prev = self.mce_amps
     self.mce_amps = amp
     self.td_wf_full_ts = np.complex128(wf)

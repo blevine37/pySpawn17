@@ -21,7 +21,6 @@ def prop_first_step(self):
     
     # first computing forces for the momentum propagation for t0 + dt/2
 #     print "test 1\nwf =", self.td_wf_full_ts
-#     print "eigenvecs =", self.approx_eigenvecs
 #     print "mce_amps", self.mce_amps
 #     print "Average energy =", self.av_energy
 #     print "Energies =", self.energies

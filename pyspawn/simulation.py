@@ -65,6 +65,13 @@ class simulation(fmsobj):
         # maximium walltime in seconds
         self.max_walltime = -1.0
 
+    def set_maxtime_all(self,maxtime):
+
+        self.max_quantum_time = maxtime
+        h = self.timestep
+        for key in self.traj:
+            self.traj[key].maxtime = maxtime + h
+
     def from_dict(self, **tempdict):
         """Convert dict to simulation data structure"""
         
@@ -208,14 +215,14 @@ class simulation(fmsobj):
             print "\nNow we will clone new trajectories if necessary:"
             
             if self.cloning_type == "toastate":
-                self.clone_as_necessary1()
+                self.clone_to_a_state()
                 if self.clone_again:
-                    self.clone_as_necessary1()
+                    self.clone_to_a_state()
             
             if self.cloning_type == "pairwise":
-                self.clone_as_necessary()
+                self.clone_pairwise()
                 if self.clone_again:
-                    self.clone_as_necessary()
+                    self.clone_pairwise()
 #             print "\nOutputing quantum information to hdf5"
 #             self.h5_output()
             
@@ -409,7 +416,7 @@ class simulation(fmsobj):
                                                       momenta_j="momenta_qm")\
                                                      *self.S_elec[i,j]
 
-    def clone_as_necessary(self):
+    def clone_pairwise(self):
         """Cloning routine. Trajectories that are cloning will be established from the 
         cloning probabilities variable clone_p.
         When a new basis function is added the labeling is done in a following way:
@@ -645,7 +652,7 @@ class simulation(fmsobj):
                             self.clone_again = False
                             continue
 
-    def clone_as_necessary1(self):
+    def clone_to_a_state(self):
         """Cloning routine. Trajectories that are cloning will be established from the 
         cloning probabilities variable clone_p.
         When a new basis function is added the labeling is done in a following way:
@@ -683,7 +690,7 @@ class simulation(fmsobj):
 #                                           np.dot(self.S, self.qm_amplitudes)))
                     nuc_norm = 1.0
                     # okay, now we finally decide whether to clone or not
-                    clone_ok = newtraj.init_clone_traj2(parent_copy,\
+                    clone_ok = newtraj.init_clone_traj_to_a_state(parent_copy,\
                                                        istate, label, nuc_norm)
                     
                     if clone_ok:

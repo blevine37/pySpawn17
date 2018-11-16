@@ -4,12 +4,12 @@
 import numpy as np
 import pyspawn         
 
-pyspawn.import_methods.into_simulation(pyspawn.qm_integrator.rk2)
-pyspawn.import_methods.into_simulation(pyspawn.qm_hamiltonian.adiabatic)
-pyspawn.import_methods.into_traj(pyspawn.potential.test_cone)
+pyspawn.import_methods.into_simulation(pyspawn.qm_integrator.fulldiag)
+pyspawn.import_methods.into_simulation(pyspawn.qm_hamiltonian.ehrenfest)
+pyspawn.import_methods.into_traj(pyspawn.potential.linear_slope)
 pyspawn.import_methods.into_traj(pyspawn.classical_integrator.vv)
     
-tfinal = 160.0
+tfinal = 200.0
 
 sim = pyspawn.simulation()
 

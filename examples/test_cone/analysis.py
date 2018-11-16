@@ -6,19 +6,23 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sys
 
-def plot_nuclear_populations(keys, numstates, colors, linetypes):
-    
+def plot_nuclear_populations(keys, ntraj, colors, linetypes, labels):
+
+    g3 = plt.figure("Nuclear Populations")
     N = an.datasets["nuclear_bf_populations"]
     qm_time = an.datasets["quantum_times"]
-    for n in range(numstates):
-        plt.plot(qm_time, N[:, n+1], color=colors[n],\
-                     label = str((n+1)) + "TBF",)
+    for n in range(ntraj):
+        plt.plot(qm_time, N[:, n+1],\
+                     label = labels[n])
     plt.xlabel('Time')
     plt.ylabel('Nuclear Population')
     plt.legend()
-    plt.savefig("Nuc_pop.png")
+    plt.show()
+    g3.savefig("Nuc_pop.png")
     
 def plot_el_population(keys, numstates, colors, linestyles):
+    
+    g1 = plt.figure("Electronic Populations")
     l = 0
     for key in keys:
         for n in range(numstates):
@@ -30,10 +34,12 @@ def plot_el_population(keys, numstates, colors, linestyles):
     plt.xlabel('Time, au')
     plt.ylabel('Population, au')
     plt.legend()
-    plt.savefig("Elec_pop.png")
-
+    plt.show()
+    g1.savefig("Elec_pop.png")
+    
 def plot_energies(keys, numstates, colors, linetypes):
     
+    g2 = plt.figure("Energies")
     l = 0
     for key in keys:
         for n in range(numstates):
@@ -46,12 +52,30 @@ def plot_energies(keys, numstates, colors, linetypes):
                      linestyle=linestyles[l])
         l += 1    
     plt.xlabel('Time, au')
-    plt.ylabel('Population, au')
+    plt.ylabel('Energy, au')
     plt.legend()
-    plt.savefig("Energies.png")
-    
-# open sim.hdf5 for processing
+    plt.show()
+    g2.savefig("Energies.png")
 
+def plot_total_energies(keys, ntraj, colors, linetypes):
+    
+    g4 = plt.figure("Total Energies")
+    l = 0
+    min_E = min(toten["00"])
+    max_E = max(toten["00"])
+    for key in keys:
+        plt.plot(time[key], toten[key],\
+                     label = key)
+        if min(toten[key]) < min_E: min_E = min(toten[key])
+        if max(toten[key]) > max_E: max_E = max(toten[key])
+        l += 1    
+    plt.xlabel('Time, au')
+    plt.ylabel('Total Energy, au')
+    plt.ylim([min_E - 0.05 * (max_E-min_E), max_E + 0.05 * (max_E-min_E)])
+    plt.legend()
+    plt.show()
+    g4.savefig("Total_Energies.png")
+    
 an = pyspawn.fafile("sim.hdf5")
 work = pyspawn.fafile("working.hdf5")
 # create N.dat and store the data in times and N
@@ -61,14 +85,14 @@ an.fill_labels()
 # write files with energy data for each trajectory
 an.fill_trajectory_energies(column_file_prefix="E")
 # list all datasets
-an.list_datasets()
+# an.list_datasets()
 
-ntraj = 6
-nstates = 3
-colors = ("r", "g", "b", "m", "y", "k")
-linestyles = ("-", "--", "-.")
+ntraj = len(an.datasets["labels"])
+nstates = 5
+colors = ("r", "g", "b", "m", "y", "k", "k")
+linestyles = ("-", "--", "-.", ":")
 arrays = ("poten", "pop", "toten", "aven", "kinen", "time")
-labels = an.datasets["labels"][0:2]
+labels = an.datasets["labels"][0:4]
 
 for array in arrays:
     exec(array +"= dict()")
@@ -82,27 +106,9 @@ for traj in an.datasets["labels"]:
     kinen[traj] = an.datasets[traj + "_kinen"]
     time[traj] = an.datasets[traj + "_time"]
    
-g1 = plt.figure("Electronic Populations")
+# Plotting
 plot_el_population(labels, nstates, colors, linestyles)
-plt.show()
-
-
-g2 = plt.figure("Energies")
 plot_energies(labels, nstates, colors, linestyles)
-plt.show()
-
-
-g3 = plt.figure("Nuclear Populations")
-plot_nuclear_populations(labels, ntraj, colors, linestyles)   
-plt.show()
-
-
-f = plt.figure(3)
-plt.scatter(time["00"], toten["00"], label = "00")
-# plt.scatter(times_b0.ravel(), tot_b0.ravel(), c=t1, label = "00b0")
-plt.xlabel('Time, au')
-plt.ylabel('Total Energy, au')
-plt.ylim([min(toten["00"]), max(toten["00"])])
-plt.legend()
-plt.show()
-
+plot_nuclear_populations(labels, ntraj, colors, linestyles, an.datasets["labels"])   
+plot_total_energies(an.datasets["labels"], len(an.datasets["labels"]), colors, linestyles)
+print "Done"

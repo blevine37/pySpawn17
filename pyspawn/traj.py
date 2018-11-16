@@ -31,7 +31,8 @@ class traj(fmsobj):
 
         self.timestep = 0.0
         
-        self.numstates = 0
+        self.numstates = 5
+        self.krylov_sub_n = self.numstates - 1
         
         self.length_wf = self.numstates
         self.wf = np.zeros((self.numstates, self.length_wf))
@@ -59,7 +60,10 @@ class traj(fmsobj):
         self.populations = np.zeros(self.numstates)
         self.av_energy = 0.0
         self.av_force = np.zeros(self.numdims)
-        self.approx_eigenvecs = np.zeros((self.numstates, self.numstates))
+        self.eigenvecs = np.zeros((self.numstates, self.numstates), dtype = np.complex128)
+        self.approx_eigenvecs = np.zeros((self.krylov_sub_n, self.krylov_sub_n),\
+                                         dtype = np.complex128)
+        self.wf_store = np.zeros((self.numstates, self.krylov_sub_n), dtype = np.complex128)
 #         self.clonethresh = 0.0
         self.clone_p = np.zeros((self.numstates, self.numstates))
         self.clone_E_diff = np.zeros(self.numstates) 
@@ -390,7 +394,7 @@ class traj(fmsobj):
                     self.first_step = True
                     self.momenta = child_rescaled_momenta
                     self.momenta_full_ts = child_rescaled_momenta
-                    self.approx_eigenvecs = eigenvectors
+                    self.eigenvecs = eigenvectors
                     self.energies = eigenvals
                     # IS THIS OK?!
                     self.h5_output()
@@ -404,7 +408,7 @@ class traj(fmsobj):
                     parent.populations = parent_pop
                     parent.av_force = parent_force
                     parent.energies = eigenvals
-                    parent.approx_eigenvecs = eigenvectors
+                    parent.eigenvecs = eigenvectors
                     
                     # this makes sure the parent trajectory in VV propagated as first step
                     # because the wave function is at the full TS, should be half step ahead
@@ -428,7 +432,7 @@ class traj(fmsobj):
                 else:
                     return False
             
-    def init_clone_traj2(self, parent, istate, label, nuc_norm):
+    def init_clone_traj_to_a_state(self, parent, istate, label, nuc_norm):
 
         self.numstates = parent.numstates
         self.timestep = parent.timestep
@@ -577,7 +581,7 @@ class traj(fmsobj):
                 self.first_step = True
                 self.momenta = child_rescaled_momenta
                 self.momenta_full_ts = child_rescaled_momenta
-                self.approx_eigenvecs = eigenvectors
+                self.eigenvecs = eigenvectors
                 self.energies = eigenvals
                 # IS THIS OK?!
                 self.h5_output()
@@ -591,7 +595,7 @@ class traj(fmsobj):
                 parent.populations = parent_pop
                 parent.av_force = parent_force
                 parent.energies = eigenvals
-                parent.approx_eigenvecs = eigenvectors
+                parent.eigenvecs = eigenvectors
                 
                 # this makes sure the parent trajectory in VV propagated as first step
                 # because the wave function is at the full TS, should be half step ahead
@@ -655,7 +659,7 @@ class traj(fmsobj):
     def compute_cloning_E_diff(self):
         """Computing the energy differences between each state and the average"""
         
-        print "Computing cloning probabilities"
+        print "Computing cloning parameters"
         
         m = self.masses
         ke_tot = 0.0
@@ -665,7 +669,7 @@ class traj(fmsobj):
         if ke_tot > 0.0:
             for istate in range(self.numstates):
                 dE = np.abs(self.energies[istate] - self.av_energy)
-                clone_dE[istate] = 1 / ((1 + self.t_decoherence_par / ke_tot) / dE)
+                clone_dE[istate] = dE
 
         print "clone_dE =\n", clone_dE
         return clone_dE

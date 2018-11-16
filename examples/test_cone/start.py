@@ -22,13 +22,13 @@ t0 = 0.0
 ts = 0.05
 
 # final simulation time
-tfinal = 60.0
+tfinal = 100.0
 
 # number of dimensions                                                                                           
 numdims = 1
 
 # number of electronic states                                                                                                                    
-numstates = 3
+numstates = 5
 
 # trajectory parameters
 traj_params = {
@@ -38,8 +38,6 @@ traj_params = {
     "timestep": ts,
     # final simulation time
     "maxtime": tfinal,
-    # coupling threshhold
-#     "clonethresh": 0.10,
 #     # initial electronic state (indexed such that 0 is the ground state)
 #     "istate": 1,
     # Gaussian widths
@@ -55,7 +53,7 @@ traj_params = {
     #
     "numstates": numstates,
     # How many electronic timesteps in one nuclear (default = 1000)
-    "n_el_steps": 1000
+    "n_el_steps": 1000,    
     }
 
 sim_params = {
@@ -70,7 +68,7 @@ sim_params = {
     # energy shift used in quantum propagation
     "qm_energy_shift": 0.0,
     # cloning probability threshold
-    "p_threshold": 0.1,
+    "p_threshold": 0.17,
     # cloning minimum population parameter
     "pop_threshold": 0.1,
     # type of cloning procedure:
@@ -101,7 +99,6 @@ sim.add_traj(traj1)
 sim.set_parameters(sim_params)
 # begin propagation
 sim.propagate()
-print sim.num_traj_qm
 
 
 
