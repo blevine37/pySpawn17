@@ -19,10 +19,10 @@ potential = "linear_slope"
 t0 = 0.0
 
 # time step
-ts = 0.05
+ts = 0.1
 
 # final simulation time
-tfinal = 100.0
+tfinal = 80.0
 
 # number of dimensions                                                                                           
 numdims = 1
@@ -45,12 +45,15 @@ traj_params = {
     # nuclear masses (in a.u)    
     "masses": np.asarray([1822.0]),
     # initial positions
-    "positions": np.asarray([-0.5]),
+    "positions": np.asarray([-0.2]),
     # inition momenta
-    "momenta": np.asarray([30.0]),
+    "momenta": np.asarray([10.0]),
 #     "momenta": np.asarray([0.3]),
 #     "numdims": numdims,
-    #
+    # Use approximate eigenstates or full Hamiltonian diagonalization
+    "full_H": True,
+    # Size of Krylov subspace for full_H = False 
+#     "krylov_sub_n": 4,
     "numstates": numstates,
     # How many electronic timesteps in one nuclear (default = 1000)
     "n_el_steps": 1000,    
@@ -68,14 +71,13 @@ sim_params = {
     # energy shift used in quantum propagation
     "qm_energy_shift": 0.0,
     # cloning probability threshold
-    "p_threshold": 0.17,
+    "p_threshold": 0.014,
     # cloning minimum population parameter
-    "pop_threshold": 0.1,
+    "pop_threshold": 0.05,
     # type of cloning procedure:
     # "toastate" : cloning on to a state energy of which is different from average
     # "pairwise" : considering each pair, transferring population between them
     "cloning_type": "toastate",
-
 }
 
 # import routines needed for propagation

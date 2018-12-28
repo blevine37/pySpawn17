@@ -46,6 +46,7 @@ class fmsobj(object):
 
     def from_dict(self, **tempdict):
         """Convert dict structure to fmsobj structure"""
+        
         for key in tempdict:
             if isinstance(tempdict[key], types.UnicodeType) :
                 tempdict[key] = str(tempdict[key])
@@ -56,7 +57,8 @@ class fmsobj(object):
                 if isinstance((tempdict[key])[0], types.StringTypes) :
                     if (tempdict[key])[0][0] == "^":
                         for i in range(len(tempdict[key])):
-                            tempdict[key][i] = eval(tempdict[key][i])
+                            print "key =", key
+                            tempdict[key][i] = eval(tempdict[key][i][1:])
                         tempdict[key] = np.asarray(tempdict[key], dtype=np.complex128)
 #new
                     if isinstance((tempdict[key])[0], types.UnicodeType) :
@@ -99,12 +101,12 @@ class fmsobj(object):
         self.from_dict(**tempdict)
 
     def set_parameters(self, params):
-        print "### Setting " + self.__class__.__name__ + " parameters"
+        print "\nSetting " + self.__class__.__name__ + " parameters:"
         for key in params:
             print key + " = " + str(params[key]) 
             if hasattr(self, key):
                 exec("self." + key + "= params[key]")
             else:
-                print "### Parameter " + key + " not found in " + self.__class__.__name__ + ", exiting"
+                print "Parameter " + key + " not found in " + self.__class__.__name__ + ", exiting"
                 quit()
                 

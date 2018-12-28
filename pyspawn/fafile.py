@@ -200,6 +200,9 @@ class fafile(object):
         
         ntraj = self.get_num_traj()
         times = self.datasets["quantum_times"][:, 0]
+        el_pop = self.h5file["sim/el_pop"][:]
+        self.datasets["el_pop"] = el_pop
+
         ntimes = len(times)
         Nstate = np.zeros((ntimes, ntraj+1))
         norm = np.zeros((ntimes))
@@ -227,7 +230,6 @@ class fafile(object):
 #             print "error =", norm[i] - sum_pop
 #         print "S =", S_t
         self.datasets["nuclear_bf_populations"] = Nstate
-    
         if column_filename != None:
             self.write_columnar_data_file("quantum_times", ["nuclear_bf_populations"], column_filename)
 
@@ -256,6 +258,29 @@ class fafile(object):
                 self.write_columnar_data_file(key + "_time",\
                                               [dset_pop],\
                                               column_filename)        
+ 
+    def fill_approx_el_populations(self, column_filename=None):
+        """Calculating electronic state populations assuming no overlap between trajectories
+        NOT FINISHED!!!"""
+        
+        ntraj = self.get_num_traj()
+        times = self.datasets["quantum_times"][:, 0]
+        ntimes = len(times)
+        last_time = times[ntimes - 1]
+        Nstate = np.zeros((ntimes, ntraj+1))
+        n_approx_states = self.get_traj_dataset("00", krylov_sub_n)
+        norm = np.zeros((n_approx_states))
+        
+        for i in range(n_approx_states):
+            nt = self.ntraj[last_time]
+            c_t = self.get_amplitude_vector(last_time)
+            for n in range(nt):
+                norm[i] += np.real(np.dot(np.transpose(np.conjugate(c_t[n])), c_t[n]))\
+                * self.traj_map[n].approx_pop[i]
+
+        self.datasets["approx_el_populations"] = norm
+
+        return 
     
     def write_xyzs(self):
         """Prints out geometries into .xyz file"""

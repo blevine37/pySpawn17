@@ -84,6 +84,7 @@ an.fill_trajectory_populations(column_file_prefix = "Pop")
 an.fill_labels()
 # write files with energy data for each trajectory
 an.fill_trajectory_energies(column_file_prefix="E")
+# an.fill_approx_el_populations()
 # list all datasets
 # an.list_datasets()
 
@@ -105,7 +106,17 @@ for traj in an.datasets["labels"]:
     aven[traj] = an.datasets[traj +"_aven"]
     kinen[traj] = an.datasets[traj + "_kinen"]
     time[traj] = an.datasets[traj + "_time"]
-   
+
+el_pop = an.datasets["el_pop"]
+print "el_pop =", el_pop[-1, :] 
+g5 = plt.figure("Total Electronic Populations")
+for n in range(nstates):
+    plt.plot(time["00"][:], el_pop[:,n], label=str(n) + " state")
+plt.xlabel('Time, au')
+plt.ylabel('Electronic Population, au')
+plt.legend()
+plt.show()
+g5.savefig("Total_El_pop.png")
 # Plotting
 plot_el_population(labels, nstates, colors, linestyles)
 plot_energies(labels, nstates, colors, linestyles)

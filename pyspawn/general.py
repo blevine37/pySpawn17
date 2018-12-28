@@ -18,7 +18,7 @@ def print_splash():
     print " "
 
 def check_files():
-    print "### Checking for files from previous run"
+    print " Checking for files from previous run"
     if os.path.isfile("working.hdf5"):
         print "! working.hdf5 is present.  Are you sure you want to continue?  Exiting"
         quit()

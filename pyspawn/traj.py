@@ -11,6 +11,7 @@ from numpy import dtype
 from pyspawn.potential.linear_slope import propagate_symplectic
 import cmath
 from scipy.optimize import fsolve, root, broyden1
+from datashape.coretypes import int32
 
 class traj(fmsobj):
         
@@ -32,7 +33,7 @@ class traj(fmsobj):
         self.timestep = 0.0
         
         self.numstates = 5
-        self.krylov_sub_n = self.numstates - 1
+        self.krylov_sub_n = self.numstates
         
         self.length_wf = self.numstates
         self.wf = np.zeros((self.numstates, self.length_wf))
@@ -51,9 +52,11 @@ class traj(fmsobj):
         #In the following block there are variables needed for ehrenfest
         self.H_elec = np.zeros((self.numstates, self.numstates), dtype = np.complex128)
         self.first_step = False
+        self.full_H = bool()
         self.new_amp = np.zeros((1), dtype = np.complex128)
         self.rescale_amp = np.zeros((1), dtype = np.complex128)
-        self.n_el_steps = 1000
+        self.n_el_steps = np.zeros((1), dtype = np.int32)
+#         self.n_el_steps = 1000
         self.td_wf_full_ts = np.zeros((self.numstates), dtype = np.complex128)
         self.td_wf = np.zeros((self.numstates), dtype = np.complex128)
         self.mce_amps = np.zeros((self.numstates), dtype = np.complex128)
@@ -63,10 +66,16 @@ class traj(fmsobj):
         self.eigenvecs = np.zeros((self.numstates, self.numstates), dtype = np.complex128)
         self.approx_eigenvecs = np.zeros((self.krylov_sub_n, self.krylov_sub_n),\
                                          dtype = np.complex128)
+        self.approx_energies = np.zeros(self.krylov_sub_n)
+        self.approx_amp = np.zeros((self.krylov_sub_n), dtype = np.complex128)
+        self.approx_pop = np.zeros(self.krylov_sub_n)
+        self.approx_wf_full_ts = np.zeros((self.krylov_sub_n), dtype = np.complex128)
+        self.wf_store_full_ts = np.zeros((self.numstates, self.krylov_sub_n),\
+                                         dtype = np.complex128)
         self.wf_store = np.zeros((self.numstates, self.krylov_sub_n), dtype = np.complex128)
-#         self.clonethresh = 0.0
         self.clone_p = np.zeros((self.numstates, self.numstates))
-        self.clone_E_diff = np.zeros(self.numstates) 
+        self.clone_E_diff = np.zeros(self.numstates)
+        self.clone_E_diff_prev = np.zeros(self.numstates)
     
     def solve_nonlin_system(self, nuc_norm, S12nuc, norm_abk, norm_abi, norm_abj, guess):
     
@@ -206,10 +215,12 @@ class traj(fmsobj):
         self.numstates = parent.numstates
         self.timestep = parent.timestep
         self.maxtime = parent.maxtime
-        
+        self.full_H = parent.full_H
         self.widths = parent.widths
         self.masses = parent.masses
-
+        self.n_el_steps = parent.n_el_steps
+        
+        
         if hasattr(parent,'atoms'):
             self.atoms = parent.atoms
         if hasattr(parent,'civecs'):
@@ -431,12 +442,216 @@ class traj(fmsobj):
         
                 else:
                     return False
+           
+    def init_clone_traj_approx(self, parent, istate, label, nuc_norm):
+        
+        self.numstates = parent.numstates
+        self.timestep = parent.timestep
+        self.maxtime = parent.maxtime
+        self.full_H = parent.full_H
+        self.n_el_steps = parent.n_el_steps
+        
+        self.widths = parent.widths
+        self.masses = parent.masses
+
+        if hasattr(parent,'atoms'):
+            self.atoms = parent.atoms
+        if hasattr(parent,'civecs'):
+            self.civecs = parent.civecs
+            self.ncivecs = parent.ncivecs
+        if hasattr(parent,'orbs'):
+            self.orbs = parent.orbs
+            self.norbs = parent.norbs
+        if hasattr(parent,'prev_wf_positions'):
+            self.prev_wf_positions = parent.prev_wf_positions
+        if hasattr(parent,'electronic_phases'):
+            self.electronic_phases = parent.electronic_phases
+        
+#         self.clonethresh = parent.clonethresh
+        self.potential_specific_traj_copy(parent)
+        
+        time = parent.time
+        self.time = time
+        self.label = label
+        pos_t = parent.positions
+        mom_t = parent.momenta_full_ts
+        tmp_pop = parent.approx_pop
+        tmp_amp = parent.approx_amp
+        tmp_force = parent.av_force
+        tmp_energy = parent.av_energy
+        eigenvals = parent.energies
+#         eigenvectors = parent.approx_eigenvecs
+        tmp_wf = parent.approx_wf_full_ts
+        
+        H_elec, Force = parent.construct_el_H(pos_t)
+        eigenvals, eigenvectors = np.linalg.eigh(H_elec)
+        
+        q, r = np.linalg.qr(parent.wf_store_full_ts)
+
+        Hk = np.dot(np.transpose(np.conjugate(q)), np.dot(H_elec, q))
+        approx_force = np.zeros((self.numdims, self.krylov_sub_n, self.krylov_sub_n),\
+                                dtype=np.complex128) 
+        for n in range(self.numdims):
+            approx_force[n] = np.dot(np.transpose(np.conjugate(q)), np.dot(Force[n], q))
+        
+        approx_e, approx_eigenvecs = np.linalg.eigh(Hk)
+        
+#         tmp_amp = np.dot(np.transpose(np.conjugate(q)), parent.mce_amps)
+#         print "approx_eigenvecs =", eigenvectors
+        print "approx_amp =", tmp_amp
+        print "approx e =", approx_e
+#       During the cloning procedure we look at pairwise decoherence times, all population
+#       is going from istate to jstate. The rest of the amplitudes change too in order to
+#       conserve nuclear norm
+    
+#         norm_abk = 0.0
+#                 
+#         for i in range(self.krylov_sub_n):
+#             if i == istate:
+#                 norm_abi = tmp_pop[i]
+#             else:
+#                 norm_abk += tmp_pop[i]
+#         print "total pop =", sum(tmp_pop)
+#         print "norm_abi =", norm_abi
+#         print "norm_abk =", norm_abk        
+        
+        child_wf = np.zeros((self.krylov_sub_n), dtype=np.complex128) 
+        parent_wf = np.zeros((self.krylov_sub_n), dtype=np.complex128) 
+        
+        for kstate in range(self.krylov_sub_n):
+            if kstate == istate:
+                # the population is removed from this state, so nothing to do here
+                child_wf += approx_eigenvecs[:, kstate] * tmp_amp[kstate] / np.abs(tmp_amp[kstate])
+
+            else:
+                # the rest of the states remain unchanged 
+                parent_wf += approx_eigenvecs[:, kstate] * tmp_amp[kstate]\
+                           / np.sqrt(1 - np.abs(tmp_amp[istate])**2)
+
+        child_wf_T = np.conjugate(np.transpose(child_wf))
+        parent_wf_T = np.conjugate(np.transpose(parent_wf))
+                       
+        child_pop = np.zeros(self.krylov_sub_n)
+        child_amp = np.zeros((self.krylov_sub_n), dtype=np.complex128) 
+        parent_pop = np.zeros(self.krylov_sub_n)
+        parent_amp = np.zeros((self.krylov_sub_n), dtype=np.complex128)         
+
+        for j in range(self.krylov_sub_n):
+            child_amp[j] = np.dot(np.conjugate(approx_eigenvecs[:, j]), child_wf)
+            child_pop[j] = np.real(np.dot(np.conjugate(child_amp[j]), child_amp[j]))
+            parent_amp[j] = np.dot(np.conjugate(approx_eigenvecs[:, j]), parent_wf)
+            parent_pop[j] = np.real(np.dot(np.conjugate(parent_amp[j]), parent_amp[j]))
+        
+        parent_force = np.zeros((self.numdims))    
+        child_force = np.zeros((self.numdims)) 
+#         print "tmp_wf", tmp_wf
+
+        for n in range(self.numdims):
+            parent_force[n] = -np.real(np.dot(np.dot(parent_wf_T, approx_force[n]), parent_wf))
+        for n in range(self.numdims):
+            child_force[n] = -np.real(np.dot(np.dot(child_wf_T, approx_force[n]), child_wf))
+        
+        child_energy = np.real(np.dot(np.dot(np.transpose(np.conjugate(child_wf)), Hk),\
+                                      child_wf))
+        parent_energy = np.real(np.dot(np.dot(np.transpose(np.conjugate(parent_wf)), Hk),\
+                                       parent_wf))
+        
+        approx_e = np.dot(np.transpose(np.conjugate(tmp_wf)), np.dot(Hk, tmp_wf))
+        exact_e = np.dot(np.transpose(np.conjugate(parent.td_wf_full_ts)), np.dot(H_elec, parent.td_wf_full_ts))
+        print "exact e =", exact_e
+        print "approx_e =", approx_e
+        print "Child E =", child_energy
+        print "Parent E =", parent_energy
+        print "child_pop =", child_pop
+        print "parent_pop", parent_pop
+#         sys.exit()
+        
+        print "Rescaling child's momentum:"
+        child_rescale_ok, child_rescaled_momenta = self.rescale_momentum(tmp_energy,\
+                                                                         child_energy,\
+                                                                         mom_t) 
+        if child_rescale_ok:
+
+            parent_E_total = tmp_energy + parent.calc_kin_en(mom_t, parent.masses)
+            child_E_total = child_energy +\
+            self.calc_kin_en(child_rescaled_momenta, self.masses)
+            print "child_E after rescale =", child_E_total
+            print "parent E before rescale=", parent_E_total 
+            print "Rescaling parent's momentum"
+            parent_rescale_ok, parent_rescaled_momenta\
+            = parent.rescale_momentum(tmp_energy, float(parent_energy), mom_t)
+            if not parent_rescale_ok:
+                return False
+            print "parent E after rescale = ",\
+            parent.calc_kin_en(parent_rescaled_momenta, parent.masses) + parent_energy         
+
+            if parent_rescale_ok:
+                # Setting mintime to current time to avoid backpropagation
+                mintime = parent.time
+                self.mintime = mintime
+                self.firsttime = time
+                self.positions = parent.positions
+    
+                # updating quantum parameters for child    
+                child_wf_orig_basis = np.dot(q, child_wf)
+                self.td_wf_full_ts = child_wf_orig_basis
+                self.td_wf = child_wf_orig_basis
+                approx_amp = np.zeros((self.numstates), dtype=np.complex128) 
+                approx_pop = np.zeros(self.numstates) 
+                for j in range(self.numstates):
+                    approx_amp[j] = np.dot(np.conjugate(np.transpose(eigenvectors[:, j])), child_wf_orig_basis)
+                    approx_pop[j] = np.real(np.dot(np.transpose(np.conjugate(approx_amp[j])), approx_amp[j]))
+                print "child_full_pop", approx_pop
+                self.av_energy = float(child_energy)
+                self.approx_amp = child_amp
+                self.approx_pop = child_pop
+                self.av_force = child_force
+                self.first_step = True
+                self.momenta = child_rescaled_momenta
+                self.momenta_full_ts = child_rescaled_momenta
+                self.eigenvecs = eigenvectors
+                self.energies = eigenvals
+                self.approx_eigenvecs = approx_eigenvecs
+                self.approx_energies = float(approx_e)
+                # IS THIS OK?!
+                self.h5_output()
+                
+                parent_wf_orig_basis = np.dot(q, parent_wf)
+                parent.momenta = parent_rescaled_momenta
+                parent.momenta_full_ts = parent_rescaled_momenta
+                parent.td_wf = parent_wf_orig_basis
+                parent.td_wf_full_ts = parent_wf_orig_basis
+                parent.av_energy = float(parent_energy)
+                parent.approx_amp = parent_amp
+                parent.approx_pop = parent_pop
+                parent.av_force = parent_force
+                parent.energies = eigenvals
+                parent.eigenvecs = eigenvectors
+                parent.approx_eigenvecs = approx_eigenvecs
+                parent.approx_energies = float(approx_e)
+                # this makes sure the parent trajectory in VV propagated as first step
+                # because the wave function is at the full TS, should be half step ahead
+                parent.first_step = True
+                print "parent wf =", parent_wf_orig_basis
+                print "AMP_i coeff=", np.abs(tmp_amp[istate])
+                print "child_pop =", child_pop
+                print "parent_pop =", parent_pop
+                self.rescale_amp[0] = np.abs(tmp_amp[istate])
+                parent.rescale_amp[0] = np.sqrt(1 - np.abs(tmp_amp[istate])**2)
+                print "Rescaling parent amplitude by a factor ", parent.rescale_amp
+                print "Rescaling child amplitude by a factor ", self.rescale_amp
+    #                 sys.exit()
+                return True
+            else:
+                return False
             
     def init_clone_traj_to_a_state(self, parent, istate, label, nuc_norm):
 
         self.numstates = parent.numstates
         self.timestep = parent.timestep
         self.maxtime = parent.maxtime
+        self.full_H = parent.full_H
+        self.n_el_steps = parent.n_el_steps
         
         self.widths = parent.widths
         self.masses = parent.masses
@@ -541,7 +756,9 @@ class traj(fmsobj):
         child_energy = np.real(np.dot(np.dot(np.transpose(np.conjugate(child_wf)), H_elec), child_wf))
         parent_energy = np.real(np.dot(np.dot(np.transpose(np.conjugate(parent_wf)),\
                                               H_elec), parent_wf))
-        
+        print "Child E =", child_energy
+        print "Parent E =", parent_energy        
+#         sys.exit()
         # Also need to update momentum 
 #         self.momenta = mom_t
         
@@ -654,6 +871,7 @@ class traj(fmsobj):
 
         # computing pairwise cloning probabilities
         self.clone_p = self.compute_cloning_probabilities()
+        self.clone_E_diff_prev = self.clone_E_diff
         self.clone_E_diff = self.compute_cloning_E_diff()
         
     def compute_cloning_E_diff(self):
@@ -661,16 +879,19 @@ class traj(fmsobj):
         
         print "Computing cloning parameters"
         
-        m = self.masses
-        ke_tot = 0.0
         clone_dE = np.zeros(self.numstates)
-        for idim in range(self.numdims):
-            ke_tot += 0.5 * self.momenta_full_ts[idim] * self.momenta_full_ts[idim] / m[idim]
-        if ke_tot > 0.0:
+        if self.full_H:
+            clone_dE = np.zeros(self.numstates)
             for istate in range(self.numstates):
                 dE = np.abs(self.energies[istate] - self.av_energy)
                 clone_dE[istate] = dE
-
+        if not self.full_H:
+            clone_dE = np.zeros(self.krylov_sub_n)
+            for istate in range(self.krylov_sub_n):
+                dE = np.abs(self.approx_energies[istate] - self.av_energy)
+                clone_dE[istate] = dE
+            print "clone_dE_approx =", clone_dE
+#             sys.exit()
         print "clone_dE =\n", clone_dE
         return clone_dE
         
@@ -729,7 +950,7 @@ class traj(fmsobj):
 
             getcom = "self." + key 
             tmp = eval(getcom)
-            
+#             print "key =", key
             if n!=1:
                 dset[ipos, 0:n] = tmp[0:n]
             else:

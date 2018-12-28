@@ -15,6 +15,7 @@ import datetime
 import time
 import cmath 
 import copy
+from astropy.coordinates.builtin_frames.utils import norm
 
 class simulation(fmsobj):
     
@@ -29,9 +30,10 @@ class simulation(fmsobj):
 
         # olapmax is the maximum overlap allowed for a spawn.  Above this,
         # the spawn is cancelled
-        self.olapmax = 0.6
+        self.olapmax = 0.1
         
         # if pij > p_threshold  and pop > pop_threshold cloning is initiated 
+        self.num_el_states = 5
         self.pop_threshold = 0.1
         self.p_threshold = 0.03
         self.cloning_type = "toastate"
@@ -51,7 +53,7 @@ class simulation(fmsobj):
 
         # quantum amplitudes
         self.qm_amplitudes = np.zeros(0,dtype=np.complex128)
-
+        self.el_pop = np.zeros(self.num_el_states)
         # energy shift for quantum propagation
         self.qm_energy_shift = 0.0
 
@@ -170,6 +172,7 @@ class simulation(fmsobj):
             
             # propagate quantum variables if possible
             print "\nPropagating quantum amplitudes if we have enough information to do so"
+            
             self.propagate_quantum_as_necessary()
 
             # moved cloning routine into the propagation to update h5 file on time
@@ -179,8 +182,11 @@ class simulation(fmsobj):
             # print restart output - this must be the last line in this loop!
             print "Updating restart output"
             self.restart_output()
-            print "Elapsed wall time: %6.1f" % (time.clock() - t0)    
-        
+            print "Elapsed wall time: %6.1f" % (time.clock() - t0)
+                
+#             if np.shape(self.S)[0] > 1:
+#                 print "S12 =", np.abs(self.S[0,1])
+#             
     def propagate_quantum_as_necessary(self):
         """here we will propagate the quantum amplitudes if we have
         the necessary information to do so.
@@ -211,12 +217,14 @@ class simulation(fmsobj):
 
             print "\nOutputing quantum information to hdf5"
             self.h5_output()
-            
+            self.calc_approx_el_populations()
             print "\nNow we will clone new trajectories if necessary:"
             
             if self.cloning_type == "toastate":
                 self.clone_to_a_state()
                 if self.clone_again:
+                    for key in self.traj:
+                        self.traj[key].compute_cloning_E_diff()
                     self.clone_to_a_state()
             
             if self.cloning_type == "pairwise":
@@ -623,7 +631,6 @@ class simulation(fmsobj):
                             # Number overlap elements that are larger than threshold
                             s = (S > self.olapmax).sum()
                             print "SUM =", s
-                            
                             if s > new_dim:
                                 
                                 print "Aborting cloning due to large overlap with\
@@ -668,13 +675,22 @@ class simulation(fmsobj):
                 """Do we clone to istate?
                 If the following conditions are satisfied then we clone to that state
                 and we're done. If done we go to another state with lower probability"""
-                
+                if self.traj[key].full_H:
+                    pop_to_check = self.traj[key].populations
+                else:
+                    pop_to_check = self.traj[key].approx_pop
+#                 if self.traj[key].clone_E_diff[istate] > self.p_threshold and\
+#                 self.traj[key].populations[istate] > self.pop_threshold:
                 if self.traj[key].clone_E_diff[istate] > self.p_threshold and\
-                self.traj[key].populations[istate] > self.pop_threshold:
+                pop_to_check[istate] > self.pop_threshold and\
+                pop_to_check[istate] < 1.0 - self.pop_threshold and\
+                self.traj[key].clone_E_diff[istate] >= self.traj[key].clone_E_diff_prev[istate]:
                     print "Trajectory " + key + " cloning to ",\
                     istate, " state at time",\
                     self.traj[key].time, "with p =",\
                     self.traj[key].clone_E_diff[istate]
+                    print "pop_to_check", pop_to_check
+                    print "istate", istate
 #                         print self.p_threshold
 
                     label = str(self.traj[key].label) + "b" +\
@@ -690,9 +706,12 @@ class simulation(fmsobj):
 #                                           np.dot(self.S, self.qm_amplitudes)))
                     nuc_norm = 1.0
                     # okay, now we finally decide whether to clone or not
-                    clone_ok = newtraj.init_clone_traj_to_a_state(parent_copy,\
+                    if parent_copy.full_H:
+                        clone_ok = newtraj.init_clone_traj_to_a_state(parent_copy,\
                                                        istate, label, nuc_norm)
-                    
+                    else:
+                        clone_ok = newtraj.init_clone_traj_approx(parent_copy,\
+                                                       istate, label, nuc_norm)                    
                     if clone_ok:
                         
                         """This will be a separate subroutine eventually probably,
@@ -856,9 +875,9 @@ class simulation(fmsobj):
                         print "NORM =", norm
                         
                         # Number overlap elements that are larger than threshold
-                        s = (S > self.olapmax).sum()
+                        s = (abs(S) > self.olapmax).sum()
                         print "SUM =", s
-                        
+                        print "S =", np.abs(S[0,:])
                         if s > new_dim:
                             
                             print "Aborting cloning due to large overlap with\
@@ -942,7 +961,47 @@ class simulation(fmsobj):
                         shutil.move(filename, filename2)
         shutil.copy2("working.hdf5", "sim.hdf5")
         print "hdf5 and json output are synchronized"
+
+    def calc_approx_el_populations(self):
         
+#         n_el_states = self.traj["00"].krylov_sub_n
+#         norm = np.zeros(n_el_states)
+# 
+#         for i in range(n_el_states):
+#             c_t = self.qm_amplitudes
+#             ntraj = len(c_t)
+#             for key in self.traj:
+#                 norm[i] += np.real(np.dot(np.transpose(np.conjugate(c_t[self.traj_map[key]])),\
+#                                           c_t[self.traj_map[key]])) * self.traj[key].approx_pop[i] 
+#         print "APPROX_POP =", norm
+        n_el_states = self.traj["00"].numstates
+        norm = np.zeros(n_el_states)
+
+#         for i in range(n_el_states):
+#             c_t = self.qm_amplitudes
+#             ntraj = len(c_t)
+#             for key in self.traj:
+#                 norm[i] += np.real(np.dot(np.transpose(np.conjugate(c_t[self.traj_map[key]])),\
+#                                           c_t[self.traj_map[key]])) * self.traj[key].populations[i] 
+
+        for i in range(n_el_states):
+            nt = np.shape(self.S)[0]
+            c_t = self.qm_amplitudes
+            S_t = self.S
+            sum_pop = 0.0
+            for key1 in self.traj:
+                pop_ist = 0.0
+                ist = self.traj_map[key1]
+                for key2 in self.traj:
+                    ist2 = self.traj_map[key2]
+                    pop_ist += np.real(0.5 * (np.dot(np.conjugate(c_t[ist]),\
+                                       np.dot(S_t[ist, ist2], c_t[ist2]))\
+                                    + np.dot(np.conjugate(c_t[ist2]),\
+                                       np.dot(S_t[ist2, ist], c_t[ist])))) 
+                norm[i] += pop_ist * self.traj[key1].populations[i]
+                self.el_pop[i] = norm[i]
+        print "APPROX_POP =", norm
+    
     def h5_output(self):
         """"Writes output  to h5 file"""
         
@@ -1014,6 +1073,7 @@ class simulation(fmsobj):
         self.h5_datasets["Sdot"] = ntraj2
         self.h5_datasets["Sinv"] = ntraj2
         self.h5_datasets["num_traj_qm"] = 1
+        self.h5_datasets["el_pop"] = self.num_el_states
         
         self.h5_types = dict()
         self.h5_types["quantum_time"] = "float64"
@@ -1024,6 +1084,7 @@ class simulation(fmsobj):
         self.h5_types["Sdot"] = "complex128"
         self.h5_types["Sinv"] = "complex128"
         self.h5_types["num_traj_qm"] = "int32"
+        self.h5_types["el_pop"] = "float64"
 
     def get_qm_data_from_h5(self):
         """get the necessary geometries and energies from hdf5"""
