@@ -141,7 +141,8 @@ class fafile(object):
                     mull[itime,j] += tmp
         self.datasets["mulliken_populations"] = mull
         if column_filename != None:
-            self.write_columnar_data_file("quantum_times",["mulliken_populations"],column_filename)
+            self.write_columnar_data_file("quantum_times",\
+                                         ["mulliken_populations"], column_filename)
 
         return 
 
@@ -193,7 +194,7 @@ class fafile(object):
         self.datasets[dset_expec] = x
 
         if column_filename != None:
-            self.write_columnar_data_file("quantum_times",[dset_expec],column_filename)
+            self.write_columnar_data_file("quantum_times", [dset_expec], column_filename)
 
     def fill_nuclear_bf_populations(self, column_filename=None):
         """Printing the population on each nuclear bf (BUG!: shuffles the states)"""
@@ -231,7 +232,7 @@ class fafile(object):
 #         print "S =", S_t
         self.datasets["nuclear_bf_populations"] = Nstate
         if column_filename != None:
-            self.write_columnar_data_file("quantum_times", ["nuclear_bf_populations"], column_filename)
+            self.write_columnar_data_file("quantum_times", ["el_pop"], column_filename)
 
         return 
     
@@ -253,11 +254,11 @@ class fafile(object):
             
             self.datasets[dset_pop] = pop
             
-            if column_file_prefix != None:
-                column_filename = column_file_prefix + "_" + key + ".dat"
-                self.write_columnar_data_file(key + "_time",\
-                                              [dset_pop],\
-                                              column_filename)        
+#             if column_file_prefix != None:
+#                 column_filename = column_file_prefix + "_" + key + ".dat"
+#                 self.write_columnar_data_file(key + "_time",\
+#                                               [dset_pop],\
+#                                               column_filename)        
  
     def fill_approx_el_populations(self, column_filename=None):
         """Calculating electronic state populations assuming no overlap between trajectories
@@ -341,11 +342,11 @@ class fafile(object):
             self.datasets[dset_kinen] = kinen
             self.datasets[dset_aven] = av_energy
             
-            if column_file_prefix != None:
-                column_filename = column_file_prefix + "_" + key + ".dat"
-                self.write_columnar_data_file(key + "_time",\
-                                              [dset_kinen, dset_aven, dset_toten],\
-                                              column_filename)
+#             if column_file_prefix != None:
+#                 column_filename = column_file_prefix + "_" + key + ".dat"
+#                 self.write_columnar_data_file(key + "_time",\
+#                                               [dset_kinen, dset_aven, dset_toten],\
+#                                               column_filename)
 
     def fill_trajectory_bonds(self, bonds, column_file_prefix):
         for key in self.labels:
