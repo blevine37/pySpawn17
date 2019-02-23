@@ -33,7 +33,7 @@ class simulation(fmsobj):
         self.olapmax = 0.1
         
         # if pij > p_threshold  and pop > pop_threshold cloning is initiated 
-        self.num_el_states = 5
+        self.num_el_states = 9
         self.pop_threshold = 0.1
         self.p_threshold = 0.03
         self.cloning_type = "toastate"
@@ -174,7 +174,12 @@ class simulation(fmsobj):
             print "\nPropagating quantum amplitudes if we have enough information to do so"
             
             self.propagate_quantum_as_necessary()
-
+            
+            cond_num = np.linalg.cond(self.S)
+            if cond_num > 1000:
+                print "BAD S matrix: condition number =", cond_num, "\nExiting"
+                return
+            
             # moved cloning routine into the propagation to update h5 file on time
 #             print "\nNow we will clone new trajectories if necessary:"
 #             self.clone_as_necessary()
@@ -275,7 +280,7 @@ class simulation(fmsobj):
         cond_num = np.linalg.cond(self.S)
         if cond_num > 500:
             print "BAD S matrix: condition number =", cond_num
-            sys.exit()
+            #sys.exit()
         else:
             print "S condition number =", cond_num
         self.Sinv = np.linalg.inv(self.S)
@@ -976,7 +981,8 @@ class simulation(fmsobj):
 #         print "APPROX_POP =", norm
         n_el_states = self.traj["00"].numstates
         norm = np.zeros(n_el_states)
-
+        print "n_el_states =", n_el_states
+        print norm.shape, self.el_pop.shape
 #         for i in range(n_el_states):
 #             c_t = self.qm_amplitudes
 #             ntraj = len(c_t)
@@ -1050,6 +1056,9 @@ class simulation(fmsobj):
             if self.traj_map[key] < ntraj:
                 labels[self.traj_map[key]] = key
         grp.attrs["labels"] = labels
+        grp.attrs["olapmax"] = self.olapmax
+        grp.attrs["p_threshold"] = self.p_threshold
+        grp.attrs["pop_threshold"] = self.pop_threshold
         
     def create_h5_sim(self, h5f, groupname):
         trajgrp = h5f.create_group(groupname)

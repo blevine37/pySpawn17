@@ -32,8 +32,8 @@ class traj(fmsobj):
 
         self.timestep = 0.0
         
-        self.numstates = 5
-        self.krylov_sub_n = self.numstates
+        self.numstates = 9
+        self.krylov_sub_n = self.numstates - 4
         
         self.length_wf = self.numstates
         self.wf = np.zeros((self.numstates, self.length_wf))
@@ -612,7 +612,7 @@ class traj(fmsobj):
                 self.eigenvecs = eigenvectors
                 self.energies = eigenvals
                 self.approx_eigenvecs = approx_eigenvecs
-                self.approx_energies = float(approx_e)
+#                 self.approx_energies = float(approx_e)
                 # IS THIS OK?!
                 self.h5_output()
                 
@@ -628,7 +628,7 @@ class traj(fmsobj):
                 parent.energies = eigenvals
                 parent.eigenvecs = eigenvectors
                 parent.approx_eigenvecs = approx_eigenvecs
-                parent.approx_energies = float(approx_e)
+#                 parent.approx_energies = float(approx_e)
                 # this makes sure the parent trajectory in VV propagated as first step
                 # because the wave function is at the full TS, should be half step ahead
                 parent.first_step = True
@@ -878,7 +878,7 @@ class traj(fmsobj):
         """Computing the energy differences between each state and the average"""
         
         print "Computing cloning parameters"
-        
+        print "approx_e =", self.approx_energies    
         clone_dE = np.zeros(self.numstates)
         if self.full_H:
             clone_dE = np.zeros(self.numstates)
@@ -888,6 +888,7 @@ class traj(fmsobj):
         if not self.full_H:
             clone_dE = np.zeros(self.krylov_sub_n)
             for istate in range(self.krylov_sub_n):
+                
                 dE = np.abs(self.approx_energies[istate] - self.av_energy)
                 clone_dE[istate] = dE
             print "clone_dE_approx =", clone_dE
@@ -973,6 +974,8 @@ class traj(fmsobj):
         # add some metadata
         trajgrp.attrs["masses"] = self.masses
         trajgrp.attrs["widths"] = self.widths
+        trajgrp.attrs["full_H"] = self.full_H
+        trajgrp.attrs["krylov_sub_n"] = self.krylov_sub_n
         if hasattr(self,"atoms"):
             trajgrp.attrs["atoms"] = self.atoms
         
