@@ -46,7 +46,7 @@ def compute_elec_struct(self):
         
     if np.dot(np.transpose(np.conjugate(wf)), wf)  < 1e-8:
         print "WF = 0, constructing electronic wf for the first timestep", wf
-        wf = eigenvectors[:, 4]
+        wf = eigenvectors[:, -1]
 #         wf = 1 /np.sqrt(self.numstates) * sum(eigenvectors[:, n] for n in range(self.numstates)) 
     else:
         if not self.first_step:
@@ -82,7 +82,7 @@ def compute_elec_struct(self):
     approx_wf = np.dot(np.conjugate(np.transpose(q)), wf)
     
     for j in range(self.krylov_sub_n):
-        approx_amp[j] = np.dot(approx_eigenvecs[:, j], approx_wf)
+        approx_amp[j] = np.dot(np.conjugate(np.transpose(approx_eigenvecs[:, j])), approx_wf)
         approx_pop[j] = np.real(np.dot(np.transpose(np.conjugate(approx_amp[j])), approx_amp[j]))
     
     self.approx_amp = approx_amp
@@ -104,7 +104,13 @@ def compute_elec_struct(self):
         print "WARNING: Norm is not conserved!!! N =", norm  
     
     # DEBUGGING
-    
+    approx_total_e = 0.0
+    approx_total_pop = 0.0
+    for n in range(self.krylov_sub_n):
+        approx_total_e += approx_pop[n]*approx_e[n]
+        approx_total_pop += approx_pop[n]
+    print 'approx_total_pop = ', approx_total_pop
+    print 'approx_total_e = ', approx_total_e
     def print_stuff():
 #         print "ES Time =", self.time
         print "Position =", self.positions
@@ -184,38 +190,65 @@ def construct_el_H(self, x):
     k = 0.005
     w1 = 0.25
     w2 = 0.025
-    delta = 0.025
-       
+    delta = 0.01
+#    print "delta = ", delta
+#    print "k = ", k   
+    
     H_elec = np.zeros((self.numstates, self.numstates))
-    H_elec[0, 0] = w1 * (-x) 
-    H_elec[1, 1] = w2 * x 
-    H_elec[2, 2] = w2 * x - delta
-    H_elec[3, 3] = w2 * x - 2 * delta
-    H_elec[4, 4] = w2 * x - 3 * delta
-#     
-#       
-    H_elec[0, 1] = k #* x
-    H_elec[0, 2] = k #* x
-    H_elec[0, 3] = k #* x     
-    H_elec[0, 4] = k #* x
-     
-    H_elec[1, 0] = k #* x
-    H_elec[2, 0] = k #* x
-    H_elec[3, 0] = k #* x     
-    H_elec[4, 0] = k # * x
-#       
     Hx = np.zeros((self.numstates, self.numstates))
+    H_elec[0, 0] = w1 * (-x)
     Hx[0, 0] = -w1
-    Hx[1, 1] = w2
-    Hx[2, 2] = w2
-    Hx[3, 3] = w2 
-    Hx[4, 4] = w2 
      
+    for n in range(self.numstates-1):
+        if n < 4:
+            H_elec[n+1, n+1] = w2 * x - n*delta 
+            if n!=0 and n!=1:
+                H_elec[0, n+1] = k
+                H_elec[n+1, 0] = k
+            else:
+                H_elec[0, n+1] = k / 5
+                H_elec[n+1, 0] = k / 5
+            Hx[n+1, n+1] = w2
+        
+        else:
+            H_elec[n+1, n+1] = w2 * x - n*delta #- 0.08 
+            if n!=3:
+                H_elec[0, n+1] = k
+                H_elec[n+1, 0] = k
+            else:
+                H_elec[0, n+1] = k / 5
+                H_elec[n+1, 0] = k / 5
+            Hx[n+1, n+1] = w2
+            
+#     H_elec[0, 0] = w1 * (-x) 
+#     H_elec[1, 1] = w2 * x 
+#     H_elec[2, 2] = w2 * x - delta
+#     H_elec[3, 3] = w2 * x - 2 * delta
+#     H_elec[4, 4] = w2 * x - 3 * delta
+# #     
+# #       
+#     H_elec[0, 1] = k #* x
+#     H_elec[0, 2] = k #* x
+#     H_elec[0, 3] = k #* x     
+#     H_elec[0, 4] = k #* x
+#       
+#     H_elec[1, 0] = k #* x
+#     H_elec[2, 0] = k #* x
+#     H_elec[3, 0] = k #* x     
+#     H_elec[4, 0] = k # * x
+# # #       
+# #     
+#     Hx[0, 0] = -w1
+#     Hx[1, 1] = w2
+#     Hx[2, 2] = w2
+#     Hx[3, 3] = w2 
+#     Hx[4, 4] = w2 
+#      
 #     Hx[0, 1] = k
 #     Hx[0, 2] = k
 #     Hx[0, 3] = k
 #     Hx[0, 4] = k
-#      
+#       
 #     Hx[1, 0] = k
 #     Hx[2, 0] = k
 #     Hx[3, 0] = k
@@ -283,9 +316,9 @@ def symplectic_backprop(self, H, wf, el_timestep, nsteps, n_krylov):
         c_r_dot = np.dot(H, c_i)
         c_r = c_r - 0.5 * el_timestep * c_r_dot  
     
-        self.wf_store_full_ts[:, n_krylov-n-1] = c_r + 1j * c_i 
+        self.wf_store_full_ts[:, n_krylov-n-1] = c_r + 1j * c_i
     
-#     print "wf_store =\n", self.wf_store   
+    print "wf_store =\n", self.wf_store   
 #     print "wf_store_full_ts =\n", self.wf_store_full_ts
     self.wf_store = self.wf_store_full_ts.copy()
 #     print "wf =", wf
@@ -303,6 +336,8 @@ def init_h5_datasets(self):
     self.h5_datasets["momenta"] = self.numdims
     self.h5_datasets["populations"] = self.numstates
     self.h5_datasets["td_wf_full_ts"] = self.numstates
+    self.h5_datasets["approx_energies"] = self.krylov_sub_n
+    self.h5_datasets['approx_pop'] = self.krylov_sub_n
     
 def potential_specific_traj_copy(self,from_traj):
     return
