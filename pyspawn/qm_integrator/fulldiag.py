@@ -24,7 +24,7 @@ def qm_propagate_step(self, zoutput_first_step=False):
     self.build_Heff_half_timestep()
     norm = np.dot(np.conjugate(np.transpose(amps_t)), np.dot(self.S, amps_t))
 #     print "amps =", amps_t
-    print "Norm first half =", norm    
+    #print "Norm first half =", norm    
     # output the first step before propagating
     if zoutput_first_step:
         self.h5_output()
@@ -83,8 +83,9 @@ def qm_propagate_step(self, zoutput_first_step=False):
      
     norm = np.dot(np.conjugate(np.transpose(amps)), np.dot(self.S, amps))
 
-    print "Norm second half =", norm
-    
+    #print "Norm second half =", norm
+    if abs(norm-1.0) > 0.01:
+        print "Warning: nuclear norm deviated from 1: norm =", norm 
     print "Done with quantum propagation"            
 
 ######################################################

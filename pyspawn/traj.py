@@ -33,7 +33,7 @@ class traj(fmsobj):
         self.timestep = 0.0
         
         self.numstates = 9
-        self.krylov_sub_n = self.numstates - 4
+        self.krylov_sub_n = self.numstates - 2
         
         self.length_wf = self.numstates
         self.wf = np.zeros((self.numstates, self.length_wf))
@@ -56,7 +56,6 @@ class traj(fmsobj):
         self.new_amp = np.zeros((1), dtype = np.complex128)
         self.rescale_amp = np.zeros((1), dtype = np.complex128)
         self.n_el_steps = np.zeros((1), dtype = np.int32)
-#         self.n_el_steps = 1000
         self.td_wf_full_ts = np.zeros((self.numstates), dtype = np.complex128)
         self.td_wf = np.zeros((self.numstates), dtype = np.complex128)
         self.mce_amps = np.zeros((self.numstates), dtype = np.complex128)
@@ -72,13 +71,19 @@ class traj(fmsobj):
         self.approx_wf_full_ts = np.zeros((self.krylov_sub_n), dtype = np.complex128)
         self.wf_store_full_ts = np.zeros((self.numstates, self.krylov_sub_n),\
                                          dtype = np.complex128)
+        
         self.wf_store = np.zeros((self.numstates, self.krylov_sub_n), dtype = np.complex128)
         self.clone_p = np.zeros((self.numstates, self.numstates))
         self.clone_E_diff = np.zeros(self.numstates)
         self.clone_E_diff_prev = np.zeros(self.numstates)
     
     def solve_nonlin_system(self, nuc_norm, S12nuc, norm_abk, norm_abi, norm_abj, guess):
-    
+        """This solves the system of nonlinear equations numerically, this system emerges if we use
+        the pairwise decoherence since we need to ensure the nuclear norm conservation.
+        Seems like this is not a good approach since this yields multiple solutions which 
+        have wildly different population distributions
+        The equations and Jacobian are hardcoded since they don't change from system to system"""
+        
         def Jacobian(X, *data):
             S12nuc, norm_abk, norm_abi, norm_abj, nuc_norm = data
             J = np.zeros((6, 6))
@@ -211,6 +216,9 @@ class traj(fmsobj):
         self.firsttime = t
         
     def init_clone_traj(self, parent, istate, jstate, label, nuc_norm):
+        """Initializing cloned trajectory (pairwise decoherence version). 
+        !!! Does not seem to be working, rescaling of amplitudes of trajectories 
+        that are not a part of cloning event is probably a bad idea"""
 
         self.numstates = parent.numstates
         self.timestep = parent.timestep
@@ -444,13 +452,17 @@ class traj(fmsobj):
                     return False
            
     def init_clone_traj_approx(self, parent, istate, label, nuc_norm):
+        """Initialize cloned trajectory (cloning to a state) from approximate eigenstates"""
         
         self.numstates = parent.numstates
         self.timestep = parent.timestep
         self.maxtime = parent.maxtime
         self.full_H = parent.full_H
         self.n_el_steps = parent.n_el_steps
-        
+#         print "parent_krylov_sub_n", parent.krylov_sub_n
+#         print "child_krylov_sub_n", self.krylov_sub_n
+#         self.krylov_sub_n = parent.krylov_sub_n
+#         print "child_krylov_sub_n", self.krylov_sub_n
         self.widths = parent.widths
         self.masses = parent.masses
 
@@ -486,6 +498,8 @@ class traj(fmsobj):
         H_elec, Force = parent.construct_el_H(pos_t)
         eigenvals, eigenvectors = np.linalg.eigh(H_elec)
         
+        # Transforming full Hamiltonian into Krylov subspace using electronic wf from the previous 
+        # electronic timesteps 
         q, r = np.linalg.qr(parent.wf_store_full_ts)
 
         Hk = np.dot(np.transpose(np.conjugate(q)), np.dot(H_elec, q))
@@ -499,21 +513,7 @@ class traj(fmsobj):
 #         tmp_amp = np.dot(np.transpose(np.conjugate(q)), parent.mce_amps)
 #         print "approx_eigenvecs =", eigenvectors
         print "approx_amp =", tmp_amp
-        print "approx e =", approx_e
-#       During the cloning procedure we look at pairwise decoherence times, all population
-#       is going from istate to jstate. The rest of the amplitudes change too in order to
-#       conserve nuclear norm
-    
-#         norm_abk = 0.0
-#                 
-#         for i in range(self.krylov_sub_n):
-#             if i == istate:
-#                 norm_abi = tmp_pop[i]
-#             else:
-#                 norm_abk += tmp_pop[i]
-#         print "total pop =", sum(tmp_pop)
-#         print "norm_abi =", norm_abi
-#         print "norm_abk =", norm_abk        
+        print "approx e =", approx_e      
         
         child_wf = np.zeros((self.krylov_sub_n), dtype=np.complex128) 
         parent_wf = np.zeros((self.krylov_sub_n), dtype=np.complex128) 
@@ -557,7 +557,8 @@ class traj(fmsobj):
                                        parent_wf))
         
         approx_e = np.dot(np.transpose(np.conjugate(tmp_wf)), np.dot(Hk, tmp_wf))
-        exact_e = np.dot(np.transpose(np.conjugate(parent.td_wf_full_ts)), np.dot(H_elec, parent.td_wf_full_ts))
+        exact_e = np.dot(np.transpose(np.conjugate(parent.td_wf_full_ts)), np.dot(H_elec, \
+                                                                                  parent.td_wf_full_ts))
         print "exact e =", exact_e
         print "approx_e =", approx_e
         print "Child E =", child_energy
@@ -599,8 +600,10 @@ class traj(fmsobj):
                 approx_amp = np.zeros((self.numstates), dtype=np.complex128) 
                 approx_pop = np.zeros(self.numstates) 
                 for j in range(self.numstates):
-                    approx_amp[j] = np.dot(np.conjugate(np.transpose(eigenvectors[:, j])), child_wf_orig_basis)
-                    approx_pop[j] = np.real(np.dot(np.transpose(np.conjugate(approx_amp[j])), approx_amp[j]))
+                    approx_amp[j] = np.dot(np.conjugate(np.transpose(eigenvectors[:, j])),\
+                                           child_wf_orig_basis)
+                    approx_pop[j] = np.real(np.dot(np.transpose(np.conjugate(approx_amp[j])),\
+                                                   approx_amp[j]))
                 print "child_full_pop", approx_pop
                 self.av_energy = float(child_energy)
                 self.approx_amp = child_amp
@@ -646,7 +649,9 @@ class traj(fmsobj):
                 return False
             
     def init_clone_traj_to_a_state(self, parent, istate, label, nuc_norm):
-
+        """Initialize cloned trajectory (cloning to a state, same way as in original 
+        paper on AIMC"""
+        
         self.numstates = parent.numstates
         self.timestep = parent.timestep
         self.maxtime = parent.maxtime
@@ -685,11 +690,8 @@ class traj(fmsobj):
         tmp_wf = self.td_wf_full_ts
         H_elec, Force = self.construct_el_H(pos_t)
         eigenvals, eigenvectors = lin.eigh(H_elec)
-
-#       During the cloning procedure we look at pairwise decoherence times, all population
-#       is going from istate to jstate. The rest of the amplitudes change too in order to
-#       conserve nuclear norm
-    
+        
+        #### Check norm conservation ####
         norm_abk = 0.0
                 
         for i in range(self.numstates):
@@ -701,6 +703,7 @@ class traj(fmsobj):
         print "total pop =", sum(tmp_pop)
         print "norm_abi =", norm_abi
         print "norm_abk =", norm_abk        
+        #################################
         
         child_wf = np.zeros((self.numstates), dtype=np.complex128) 
         parent_wf = np.zeros((self.numstates), dtype=np.complex128) 
@@ -716,14 +719,18 @@ class traj(fmsobj):
                            / np.sqrt(1 - np.abs(tmp_amp[istate])**2)
 #             if kstate == istate:
 #                 # the population is removed from this state, so nothing to do here
-#                 scaling_factor = np.sqrt(1 + np.dot(np.transpose(np.conjugate(tmp_amp[jstate])), tmp_amp[jstate])\
-#                                          / np.dot(np.transpose(np.conjugate(tmp_amp[kstate])), tmp_amp[kstate]))
+#                 scaling_factor = np.sqrt(1 + np.dot(np.transpose(np.conjugate(tmp_amp[jstate])),\
+#                                                                               tmp_amp[jstate])\
+#                                          / np.dot(np.transpose(np.conjugate(tmp_amp[kstate])),\
+#                                                                             tmp_amp[kstate]))
 #                 parent_wf += eigenvectors[:, kstate] * tmp_amp[kstate] * scaling_factor
 #              
 #             elif kstate == jstate:
 #                 # the population from istate is transferred to jstate
-#                 scaling_factor = np.sqrt(1 + np.dot(np.transpose(np.conjugate(tmp_amp[istate])), tmp_amp[istate])\
-#                                          / np.dot(np.transpose(np.conjugate(tmp_amp[kstate])), tmp_amp[kstate]))
+#                 scaling_factor = np.sqrt(1 + np.dot(np.transpose(np.conjugate(tmp_amp[istate])),\
+#                                                                                 tmp_amp[istate])\
+#                                          / np.dot(np.transpose(np.conjugate(tmp_amp[kstate])),\
+#                                                                             tmp_amp[kstate]))
 #                 child_wf += eigenvectors[:, kstate] * tmp_amp[kstate] * scaling_factor
 #              
 #             else:
@@ -878,22 +885,22 @@ class traj(fmsobj):
         """Computing the energy differences between each state and the average"""
         
         print "Computing cloning parameters"
-        print "approx_e =", self.approx_energies    
         clone_dE = np.zeros(self.numstates)
+        
         if self.full_H:
             clone_dE = np.zeros(self.numstates)
             for istate in range(self.numstates):
                 dE = np.abs(self.energies[istate] - self.av_energy)
                 clone_dE[istate] = dE
+        
         if not self.full_H:
             clone_dE = np.zeros(self.krylov_sub_n)
             for istate in range(self.krylov_sub_n):
                 
                 dE = np.abs(self.approx_energies[istate] - self.av_energy)
                 clone_dE[istate] = dE
-            print "clone_dE_approx =", clone_dE
-#             sys.exit()
-        print "clone_dE =\n", clone_dE
+#             print "clone_dE_approx =", clone_dE
+#         print "clone_dE =\n", clone_dE
         return clone_dE
         
     def compute_cloning_probabilities(self):
@@ -952,6 +959,9 @@ class traj(fmsobj):
             getcom = "self." + key 
             tmp = eval(getcom)
 #             print "key =", key
+            if key == 'wf_store':
+                tmp = np.ndarray.flatten(np.real(tmp))
+            
             if n!=1:
                 dset[ipos, 0:n] = tmp[0:n]
             else:
@@ -966,7 +976,7 @@ class traj(fmsobj):
         trajgrp = h5f.create_group(groupname)
         for key in self.h5_datasets:
             n = self.h5_datasets[key]
-            if key == "td_wf" or key == "mce_amps" or key == "td_wf_full_ts":
+            if key == "td_wf" or key == "mce_amps" or key == "td_wf_full_ts" or key == "approx_wf_full_ts":
                 dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n), dtype="complex128")
             else:
                 dset = trajgrp.create_dataset(key, (0,n), maxshape=(None,n), dtype="float64")
@@ -1004,8 +1014,7 @@ class traj(fmsobj):
     def get_all_qm_data_at_time_from_h5(self, t, suffix=""):
         """This subroutine pulls all arrays from the trajectory at a certain time and assigns
         results to the same variable names with _qm suffix. The _qm variables essentially
-        match the values at _t, added for clarity. 
-        !!!!!WRONG? _tpdt?"""
+        match the values at _t, added for clarity."""
         
         h5f = h5py.File("working.hdf5", "r")
         groupname = "traj_" + self.label

@@ -20,7 +20,8 @@ def compute_elec_struct(self):
     that intersect a single state with a different slope 
     This subroutine solves the electronic SE and propagates electronic 
     ehrenfest wave function one nuclear time step that's split into 
-    smaller electronic timesteps"""
+    smaller electronic timesteps.
+    The propagation using approximate eigenstates is also coded here"""
     
     n_krylov = self.krylov_sub_n
     
@@ -46,7 +47,7 @@ def compute_elec_struct(self):
         
     if np.dot(np.transpose(np.conjugate(wf)), wf)  < 1e-8:
         print "WF = 0, constructing electronic wf for the first timestep", wf
-        wf = eigenvectors[:, -1]
+        wf = eigenvectors[:, -1] # starting on the highest energy state
 #         wf = 1 /np.sqrt(self.numstates) * sum(eigenvectors[:, n] for n in range(self.numstates)) 
     else:
         if not self.first_step:
@@ -96,6 +97,8 @@ def compute_elec_struct(self):
     self.mce_amps = amp
     self.td_wf_full_ts = np.complex128(wf)
     self.populations = pop
+    
+    # To test single passage only
     if self.momenta[0] < 0:
         print "The trajectory reached the inflection point: exiting"
         sys.exit()
@@ -107,17 +110,21 @@ def compute_elec_struct(self):
     approx_total_e = 0.0
     approx_total_pop = 0.0
     for n in range(self.krylov_sub_n):
-        approx_total_e += approx_pop[n]*approx_e[n]
+        approx_total_e += approx_pop[n] * approx_e[n]
         approx_total_pop += approx_pop[n]
-    print 'approx_total_pop = ', approx_total_pop
-    print 'approx_total_e = ', approx_total_e
+    
+    
     def print_stuff():
+        """Prints variables for debugging"""
+        print 'approx_total_pop = ', approx_total_pop
+        print 'approx_total_e = ', approx_total_e
 #         print "ES Time =", self.time
         print "Position =", self.positions
 #         print "Hamiltonian =\n", H_elec
 #         print "positions =", self.positions
 #         print "momentum =", self.momenta
-#         print "H_elec =\n", H_elec
+        
+
         print "Average energy =", self.av_energy
 #         print "wf_store =", self.wf_store_full_ts
         print "Energies =", ss_energies
@@ -131,69 +138,26 @@ def compute_elec_struct(self):
         print "population =", self.populations 
         print "norm =", sum(pop)
 #         print "amps =", amp
-    print_stuff()
+    #print_stuff()
     # DEBUGGING
     
     # This part performs the propagation of the electronic wave function 
     # for ehrenfest dynamics at a half step and save it
     wf = propagate_symplectic(self, H_elec, wf, self.timestep/2, n_el_steps/2, n_krylov)
-
+    
+    # Saving electronic wf and Hamiltonian
     self.td_wf = wf
     self.H_elec = H_elec
-    
-#     phasing wave function to match previous time step
-#     W = np.matmul(prev_wf,wf.T)
-#      
-#     if W[0,0] < 0.0:
-#         wf[0,:] = -1.0 * wf[0,:]
-#         W[:,0] = -1.0 * W[:,0]
-#      
-#     if W[1,1] < 0.0:
-#         wf[1,:] = -1.0 * wf[1,:]
-#         W[:,1] = -1.0 * W[:,1]
   
 def construct_el_H(self, x):
-    """Constructing the 2D potential (Jahn-Teller model) and computing d/dx, d/dy for
+    """Constructing n state 1D system and computing d/dx, d/dy for
     force computation. Later will be replaced with the electronic structure program call"""
-    
-    # 2 state 1D system ##############################
-#     a = 6
-#     k = 0.005
-#     w = 0.25
-#     delta = 0.01
-# #       
-#     H_elec = np.zeros((self.numstates, self.numstates))
-#     H_elec[0, 0] = w * (-x) 
-#     H_elec[1, 1] = w * x 
-#     H_elec[1, 0] = k
-#     H_elec[0, 1] = k
-#     H_elec[2, 2] = w * x - delta
-#       
-#     H_elec[2, 1] = k * x
-#     H_elec[2, 0] = k * x
-#          
-#     H_elec[1, 2] = k * x
-#     H_elec[0, 2] = k * x
-#       
-#     Hx = np.zeros((self.numstates, self.numstates))
-#     Hx[0, 0] = -w
-#     Hx[1, 1] = w
-#     Hx[2, 2] = w
-#       
-#     Hx[2, 1] = k
-#     Hx[2, 0] = k
-#     Hx[1, 2] = k
-#     Hx[0, 2] = k
 
-    # 5 state 1D system ##############################
-    a = 6
-    k = 0.005
-    w1 = 0.25
-    w2 = 0.025
-    delta = 0.01
-#    print "delta = ", delta
-#    print "k = ", k   
-    
+    k = 0.005 # off-diagonal coupling matrix elements
+    w1 = 0.25 # slope 1
+    w2 = 0.025 # slope 2
+    delta = 0.01 # gap between diabatic states
+
     H_elec = np.zeros((self.numstates, self.numstates))
     Hx = np.zeros((self.numstates, self.numstates))
     H_elec[0, 0] = w1 * (-x)
@@ -206,8 +170,8 @@ def construct_el_H(self, x):
                 H_elec[0, n+1] = k
                 H_elec[n+1, 0] = k
             else:
-                H_elec[0, n+1] = k / 5
-                H_elec[n+1, 0] = k / 5
+                H_elec[0, n+1] = k #/ 5
+                H_elec[n+1, 0] = k #/ 5
             Hx[n+1, n+1] = w2
         
         else:
@@ -216,59 +180,10 @@ def construct_el_H(self, x):
                 H_elec[0, n+1] = k
                 H_elec[n+1, 0] = k
             else:
-                H_elec[0, n+1] = k / 5
-                H_elec[n+1, 0] = k / 5
+                H_elec[0, n+1] = k #/ 5
+                H_elec[n+1, 0] = k #/ 5
             Hx[n+1, n+1] = w2
-            
-#     H_elec[0, 0] = w1 * (-x) 
-#     H_elec[1, 1] = w2 * x 
-#     H_elec[2, 2] = w2 * x - delta
-#     H_elec[3, 3] = w2 * x - 2 * delta
-#     H_elec[4, 4] = w2 * x - 3 * delta
-# #     
-# #       
-#     H_elec[0, 1] = k #* x
-#     H_elec[0, 2] = k #* x
-#     H_elec[0, 3] = k #* x     
-#     H_elec[0, 4] = k #* x
-#       
-#     H_elec[1, 0] = k #* x
-#     H_elec[2, 0] = k #* x
-#     H_elec[3, 0] = k #* x     
-#     H_elec[4, 0] = k # * x
-# # #       
-# #     
-#     Hx[0, 0] = -w1
-#     Hx[1, 1] = w2
-#     Hx[2, 2] = w2
-#     Hx[3, 3] = w2 
-#     Hx[4, 4] = w2 
-#      
-#     Hx[0, 1] = k
-#     Hx[0, 2] = k
-#     Hx[0, 3] = k
-#     Hx[0, 4] = k
-#       
-#     Hx[1, 0] = k
-#     Hx[2, 0] = k
-#     Hx[3, 0] = k
-#     Hx[4, 0] = k
-
-    ####################################################
-    
-    # 5 parallel states, no coupling
-#     w = 0.5
-#     delta = 0.1
-#       
-#     H_elec = np.zeros((self.numstates, self.numstates))
-#     H_elec[0, 0] = w  
-#     H_elec[1, 1] = w - delta 
-#     H_elec[2, 2] = w - 2 * delta
-#     H_elec[3, 3] = w - 3 * delta
-#     H_elec[4, 4] = w - 4 * delta
-#        
-#     Hx = np.zeros((self.numstates, self.numstates))
-    
+              
     Force = [Hx]    
     
     return H_elec, Force
@@ -300,7 +215,8 @@ def propagate_symplectic(self, H, wf, timestep, nsteps, n_krylov):
     return wf
  
 def symplectic_backprop(self, H, wf, el_timestep, nsteps, n_krylov):
-    """Symplectic split propagator, similar to classical Velocity-Verlet"""
+    """Immediately after cloning we do not have the electronic wf from previous steps since the
+    wf is split into two, so we backpropagate it for both parent and child"""
     
 #     approx_eig = np.zeros((self.numstates, n_krylov), dtype = np.complex128)
     c_r = np.real(wf)
@@ -338,6 +254,8 @@ def init_h5_datasets(self):
     self.h5_datasets["td_wf_full_ts"] = self.numstates
     self.h5_datasets["approx_energies"] = self.krylov_sub_n
     self.h5_datasets['approx_pop'] = self.krylov_sub_n
+    self.h5_datasets['wf_store'] = self.krylov_sub_n * self.numstates
+    self.h5_datasets['approx_wf_full_ts'] = self.krylov_sub_n
     
 def potential_specific_traj_copy(self,from_traj):
     return
