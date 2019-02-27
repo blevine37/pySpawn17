@@ -884,7 +884,7 @@ class simulation(fmsobj):
                         print "total pop before rescale =", pop_n + pop_12n + pop_12
                         traj_1.new_amp = new_amp_1 * x
                         traj_2.new_amp = new_amp_2 * x
-                        
+                         
                         # For debugging purposes
                         amps[ind_1] = traj_1.new_amp
                         amps[ind_2] = traj_2.new_amp
