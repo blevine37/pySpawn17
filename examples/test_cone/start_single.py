@@ -3,11 +3,22 @@ import numpy as np
 import pyspawn        
 import pyspawn.general
 import os
+
+# Minimum population of electronic state for cloning to occur to it
 pop_thresh = 0.05
+
+# Minimum energy gap for cloning to occur
 p_thresh = 0.05
+
+# Maximum overlap threshold, if higher -> no cloning
 olapmax = 0.5
 
-    
+# Use real eigenstates or approximate (Krylov subspace)
+full_H = False
+
+# Size of Krylov subspace
+krylov_sub_n = 5   
+
 # Velocity Verlet classical propagator
 clas_prop = "vv"
 
@@ -56,9 +67,9 @@ traj_params = {
 #     "momenta": np.asarray([0.3]),
 #     "numdims": numdims,
     # Use approximate eigenstates or full Hamiltonian diagonalization
-    "full_H": False,
+    "full_H": full_H,
     # Size of Krylov subspace for full_H = False 
-#     "krylov_sub_n": 4,
+#     "krylov_sub_n": krylov_sub_n,
     "numstates": numstates,
     # How many electronic timesteps in one nuclear (default = 1000)
     "n_el_steps": 1000,    
@@ -97,7 +108,9 @@ exec("pyspawn.import_methods.into_traj(pyspawn.classical_integrator." + clas_pro
 pyspawn.general.check_files()    
 
 # set up first trajectory
-traj1 = pyspawn.traj()
+if full_H: krylov_sub_n = numstates
+traj1 = pyspawn.traj(numdims, numstates, krylov_sub_n)
+# traj1.krylov_sub_n = krylov_sub_n
 # traj1.set_numstates(numstates)
 # traj1.set_numdims(numdims)
 traj1.set_parameters(traj_params)

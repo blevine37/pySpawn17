@@ -475,7 +475,8 @@ class simulation(fmsobj):
                         label = str(self.traj[key].label) + "b" +\
                         str(self.traj[key].numchildren)
                         # create and initiate new trajectory structure
-                        newtraj = traj()
+                        newtraj = traj(self.traj[key].numdims, self.traj[key].numstates,\
+                                       self.traj[key].krylov_sub_n)
                         
                         # making a copy of a parent BF in order not to overwrite the original
                         # in case cloning fails due to large overlap 
@@ -714,7 +715,8 @@ class simulation(fmsobj):
                     label = str(self.traj[key].label) + "b" +\
                     str(self.traj[key].numchildren)
                     # create and initiate new trajectory structure
-                    newtraj = traj()
+                    newtraj = traj(self.traj[key].numdims, self.traj[key].numstates,\
+                                   self.traj[key].krylov_sub_n)
                     
                     # making a copy of a parent BF in order not to overwrite the original
                     # in case cloning fails due to large overlap 

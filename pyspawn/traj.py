@@ -15,10 +15,13 @@ from datashape.coretypes import int32
 
 class traj(fmsobj):
         
-    numdims = 1
+    #numdims = 1
     t_decoherence_par = 0.1
         
-    def __init__(self):
+    def __init__(self, numdims, numstates, krylov_sub_n):
+        
+        self.numdims = numdims
+        
         self.time = 0.0
         self.maxtime = -1.0
         self.mintime = 0.0
@@ -32,8 +35,8 @@ class traj(fmsobj):
 
         self.timestep = 0.0
         
-        self.numstates = 9
-        self.krylov_sub_n = self.numstates - 2
+        self.numstates = numstates
+        self.krylov_sub_n = krylov_sub_n
         
         self.length_wf = self.numstates
         self.wf = np.zeros((self.numstates, self.length_wf))
@@ -454,7 +457,6 @@ class traj(fmsobj):
     def init_clone_traj_approx(self, parent, istate, label, nuc_norm):
         """Initialize cloned trajectory (cloning to a state) from approximate eigenstates"""
         
-        self.numstates = parent.numstates
         self.timestep = parent.timestep
         self.maxtime = parent.maxtime
         self.full_H = parent.full_H
