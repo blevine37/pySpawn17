@@ -896,6 +896,7 @@ class simulation(fmsobj):
                         s = (abs(S) > self.olapmax).sum()
 #                         print "SUM =", s
 #                         print "S =", np.abs(S[0,:])
+                        
                         if s > new_dim:
                             
                             print "Aborting cloning due to large overlap with existing trajectory"

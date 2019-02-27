@@ -566,7 +566,6 @@ class traj(fmsobj):
         print "Parent E =", parent_energy
         print "child_pop =", child_pop
         print "parent_pop", parent_pop
-#         sys.exit()
         
         print "Rescaling child's momentum:"
         child_rescale_ok, child_rescaled_momenta = self.rescale_momentum(tmp_energy,\
