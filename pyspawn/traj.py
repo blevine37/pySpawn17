@@ -546,7 +546,6 @@ class traj(fmsobj):
         
         parent_force = np.zeros((self.numdims))    
         child_force = np.zeros((self.numdims)) 
-#         print "tmp_wf", tmp_wf
 
         for n in range(self.numdims):
             parent_force[n] = -np.real(np.dot(np.dot(parent_wf_T, approx_force[n]), parent_wf))

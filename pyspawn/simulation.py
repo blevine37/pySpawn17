@@ -890,7 +890,7 @@ class simulation(fmsobj):
                         amps[ind_2] = traj_2.new_amp
                         norm = np.dot(np.conjugate(np.transpose(amps)), np.dot(S, amps))
                         
-                        print "NORM =", norm
+#                         print "NORM =", norm
                         
                         # Number overlap elements that are larger than threshold
                         s = (abs(S) > self.olapmax).sum()
