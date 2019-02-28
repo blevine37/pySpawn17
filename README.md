@@ -1,27 +1,13 @@
                                                                                      
                                                                                      
-                          .M"""bgd                                               
-                         ,MI    "Y                                               
-    `7MMpdMAo.`7M'   `MF'`MMb.   `7MMpdMAo.  ,6"Yb.`7M'    ,A    `MF'`7MMpMMMb.  
-      MM   `Wb  VA   ,V    `YMMNq. MM   `Wb 8)   MM  VA   ,VAA   ,V    MM    MM  
-      MM    M8   VA ,V   .     `MM MM    M8  ,pm9MM   VA ,V  VA ,V     MM    MM  
-      MM   ,AP    VVV    Mb     dM MM   ,AP 8M   MM    VVV    VVV      MM    MM  
-      MMbmmd'     ,V     P"Ybmmd"  MMbmmd'  `Moo9^Yo.   W      W     .JMML  JMML.
-      MM         ,V                MM                                            
-    .JMML.    OOb"               .JMML.
-
-
-
-pySpawn17
+Multiple Cloning in Dense Manifolds of States
 =========
 
 version 0.0
-
+Based on the pySpawn code
 created by
-Benjamin G. Levine
+Benjamin G. Levine, Dmitry A. Fedorov
 Michigan State University
-
-A trim but extensible full multiple spawning software package, written in python and distributed under the MIT License.
 
 
 Citation
@@ -29,7 +15,7 @@ Citation
 
 If you use this code, we ask that you cite as follows:
 
-"pySpawn17 is a nonadiabatic molecular dynamics software package written by B. G. Levine"
+"MCDMS is a nonadiabatic molecular dynamics software package written by Dmitry A.Fedorov, B. G. Levine"
 
 This citation will eventually be updated.
 
@@ -43,23 +29,23 @@ See LICENSE file
 Features
 ========
 
-This is an ab initio multiple spawning code written in python.  It is designed to be rather minimalistic, but easily extensible.  Right now, it has the following features:
+This is a code performing multiple cloning in dense manifolds of states simulation written in python.  It is based on the pySpawn code, from which major parts od code are borrowed. However, there are significant algorithmic differences that it is impractical to keep the capabilities of both programs in the single package.  Right MCDMS has the following features:
 
--  Runs in the adiabatic representation with derivative couplings computed via NPI.
--  Interface to (a development version of) TeraChem via the tcpb interface. 
+-  Runs in the diabatic basis on test systems using cloning to a state procedure.
+-  Instead of exact eigenstates, approximate eigenstates can be used (still testing). 
 -  An analysis module for processing of simulation data.
 
-This code is currently under development.  Example jobs are provided.  Documentation is present, but a work in progress.  DGAS is being implemented.  A release is forthcoming after these issues are addressed and the code is more rigorously tested.
+This code is currently under development.
 
 Interfaces
 ==========
 
-At present only an interface for (a development version of) TeraChem is provided, but pySpawn is designed to be readily interfaced with other codes.
+Not available yet
 
 Contact
 =======
 
-pySpawn is developed and maintained primarily by Benjamin G. Levine, levine@chemistry.msu.edu.
+MCDMS is developed and maintained primarily by Dmitry A. Fedorov, fedorovd@chemistry.msu.edu.
 
 
 
