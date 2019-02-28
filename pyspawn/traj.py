@@ -514,8 +514,8 @@ class traj(fmsobj):
         
 #         tmp_amp = np.dot(np.transpose(np.conjugate(q)), parent.mce_amps)
 #         print "approx_eigenvecs =", eigenvectors
-        print "approx_amp =", tmp_amp
-        print "approx e =", approx_e      
+#         print "approx_amp =", tmp_amp
+#         print "approx e =", approx_e      
         
         child_wf = np.zeros((self.krylov_sub_n), dtype=np.complex128) 
         parent_wf = np.zeros((self.krylov_sub_n), dtype=np.complex128) 
@@ -527,9 +527,10 @@ class traj(fmsobj):
 
             else:
                 # the rest of the states remain unchanged 
-                parent_wf += approx_eigenvecs[:, kstate] * tmp_amp[kstate]\
-                           / np.sqrt(1 - np.abs(tmp_amp[istate])**2)
 
+                parent_wf += approx_eigenvecs[:, kstate] * tmp_amp[kstate]\
+                           / np.sqrt(1 - np.dot(np.conjugate(tmp_amp[istate]), tmp_amp[istate]))
+        
         child_wf_T = np.conjugate(np.transpose(child_wf))
         parent_wf_T = np.conjugate(np.transpose(parent_wf))
                        
@@ -560,12 +561,12 @@ class traj(fmsobj):
         approx_e = np.dot(np.transpose(np.conjugate(tmp_wf)), np.dot(Hk, tmp_wf))
         exact_e = np.dot(np.transpose(np.conjugate(parent.td_wf_full_ts)), np.dot(H_elec, \
                                                                                   parent.td_wf_full_ts))
-        print "exact e =", exact_e
-        print "approx_e =", approx_e
-        print "Child E =", child_energy
-        print "Parent E =", parent_energy
-        print "child_pop =", child_pop
-        print "parent_pop", parent_pop
+#         print "exact e =", exact_e
+#         print "approx_e =", approx_e
+#         print "Child E =", child_energy
+#         print "Parent E =", parent_energy
+#         print "child_pop =", child_pop
+#         print "parent_pop", parent_pop
         
         print "Rescaling child's momentum:"
         child_rescale_ok, child_rescaled_momenta = self.rescale_momentum(tmp_energy,\
@@ -635,15 +636,14 @@ class traj(fmsobj):
                 # this makes sure the parent trajectory in VV propagated as first step
                 # because the wave function is at the full TS, should be half step ahead
                 parent.first_step = True
-                print "parent wf =", parent_wf_orig_basis
-                print "AMP_i coeff=", np.abs(tmp_amp[istate])
+#                 print "parent wf =", parent_wf_orig_basis
                 print "child_pop =", child_pop
                 print "parent_pop =", parent_pop
                 self.rescale_amp[0] = np.abs(tmp_amp[istate])
-                parent.rescale_amp[0] = np.sqrt(1 - np.abs(tmp_amp[istate])**2)
-                print "Rescaling parent amplitude by a factor ", parent.rescale_amp
-                print "Rescaling child amplitude by a factor ", self.rescale_amp
-    #                 sys.exit()
+                parent.rescale_amp[0] = np.sqrt(1 - np.dot(np.conjugate(tmp_amp[istate]), tmp_amp[istate]))
+                print "Rescaling parent bf amplitude by a factor ", parent.rescale_amp
+                print "Rescaling child bf amplitude by a factor ", self.rescale_amp
+
                 return True
             else:
                 return False
@@ -884,7 +884,7 @@ class traj(fmsobj):
     def compute_cloning_E_diff(self):
         """Computing the energy differences between each state and the average"""
         
-        print "Computing cloning parameters"
+#         print "Computing cloning parameters"
         clone_dE = np.zeros(self.numstates)
         
         if self.full_H:

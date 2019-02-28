@@ -22,7 +22,7 @@ def compute_elec_struct(self):
     ehrenfest wave function one nuclear time step that's split into 
     smaller electronic timesteps.
     The propagation using approximate eigenstates is also coded here"""
-    
+    print "DEBUG: approx_pop", self.approx_pop
     n_krylov = self.krylov_sub_n
     
     wf = self.td_wf
@@ -59,7 +59,7 @@ def compute_elec_struct(self):
         if self.first_step:
             print "\nFirst step, skipping electronic wave function propagation"
             symplectic_backprop(self, H_elec, wf, el_timestep, n_krylov, n_krylov)
-
+            print "wf_store_full_ts = \n", self.wf_store_full_ts
     wf_T = np.transpose(np.conjugate(wf))
     av_energy = np.real(np.dot(np.dot(wf_T, H_elec), wf))    
 
@@ -113,6 +113,8 @@ def compute_elec_struct(self):
         approx_total_e += approx_pop[n] * approx_e[n]
         approx_total_pop += approx_pop[n]
     
+    print "approx Population = ", approx_pop
+    print "av_energy = ", self.av_energy
     
     def print_stuff():
         """Prints variables for debugging"""
@@ -232,9 +234,10 @@ def symplectic_backprop(self, H, wf, el_timestep, nsteps, n_krylov):
         c_r_dot = np.dot(H, c_i)
         c_r = c_r - 0.5 * el_timestep * c_r_dot  
     
-        self.wf_store_full_ts[:, n_krylov-n-1] = c_r + 1j * c_i
+#         self.wf_store_full_ts[:, n_krylov-n-1] = c_r + 1j * c_i
+        self.wf_store_full_ts[:, n] = c_r + 1j * c_i
     
-    print "wf_store =\n", self.wf_store   
+#     print "wf_store =\n", self.wf_store   
 #     print "wf_store_full_ts =\n", self.wf_store_full_ts
     self.wf_store = self.wf_store_full_ts.copy()
 #     print "wf =", wf

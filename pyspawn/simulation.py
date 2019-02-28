@@ -38,7 +38,7 @@ class simulation(fmsobj):
         # if pij > p_threshold  and pop > pop_threshold cloning is initiated 
         self.pop_threshold = 0.1
         self.p_threshold = 0.03
-        
+        self.nuc_pop_thresh = 0.05
         # Type of cloning: either 'toastate' or 'pairwise'
         # 'pairwise' version seems to be not a good thing to do
         self.cloning_type = "toastate" 
@@ -689,6 +689,13 @@ class simulation(fmsobj):
         for key in self.traj:
 #           # sorting states according to decreasing cloning probability
             istates = (-self.traj[key].clone_E_diff[:]).argsort()
+
+            nuc_pop = self.nuc_pop[self.traj_map[key]] # nuclear population of this trajectory        
+            
+            if nuc_pop < self.nuc_pop_thresh: 
+                print "Trajectory " + key + " can't clone because there is only " + str(round(nuc_pop*100, 2))\
+                 + "% of nuclear population on it"
+                continue # if less than threshold -> do not clone
             
             for istate in istates:
                 """Do we clone to istate?
@@ -707,11 +714,13 @@ class simulation(fmsobj):
                 pop_to_check[istate] < 1.0 - self.pop_threshold and\
                 self.traj[key].clone_E_diff[istate] >= self.traj[key].clone_E_diff_prev[istate]:
                     # the last condition ensures that we clone when gap increases, not decreases
-                    print "Trajectory " + key + " cloning to ",\
-                    istate, " state at time",\
-                    self.traj[key].time, "with p =",\
-                    self.traj[key].clone_E_diff[istate]
-
+                    print "\nTrajectory " + key + " with nuclear population of "+ str(round(nuc_pop*100, 2))\
+                    + "% cloning to " + str(istate) + " state at time " +\
+                    str(self.traj[key].time), "\nwith p = " +\
+                    str(self.traj[key].clone_E_diff[istate])
+                    print "Electronic populations on trajectory " + key + ":"
+                    print self.traj[key].approx_pop
+                    
                     label = str(self.traj[key].label) + "b" +\
                     str(self.traj[key].numchildren)
                     # create and initiate new trajectory structure
@@ -917,6 +926,7 @@ class simulation(fmsobj):
                             # update matrices here in case other trajectories clone
                             self.compute_num_traj_qm()
                             self.build_Heff_half_timestep()
+                            self.calc_approx_el_populations()
                             self.clone_again = True
                             return
                  
@@ -986,9 +996,10 @@ class simulation(fmsobj):
         
         n_el_states = self.traj["00"].numstates
         norm = np.zeros(n_el_states)
-
+        
         for i in range(n_el_states):
             nt = np.shape(self.S)[0]
+            self.nuc_pop = np.zeros(nt)
             c_t = self.qm_amplitudes
             S_t = self.S
             sum_pop = 0.0
@@ -1002,10 +1013,11 @@ class simulation(fmsobj):
                                        np.dot(S_t[ist, ist2], c_t[ist2]))\
                                     + np.dot(np.conjugate(c_t[ist2]),\
                                        np.dot(S_t[ist2, ist], c_t[ist])))) 
-                
+                self.nuc_pop[ist] = pop_ist
                 norm[i] += pop_ist * self.traj[key1].populations[i]
                 self.el_pop[i] = norm[i]
-    
+        print "nuc_pop = ", self.nuc_pop
+        
     def h5_output(self):
         """"Writes output  to h5 file"""
         
@@ -1057,6 +1069,7 @@ class simulation(fmsobj):
         grp.attrs["olapmax"] = self.olapmax
         grp.attrs["p_threshold"] = self.p_threshold
         grp.attrs["pop_threshold"] = self.pop_threshold
+        grp.attrs['nuc_pop_thresh'] = self.nuc_pop_thresh
         
     def create_h5_sim(self, h5f, groupname):
         trajgrp = h5f.create_group(groupname)
