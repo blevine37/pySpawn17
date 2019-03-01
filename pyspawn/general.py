@@ -6,7 +6,7 @@ def print_splash():
     print "\n----------------------------------------------"
     print "Multiple Cloning in Dense Manifolds of states"
     print "Nonadiabatic molecular dynamics software package" +\
-          "written by Benjamin G. Levine, Dmitry A. Fedorov"
+          "written by\nBenjamin G. Levine, Dmitry A. Fedorov"
     print "------------------------------------------------"
 
     print " "
