@@ -95,10 +95,23 @@ class simulation(fmsobj):
                 else:
                     for key2 in tempdict[key]:
                         if isinstance((tempdict[key])[key2],types.DictType) :
-                            fmsobjlabel = ((tempdict[key])[key2]).pop('fmsobjlabel')
-                            obj = eval(fmsobjlabel[8:])()
-                            obj.from_dict(**((tempdict[key])[key2]))
-                            (tempdict[key])[key2] = obj
+                            if key == 'traj' or key == "centroids":
+                                # This is a hack that fixes the previous hack lol
+                                # initially trajectory's init didn't have numstates
+                                # and numdims which caused certain issues
+                                # so I'm adding the variables for traj initialization
+                                # to make restart work 
+                                numdims = tempdict[key][key2]['numdims']
+                                numstates = tempdict[key][key2]['numstates']
+                                fmsobjlabel = ((tempdict[key])[key2]).pop('fmsobjlabel')
+                                obj = eval(fmsobjlabel[8:])(numdims, numstates)
+                                obj.from_dict(**((tempdict[key])[key2]))
+                                (tempdict[key])[key2] = obj
+                            else:
+                                fmsobjlabel = ((tempdict[key])[key2]).pop('fmsobjlabel')
+                                obj = eval(fmsobjlabel[8:])()
+                                obj.from_dict(**((tempdict[key])[key2]))
+                                (tempdict[key])[key2] = obj                        
         self.__dict__.update(tempdict)
 
     # add a trajectory to the simulation
@@ -661,7 +674,7 @@ class simulation(fmsobj):
                     label = str(self.traj[key].get_label() + "b" + str(self.traj[key].get_numchildren()))
 
                     # create and initiate new trajectpory structure
-                    newtraj = traj()
+                    newtraj = traj(self.traj[key].numdims, self.traj[key].numstates)
                     newtraj.init_spawn_traj(self.traj[key], jstate, label)
 
                     # checking to see if overlap with existing trajectories
@@ -670,8 +683,8 @@ class simulation(fmsobj):
 
                     # rescaling velocity.  We'll abort if there is not
                     # enough energy (aka a "frustrated spawn")
-                    z_add_traj_rescale = newtraj.rescale_momentum(self.traj[key].get_energies_tmdt()[self.traj[key].get_istate()])
-
+                    z_add_traj_rescale = newtraj.rescale_momentum(
+                        self.traj[key].get_energies_tmdt()[self.traj[key].get_istate()])
                     # okay, now we finally decide whether to spawn or not
                     if z_add_traj_olap and z_add_traj_rescale:
                         print "## creating new trajectory ", label
@@ -701,7 +714,7 @@ class simulation(fmsobj):
                 centkey = str(key2 + "_a_" + label)
 
                 # create and initiate the trajectory structures!
-                newcent = traj()
+                newcent = traj(self.traj[key].numdims, self.traj[key].numstates)
                 newcent.init_centroid(self.traj[key2],spawntraj[label], centkey)
 
                 # add the centroid

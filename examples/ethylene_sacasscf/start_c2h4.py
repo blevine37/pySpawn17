@@ -4,7 +4,7 @@ import pyspawn
 import pyspawn.general
 
 # random number seed
-seed=87061
+seed=87062
 
 # Velocity Verlet classical propagator
 clas_prop = "vv"
@@ -31,7 +31,7 @@ tfinal = 8000.0
 numdims = 18
 
 # number of electronic states                                                                                                                    
-numstates = 2
+numstates = 3
 
 # TeraChem job options                                                                                    
 tc_options = {
@@ -49,7 +49,7 @@ tc_options = {
     "casscf":        "yes",
     "closed":       7,
     "active":       2,
-    "cassinglets":  2,
+    "cassinglets":  3,
     "castargetmult": 1,
     "cas_energy_states": [0, 1],
     "cas_energy_mults": [1, 1],
@@ -110,7 +110,7 @@ exec("pyspawn.import_methods.into_traj(pyspawn.classical_integrator." + clas_pro
 pyspawn.general.check_files()    
 
 # set up first trajectory
-traj1 = pyspawn.traj()
+traj1 = pyspawn.traj(numdims, numstates)
 traj1.set_numstates(numstates)
 traj1.set_numdims(numdims)
 traj1.set_parameters(traj_params)

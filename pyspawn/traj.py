@@ -8,13 +8,13 @@ import shutil
 import h5py
 
 class traj(fmsobj):
-    def __init__(self):
+    def __init__(self, numdims, numstates):
         self.time = 0.0
         self.time_half_step = 0.0
         self.maxtime = -1.0
         self.mintime = 0.0
         self.firsttime = 0.0
-        self.numdims = 2
+        self.numdims = numdims
         self.positions = np.zeros(self.numdims)
         self.momenta = np.zeros(self.numdims)
         self.widths = np.zeros(self.numdims)
@@ -26,8 +26,9 @@ class traj(fmsobj):
 
         self.timestep = 0.0
         #self.propagator = "vv"
-        
-        self.numstates = 2
+        # THIS NEEDS TO BE REWRITTEN, causes issues when numstates hardcoded in here 
+        # DOESN'T MATCH the numstates in the input
+        self.numstates = numstates
         #self.software = "pyspawn"
         #self.method = "cone"
         self.length_wf = self.numstates
@@ -446,8 +447,10 @@ class traj(fmsobj):
         pos = parent.get_positions_tmdt()
         mom = parent.get_momenta_tmdt()
         e = parent.get_energies_tmdt()
-
-# adjust momentum
+        print "Spawning new trajectory:"
+        print "mom =", mom
+        print "pos =", pos
+        print "e =", e
         
         self.set_positions(pos)
         self.set_momenta(mom)
@@ -459,7 +462,7 @@ class traj(fmsobj):
         #print "init_st time", time
         self.set_backprop_time(time)
         self.set_backprop_positions(pos)
-        self.set_backprop_momenta(mom)
+        #self.set_backprop_momenta(mom)
         #print "init_st mintime2", self.get_mintime()
 
         self.set_firsttime(time)
@@ -539,12 +542,13 @@ class traj(fmsobj):
         self.potential_specific_traj_copy(existing)
 
     def rescale_momentum(self, v_parent):
+        """ Computing kinetic energy of parent.  Remember that, at this point,
+        the child's momentum is still that of the parent, so we compute
+        t_parent from the child's momentum"""
+
         v_child = self.get_energies()[self.get_istate()]
         #print "rescale v_child ", v_child
         #print "rescale v_parent ", v_parent
-        # computing kinetic energy of parent.  Remember that, at this point,
-        # the child's momentum is still that of the parent, so we compute
-        # t_parent from the child's momentum
         p_parent = self.get_momenta()
         m = self.get_masses()
         t_parent = 0.0
@@ -556,13 +560,12 @@ class traj(fmsobj):
             print "# Aborting spawn because child does not have"
             print "# enough energy for momentum adjustment"
             return False
-        #print "# rescaling momentum by factor ", factor
         factor = math.sqrt(factor)
         print "# rescaling momentum by factor ", factor
         p_child = factor * p_parent
-        #print "rescale p_child ", p_child
-        #print "rescale p_parent ", p_parent
         self.set_momenta(p_child)
+        self.set_backprop_momenta(p_child)
+
         return True
 
     def set_forces(self,f):
@@ -872,7 +875,7 @@ class traj(fmsobj):
             all_datasets.update(self.h5_datasets_half_step)
         for key in all_datasets:
             n = all_datasets[key]
-            #print "key", key
+            #print "key =", key
             dset = trajgrp.get(key)
             l = dset.len()
             dset.resize(l+1,axis=0)
@@ -882,8 +885,9 @@ class traj(fmsobj):
                 ipos=0
                 dset[1:(l+1),0:n] = dset[0:(l),0:n]
             getcom = "self.get_" + cbackprop + key + "()"
-            #print getcom
+            #print "getcom =", getcom
             tmp = eval(getcom)
+            #print "ipos =", ipos
             if n!=1:
                 dset[ipos,0:n] = tmp[0:n]
             else:
@@ -1036,8 +1040,9 @@ class traj(fmsobj):
         #print "tdc", tdc
         return tdc
 
-    def initial_wigner(self,iseed):
-        print "## randomly selecting Wigner initial conditions"
+    def initial_wigner(self, iseed, temp=0.0):
+        print "## randomly selecting Wigner initial conditions at T=", temp
+        beta = 1 / (temp * 0.000003166790852)
         ndims = self.get_numdims()
 
         h5f = h5py.File('hessian.hdf5', 'r')
@@ -1054,10 +1059,10 @@ class traj(fmsobj):
         h_mw = np.zeros_like(h)
 
         for idim in range(ndims):
-            h_mw[idim,:] = h[idim,:] / sqrtm
+            h_mw[idim, :] = h[idim, :] / sqrtm
 
         for idim in range(ndims):
-            h_mw[:,idim] = h_mw[:,idim] / sqrtm
+            h_mw[:, idim] = h_mw[:, idim] / sqrtm
 
         # symmetrize mass weighted hessian
         h_mw = 0.5 * (h_mw + h_mw.T)
@@ -1075,21 +1080,22 @@ class traj(fmsobj):
         
         # seed random number generator
         np.random.seed(iseed)
-        
-        alphax = np.sqrt(evals[0:ndims-6])/2.0
-
+        alphax = np.sqrt(evals[0:ndims-6]) / 2.0
+        # finite temperature distribution
+        if beta > 1e-05:
+            alphax = alphax * np.tanh(np.sqrt(evals[0:ndims-6]) * beta / 2)
         sigx = np.sqrt(1.0 / ( 4.0 * alphax))
         sigp = np.sqrt(alphax)
 
         dtheta = 2.0 * np.pi * np.random.rand(ndims-6)
-        dr = np.sqrt( np.random.rand(ndims-6) )
+        dr = np.sqrt(np.random.rand(ndims-6))
 
-        dx1 = dr * np.sin(dtheta)
+        dx1 = dr * np.sin(dtheta) 
         dx2 = dr * np.cos(dtheta)
 
         rsq = dx1 * dx1 + dx2 * dx2
 
-        fac = np.sqrt( -2.0 * np.log(rsq) / rsq )
+        fac = np.sqrt(-2.0 * np.log(rsq) / rsq)
 
         x1 = dx1 * fac
         x2 = dx2 * fac
@@ -1097,16 +1103,17 @@ class traj(fmsobj):
         posvec = np.append(sigx * x1, np.zeros(6))
         momvec = np.append(sigp * x2, np.zeros(6))
 
-        deltaq = np.matmul(modes,posvec)/sqrtm
+        deltaq = np.matmul(modes, posvec) / sqrtm
         pos += deltaq
-        mom = np.matmul(modes,momvec)*sqrtm
+        mom = np.matmul(modes, momvec) * sqrtm
 
         self.set_positions(pos)
         self.set_momenta(mom)
 
         zpe = np.sum(alphax[0:ndims-6])
         ke = 0.5 * np.sum(mom * mom / m)
-
+        #print np.sqrt(np.tanh(evals[0:ndims-6]/(2*0.0031668)))
+        print "beta = ", beta
         print "# ZPE = ", zpe
         print "# kinetic energy = ", ke
 

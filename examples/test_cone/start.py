@@ -75,7 +75,7 @@ exec("pyspawn.import_methods.into_traj(pyspawn.classical_integrator." + clas_pro
 pyspawn.general.check_files()    
 
 # set up first trajectory
-traj1 = pyspawn.traj()
+traj1 = pyspawn.traj(numdims, numstates)
 traj1.set_numstates(numstates)
 traj1.set_numdims(numdims)
 traj1.set_parameters(traj_params)

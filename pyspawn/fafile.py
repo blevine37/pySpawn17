@@ -123,14 +123,16 @@ class fafile(object):
         of = open(filename, "w")
         t = self.datasets[times][:, 0]
         for i in range(len(t)):
-            number = np.format_float_scientific(t[i], unique=False,
-                                                precision=8)
+#             number = np.format_float_scientific(t[i], unique=False,
+#                                                 precision=8)
+            number = t[i]
             of.write(str(number) + " ")
             for iset in range(len(dsets)):
                 dat = self.datasets[dsets[iset]][i, :]
                 for j in range(len(dat)):
-                    number = np.format_float_scientific(dat[j], unique=False,
-                                                        precision=8)
+#                    number = np.format_float_scientific(dat[j], unique=False,
+#                                                        precision=8)
+                    number = dat[j]
                     of.write(str(number) + " ")
             of.write("\n")
         of.close()

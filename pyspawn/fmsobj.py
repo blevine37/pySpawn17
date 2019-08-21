@@ -11,70 +11,83 @@ import json
 class fmsobj(object):
     # Convert fmsobj structure to python dict structure
     def to_dict(self):
-        tempdict=(self.__dict__).copy()
+        """Convert fmsobj structure to python dict structure"""
+
+        tempdict = (self.__dict__).copy()
         for key in tempdict:
             # numpy objects
-            if type(tempdict[key]).__module__ == np.__name__ :
+            if type(tempdict[key]).__module__ == np.__name__:
                 tempdict[key] = tempdict[key].tolist()
                 for i in range(len(tempdict[key])):
                     # complex elements of 1d arrays are encoded here
                     if isinstance(tempdict[key][i], complex):
-                        tempdict[key][i] = "^complex(" + str(tempdict[key][i].real) + "," + str(tempdict[key][i].imag) + ")"
+                        tempdict[key][i] = "^complex("\
+                            + str(tempdict[key][i].real)\
+                            + "," + str(tempdict[key][i].imag) + ")"
                     else:
                         # and complex 2d arrays here
                         if isinstance(tempdict[key][i], types.ListType):
                             for j in range(len(tempdict[key][i])):
                                 if isinstance(tempdict[key][i][j], complex):
-                                    tempdict[key][i][j] = "^complex(" + str(tempdict[key][i][j].real) + "," + str(tempdict[key][i][j].imag) + ")"
+                                    tempdict[key][i][j] = "^complex(" +\
+                                        str(tempdict[key][i][j].real) + ","\
+                                        + str(tempdict[key][i][j].imag) + ")"
             # fms objects here
-            if (type(tempdict[key]).__module__)[0:7] == __name__[0:7] :
+            if (type(tempdict[key]).__module__)[0:7] == __name__[0:7]:
                 fmsobjlabel = type(tempdict[key]).__module__
                 tempdict[key] = tempdict[key].to_dict()
                 (tempdict[key])["fmsobjlabel"] = fmsobjlabel
             # dictionaries here
-            if isinstance(tempdict[key],types.DictType) :
+            if isinstance(tempdict[key], types.DictType):
                 tempdict2 = (tempdict[key]).copy()
                 tempdict[key] = tempdict2
                 for key2 in tempdict2:
-                    if (type(tempdict2[key2]).__module__)[0:7] == __name__[0:7] :
+                    if (type(tempdict2[key2]).__module__)[0:7]\
+                            == __name__[0:7]:
                         fmsobjlabel = type(tempdict2[key2]).__module__
                         tempdict2[key2] = tempdict2[key2].to_dict()
                         (tempdict2[key2])["fmsobjlabel"] = fmsobjlabel
-                
+
         return tempdict
 
-    # Convert dict structure to fmsobj structure
-    def from_dict(self,**tempdict):
+    def from_dict(self, **tempdict):
+        """Convert dict structure to fmsobj structure"""
+
         for key in tempdict:
-            if isinstance(tempdict[key],types.UnicodeType) :
+            if isinstance(tempdict[key], types.UnicodeType):
                 tempdict[key] = str(tempdict[key])
-            if isinstance(tempdict[key],types.ListType) :
-                if isinstance((tempdict[key])[0],types.FloatType) :
+            if isinstance(tempdict[key], types.ListType):
+                if isinstance((tempdict[key])[0], types.FloatType):
                     # convert 1d float lists to np arrays
-                    tempdict[key] = np.asarray(tempdict[key],dtype=np.float64)
-                if isinstance((tempdict[key])[0],types.StringTypes) :
+                    tempdict[key] = np.asarray(tempdict[key],
+                                               dtype=np.float64)
+                if isinstance((tempdict[key])[0], types.StringTypes):
                     if (tempdict[key])[0][0] == "^":
                         for i in range(len(tempdict[key])):
-                            tempdict[key][i] = eval(tempdict[key][i])
-                        tempdict[key] = np.asarray(tempdict[key],dtype=np.complex128)
-#new
-                    if isinstance((tempdict[key])[0],types.UnicodeType) :
+                            tempdict[key][i] = eval(tempdict[key][i][1:])
+                        tempdict[key] = np.asarray(tempdict[key],
+                                                   dtype=np.complex128)
+                    # new
+                    if isinstance((tempdict[key])[0], types.UnicodeType):
                         for i in range(len(tempdict[key])):
-                            tempdict[key][i]= str(tempdict[key][i])
-#end new
-                            
-                            
+                            tempdict[key][i] = str(tempdict[key][i])
+                    # end new
+
                 else:
-                    if isinstance((tempdict[key])[0],types.ListType):
-                        if isinstance((tempdict[key])[0][0],types.FloatType) :
+                    if isinstance((tempdict[key])[0], types.ListType):
+                        if isinstance((tempdict[key])[0][0], types.FloatType):
                             # convert 2d float lists to np arrays
-                            tempdict[key] = np.asarray(tempdict[key],dtype=np.float64)
-                        if isinstance((tempdict[key])[0][0],types.StringTypes) :
+                            tempdict[key] = np.asarray(tempdict[key],
+                                                       dtype=np.float64)
+                        if isinstance((tempdict[key])[0][0],
+                                      types.StringTypes):
                             if (tempdict[key])[0][0][0] == "^":
                                 for i in range(len(tempdict[key])):
                                     for j in range(len(tempdict[key][i])):
-                                        tempdict[key][i][j] = eval(tempdict[key][i][j][1:])
-                                tempdict[key] = np.asarray(tempdict[key],dtype=np.complex128)
+                                        tempdict[key][i][j]\
+                                            = eval(tempdict[key][i][j][1:])
+                                tempdict[key] = np.asarray(tempdict[key],
+                                                           dtype=np.complex128)
         self.__dict__.update(tempdict)
 
     # Write fmsobj structure to disk in json format
