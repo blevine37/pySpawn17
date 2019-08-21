@@ -1042,7 +1042,6 @@ class traj(fmsobj):
 
     def initial_wigner(self, iseed, temp=0.0):
         print "## randomly selecting Wigner initial conditions at T=", temp
-        beta = 1 / (temp * 0.000003166790852)
         ndims = self.get_numdims()
 
         h5f = h5py.File('hessian.hdf5', 'r')
@@ -1082,7 +1081,9 @@ class traj(fmsobj):
         np.random.seed(iseed)
         alphax = np.sqrt(evals[0:ndims-6]) / 2.0
         # finite temperature distribution
-        if beta > 1e-05:
+        if temp > 1e-05:
+            beta = 1 / (temp * 0.000003166790852)
+            print "beta = ", beta
             alphax = alphax * np.tanh(np.sqrt(evals[0:ndims-6]) * beta / 2)
         sigx = np.sqrt(1.0 / ( 4.0 * alphax))
         sigp = np.sqrt(alphax)
@@ -1113,7 +1114,6 @@ class traj(fmsobj):
         zpe = np.sum(alphax[0:ndims-6])
         ke = 0.5 * np.sum(mom * mom / m)
         #print np.sqrt(np.tanh(evals[0:ndims-6]/(2*0.0031668)))
-        print "beta = ", beta
         print "# ZPE = ", zpe
         print "# kinetic energy = ", ke
 
