@@ -447,10 +447,6 @@ class traj(fmsobj):
         pos = parent.get_positions_tmdt()
         mom = parent.get_momenta_tmdt()
         e = parent.get_energies_tmdt()
-        print "Spawning new trajectory:"
-        print "mom =", mom
-        print "pos =", pos
-        print "e =", e
         
         self.set_positions(pos)
         self.set_momenta(mom)
