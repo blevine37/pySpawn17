@@ -1,34 +1,60 @@
-# this script starts a new FMS calculation on a model cone potential
+# this script starts a new AIMS calculation.  Ethylene, SA2-CASSCF(2/2).
 import numpy as np
 import pyspawn        
 import pyspawn.general
+
+# random number seed
+seed=87061
 
 # Velocity Verlet classical propagator
 clas_prop = "vv"
 
 # adapative 2nd-order Runge-Kutta quantum propagator
-qm_prop = "fulldiag"
+qm_prop = "rk2"
 
 # adiabtic NPI quantum Hamiltonian
 qm_ham = "adiabatic"
 
 # use TeraChem CASSCF or CASCI to compute potentials
-potential = "test_cone"
+potential = "terachem_cas"
 
 # initial time
 t0 = 0.0
 
 # time step
-ts = 0.1
+ts = 10.0
 
 # final simulation time
-tfinal = 8.0
+tfinal = 8000.0
 
 # number of dimensions                                                                                           
-numdims = 2
+numdims = 18
 
 # number of electronic states                                                                                                                    
 numstates = 2
+
+# TeraChem job options                                                                                    
+tc_options = {
+    "method":       'hf',
+    "basis":        '6-31g',
+    "atoms":        ["C", "C", "H", "H", "H", "H"],
+    "charge":       0,
+    "spinmult":     1,
+    "closed_shell": True,
+    "restricted":   True,
+
+    "precision":    "double",
+    "threall":      1.0e-20,
+
+    "casci":        "yes",
+    "fon":          "yes",
+    "closed":       7,
+    "active":       2,
+    "cassinglets":  2,
+    "castargetmult": 1,
+    "cas_energy_states": [0, 1],
+    "cas_energy_mults": [1, 1],
+    }
 
 # trajectory parameters
 traj_params = {
@@ -43,13 +69,23 @@ traj_params = {
     # initial electronic state (indexed such that 0 is the ground state)
     "istate": 1,
     # Gaussian widths
-    "widths": np.asarray([6.0, 6.0]),
+    "widths": np.asarray([30.0, 30.0, 30.0,
+                        30.0, 30.0, 30.0,
+                        6.0, 6.0, 6.0,
+                        6.0, 6.0, 6.0,
+                        6.0, 6.0, 6.0,
+                        6.0, 6.0, 6.0]),
+    # atom labels
+    "atoms": tc_options["atoms"],
     # nuclear masses (in a.u)    
-    "masses": np.asarray([1822.0, 1822.0]),
-    # initial positions
-    "positions": np.asarray([0.45,0.0]),
-    # inition momenta
-    "momenta": np.asarray([-200.0,0.0]),
+    "masses": np.asarray([21864.0, 21864.0, 21864.0,
+                    21864.0, 21864.0, 21864.0,
+                    1822.0, 1822.0, 1822.0,
+                    1822.0, 1822.0, 1822.0,
+                    1822.0, 1822.0, 1822.0,
+                    1822.0, 1822.0, 1822.0]),
+    # terachem options (above)
+    "tc_options": tc_options
     }
 
 sim_params = {
@@ -62,7 +98,7 @@ sim_params = {
     # initial qm amplitudes
     "qm_amplitudes": np.ones(1,dtype=np.complex128),
     # energy shift used in quantum propagation
-    "qm_energy_shift": -5.18,
+    "qm_energy_shift": 77.6,
 }
 
 # import routines needed for propagation
@@ -79,6 +115,9 @@ traj1 = pyspawn.traj(numdims, numstates)
 traj1.set_numstates(numstates)
 traj1.set_numdims(numdims)
 traj1.set_parameters(traj_params)
+
+# sample initial position and momentum from Wigner distribution (requires hessian.hdf5)
+traj1.initial_wigner(seed)
 
 # set up simulation 
 sim = pyspawn.simulation()

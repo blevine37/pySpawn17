@@ -15,8 +15,8 @@ def prop_first_step(self,zbackprop):
     else:
         cbackprop = "backprop_"
         dt = -1.0 * self.get_timestep()
-            
-    exec("x_t = self.get_" + cbackprop + "positions()")
+    x_t = getattr(self, "get_" + cbackprop + "positions")()        
+    #exec("x_t = self.get_" + cbackprop + "positions()")
     self.compute_elec_struct(zbackprop)
     exec("f_t = self.get_" + cbackprop + "forces_i()")
     exec("p_t = self.get_" + cbackprop + "momenta()")
@@ -25,12 +25,6 @@ def prop_first_step(self,zbackprop):
     v_t = p_t / m
     a_t = f_t / m
     exec("t = self.get_" + cbackprop + "time()")
-    
-    #print "t ", t
-    #print "x_t ", x_t
-    #print "f_t ", f_t
-    #print "v_t ", v_t
-    #print "a_t ", a_t
 
     if not zbackprop:
         self.h5_output(zbackprop, zdont_half_step=True)
@@ -56,12 +50,6 @@ def prop_first_step(self,zbackprop):
     exec("self.set_" + cbackprop + "time(t)")
     exec("self.set_" + cbackprop + "time_half_step(t_half)")
 
-    #print "t ", t
-    #print "x_t ", x_tpdt
-    #print "f_t ", f_tpdt
-    #print "v_t ", v_tpdt
-    #print "a_t ", a_tpdt
-    
     self.h5_output(zbackprop)
      
     v_tp3hdt = v_tpdt + 0.5 * a_tpdt * dt
@@ -121,12 +109,6 @@ def prop_not_first_step(self,zbackprop):
 
     exec("self.set_" + cbackprop + "time(t)")
     exec("self.set_" + cbackprop + "time_half_step(t_half)")
-
-    #print "t ", t
-    #print "x_t ", x_tpdt
-    #print "f_t ", f_tpdt
-    #print "v_t ", v_tpdt
-    #print "a_t ", a_tpdt
     
     self.h5_output(zbackprop)
 

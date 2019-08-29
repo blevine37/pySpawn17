@@ -95,10 +95,23 @@ class simulation(fmsobj):
                 else:
                     for key2 in tempdict[key]:
                         if isinstance((tempdict[key])[key2],types.DictType) :
-                            fmsobjlabel = ((tempdict[key])[key2]).pop('fmsobjlabel')
-                            obj = eval(fmsobjlabel[8:])()
-                            obj.from_dict(**((tempdict[key])[key2]))
-                            (tempdict[key])[key2] = obj
+                            if key == 'traj' or key == "centroids":
+                                # This is a hack that fixes the previous hack lol
+                                # initially trajectory's init didn't have numstates
+                                # and numdims which caused certain issues
+                                # so I'm adding the variables for traj initialization
+                                # to make restart work 
+                                numdims = tempdict[key][key2]['numdims']
+                                numstates = tempdict[key][key2]['numstates']
+                                fmsobjlabel = ((tempdict[key])[key2]).pop('fmsobjlabel')
+                                obj = eval(fmsobjlabel[8:])(numdims, numstates)
+                                obj.from_dict(**((tempdict[key])[key2]))
+                                (tempdict[key])[key2] = obj
+                            else:
+                                fmsobjlabel = ((tempdict[key])[key2]).pop('fmsobjlabel')
+                                obj = eval(fmsobjlabel[8:])()
+                                obj.from_dict(**((tempdict[key])[key2]))
+                                (tempdict[key])[key2] = obj                        
         self.__dict__.update(tempdict)
 
     # add a trajectory to the simulation
@@ -294,7 +307,7 @@ class simulation(fmsobj):
         max_info_time = 1.0e10
         # first check centroids
         for key in self.traj:
-            print "traj key", key
+            #print "traj key", key
             # if a trajectory is spawning, we can only propagate to the
             # spawntime
             timestep = self.traj[key].get_timestep()
@@ -302,33 +315,33 @@ class simulation(fmsobj):
             for i in range(len(spawntimes)):
                 if (spawntimes[i] - timestep) < max_info_time and spawntimes[i] > 0.0 :
                     max_info_time = spawntimes[i] - timestep
-                    print "i spawntimes[i] max_info_time", i, spawntimes[i], max_info_time
+                    #print "i spawntimes[i] max_info_time", i, spawntimes[i], max_info_time
             # if a trajectory is backpropagating, we can only propagate to
             # its mintime
             mintime = self.traj[key].get_mintime()
-            print "mintime, backproptime", mintime, self.traj[key].get_backprop_time()
+            #print "mintime, backproptime", mintime, self.traj[key].get_backprop_time()
             if (mintime + 1.0e-6) < self.traj[key].get_backprop_time():
                 if (mintime - timestep) < max_info_time:
                     max_info_time = mintime - timestep
-                    print "mintime max_info_time", mintime, max_info_time
+                    #print "mintime max_info_time", mintime, max_info_time
             # if a trajectory is neither spawning nor backpropagating, we can
             # only propagate to its current forward propagation time
             time = self.traj[key].get_time()
             if (time - timestep) < max_info_time:
                 max_info_time = time - timestep
-                print "time max_info_time", time, max_info_time
+                #print "time max_info_time", time, max_info_time
         # now centroids
         for key in self.centroids:
-            print "centroid key", key
+            #print "centroid key", key
             # if a centroid is backpropagating, we can only propagate to
             # its mintime
             timestep = self.centroids[key].get_timestep()
             mintime = self.centroids[key].get_mintime()
-            print "mintime, backprop_time", mintime, self.centroids[key].get_backprop_time()
+            #print "mintime, backprop_time", mintime, self.centroids[key].get_backprop_time()
             if (mintime + 1.0e-6) < self.centroids[key].get_backprop_time():
                 if (mintime - timestep) < max_info_time:
                     max_info_time = mintime - timestep
-                    print "mintime, max_info_time", mintime, max_info_time
+                    #print "mintime, max_info_time", mintime, max_info_time
             # if a centroid is not backpropagating, we can
             # only propagate to its current forward propagation time
             time = self.centroids[key].get_time()
@@ -336,7 +349,7 @@ class simulation(fmsobj):
                 # we subtract two timesteps because the spawning procedure
                 # can take is back in time in a subsequent step
                 max_info_time = time - timestep
-                print "time max_info_time", time, max_info_time
+                #print "time max_info_time", time, max_info_time
 
         print "## we have enough information to propagate to time ", max_info_time
 
@@ -661,7 +674,7 @@ class simulation(fmsobj):
                     label = str(self.traj[key].get_label() + "b" + str(self.traj[key].get_numchildren()))
 
                     # create and initiate new trajectpory structure
-                    newtraj = traj()
+                    newtraj = traj(self.traj[key].numdims, self.traj[key].numstates)
                     newtraj.init_spawn_traj(self.traj[key], jstate, label)
 
                     # checking to see if overlap with existing trajectories
@@ -670,8 +683,8 @@ class simulation(fmsobj):
 
                     # rescaling velocity.  We'll abort if there is not
                     # enough energy (aka a "frustrated spawn")
-                    z_add_traj_rescale = newtraj.rescale_momentum(self.traj[key].get_energies_tmdt()[self.traj[key].get_istate()])
-
+                    z_add_traj_rescale = newtraj.rescale_momentum(
+                        self.traj[key].get_energies_tmdt()[self.traj[key].get_istate()])
                     # okay, now we finally decide whether to spawn or not
                     if z_add_traj_olap and z_add_traj_rescale:
                         print "## creating new trajectory ", label
@@ -701,7 +714,7 @@ class simulation(fmsobj):
                 centkey = str(key2 + "_a_" + label)
 
                 # create and initiate the trajectory structures!
-                newcent = traj()
+                newcent = traj(self.traj[key].numdims, self.traj[key].numstates)
                 newcent.init_centroid(self.traj[key2],spawntraj[label], centkey)
 
                 # add the centroid
@@ -826,7 +839,7 @@ class simulation(fmsobj):
             dset.resize(l+1,axis=0)
             ipos=l
             getcom = "self.get_" + key + "()"
-            print getcom
+            #print getcom
             tmp = eval(getcom)
             if type(tmp).__module__ == np.__name__:
                 tmp = np.ndarray.flatten(tmp)

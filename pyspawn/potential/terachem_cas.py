@@ -42,9 +42,11 @@ def compute_elec_struct(self,zbackprop):
 
     base_options = self.get_tc_options()
 
-    base_options["castarget"] = istate
+    options = base_options
 
-    TC.update_options(**base_options)
+    options["castarget"] = istate
+
+    #TC.update_options(**base_options)
 
     TC.connect()
 
@@ -60,19 +62,24 @@ def compute_elec_struct(self,zbackprop):
         orbout_t = os.path.join(cwd,"c0_t.old")
         eval("self.get_" + cbackprop + "civecs()").tofile(civecout)
         eval("self.get_" + cbackprop + "orbs()").tofile(orbout)
-        (eval("self.get_" + cbackprop + "orbs()").T).tofile(orbout_t)
+        n = int(math.floor(math.sqrt(self.get_norbs())))
+        ((np.resize(eval("self.get_" + cbackprop + "orbs()"),(n,n)).T).flatten()).tofile(orbout_t)
         #print "old civecs", eval("self.get_" + cbackprop + "civecs()")
         #print "old orbs", eval("self.get_" + cbackprop + "orbs()")
         zolaps = True
-        options = {
-            "caswritevecs": "yes",
-            #"casguess":     orbout_t
-            }
+        if ("casscf" in self.tc_options):
+            if (self.tc_options["casscf"]=="yes"):
+                options["caswritevecs"]="yes"
+                options["casguess"]=orbout_t
+            else:
+                options["caswritevecs"]="yes"
+                options["guess"]=orbout
+        else:
+            options["caswritevecs"]="yes"
+            options["guess"]=orbout
     else:
         zolaps = False
-        options = {
-            "caswritevecs": "yes",
-            }
+        options["caswritevecs"]= "yes"
 
     # Gradient calculation
 
@@ -132,14 +139,13 @@ def compute_elec_struct(self,zbackprop):
         #print 'orbfilename', orbfilename
         #print 'orbout2', orbout2
         #print 'orbout', orbout
-        options = {
-            "geom2":        pos2.tolist(),
-            "cvec1file":    civecfilename,
-            "cvec2file":    civecout,
-            #"orb1afile":    orbfilename,
-            "orb1afile":    orbout2,
-            "orb2afile":    orbout
-            }
+        options = base_options
+
+        options["geom2"]=pos2.tolist()
+        options["cvec1file"]=civecfilename
+        options["cvec2file"]=civecout
+        options["orb1afile"]=orbout2
+        options["orb2afile"]=orbout
 
         #print 'pos_list', pos_list
         results2 = TC.compute_job_sync("ci_vec_overlap", pos_list, "bohr", **options)
@@ -205,21 +211,18 @@ def compute_electronic_overlap(self,pos1,civec1,orbs1,pos2,civec2,orbs2):
     civec2.tofile(civecout2)
     
     TC = TCProtobufClient(host='localhost', port=54321)
-    base_options = self.get_tc_options()
-    TC.update_options(**base_options)
+    options = self.get_tc_options()
+    #TC.update_options(**base_options)
     TC.connect()
     # Check if the server is available
     avail = TC.is_available()
 
-    options = {
-        "geom2":        (0.529177*pos2).tolist(),
-        "cvec1file":    civecfilename,
-        "cvec2file":    civecout,
-        #"orb1afile":    orbfilename,
-        "orb1afile":    orbout2,
-        "orb2afile":    orbout
-        }
-
+    options["geom2"]=(0.529177*pos2).tolist()
+    options["cvec1file"]=civecfilename
+    options["cvec2file"]=civecout
+    options["orb1afile"]=orbout2
+    options["orb2afile"]=orbout
+     
     results2 = TC.compute_job_sync("ci_vec_overlap", pos1.tolist(), "bohr", **options)
 
     S = results2['ci_overlap']

@@ -40,7 +40,8 @@ tc_options = {
     "precision":    "double",
     "threall":      1.0e-20,
 
-    "casscf":        "yes",
+    "casci":        "yes",
+    "fon":          "yes",
     "closed":       7,
     "active":       2,
     "cassinglets":  2,
