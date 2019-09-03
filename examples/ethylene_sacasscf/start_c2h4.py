@@ -3,6 +3,9 @@ import numpy as np
 import pyspawn        
 import pyspawn.general
 
+# terachemserver port 
+port = 54321
+
 # random number seed
 seed=87062
 
@@ -10,7 +13,7 @@ seed=87062
 clas_prop = "vv"
 
 # adapative 2nd-order Runge-Kutta quantum propagator
-qm_prop = "rk2"
+qm_prop = "fulldiag"
 
 # adiabtic NPI quantum Hamiltonian
 qm_ham = "adiabatic"
@@ -57,6 +60,8 @@ tc_options = {
 
 # trajectory parameters
 traj_params = {
+    # terachem port
+    "tc_port": port,
     # initial time
     "time": t0,
     # time step

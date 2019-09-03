@@ -69,6 +69,9 @@ class traj(fmsobj):
         self.energies_qm = np.zeros(self.numstates)
         self.forces_i_qm = np.zeros(self.numdims)
         self.timederivcoups_qm = np.zeros(self.numstates)
+        # when running terachem jobs we need to have a different port for every 
+        # terachem server instance
+        self.tc_port = 0
 
     def set_time(self, t):
         self.time = t
@@ -413,8 +416,15 @@ class traj(fmsobj):
 #         if self.label.type == 'unicode':
 #             self.set_label(str(self.label))
         return self.label
+    def get_tc_port(self):
+        return self.tc_port
+
+    def set_tc_port(self, port):
+        self.tc_port = port
 
     def init_traj(self, t, ndims, pos, mom, wid, m, nstates, istat, lab):
+        """Initializes trajectory, mainly used for tests"""
+
         self.set_time(t)
         self.set_numdims(ndims)
         self.set_positions(pos)
@@ -432,6 +442,10 @@ class traj(fmsobj):
         self.set_firsttime(t)
 
     def init_spawn_traj(self, parent, istate, label):
+        """Initializing a child and making on its new istate
+        with a new label and making sure we copy appropriate 
+        parameters from parent"""
+
         self.set_numstates(parent.get_numstates())
         self.set_numdims(parent.get_numdims())
 
@@ -486,6 +500,9 @@ class traj(fmsobj):
 
         self.potential_specific_traj_copy(parent)
 
+        # copying port for terachem jobs
+        self.set_tc_port(parent.tc_port)
+
     def init_centroid(self, existing, child, label):
         ts = child.get_timestep()
 
@@ -527,6 +544,9 @@ class traj(fmsobj):
 
         self.set_timestep(ts)
         self.potential_specific_traj_copy(existing)
+
+        # copying port for tc job
+        self.set_tc_port(existing.tc_port)
 
     def rescale_momentum(self, v_parent):
         """ Computing kinetic energy of parent.  Remember that, at this point,
@@ -800,7 +820,7 @@ class traj(fmsobj):
 #                 print "consider2 ",spawnt[jstate]
                 if spawnt[jstate] > -1.0e-6:
                     # check to see if a trajectory in a spawning region is ready to spawn
-                    #print "consider3 ",tdc[jstate], lasttdc[jstate]
+#                     print "consider3 ",tdc[jstate], lasttdc[jstate]
                     if abs(tdc[jstate]) < abs(lasttdc[jstate]):
 #                         print "Spawning to state ", jstate, " at time ", self.get_time()
                         # setting z_spawn_now indicates that
@@ -898,6 +918,7 @@ class traj(fmsobj):
         trajgrp.attrs["istate"] = self.istate
         trajgrp.attrs["masses"] = self.masses
         trajgrp.attrs["widths"] = self.widths
+        trajgrp.attrs["tc_port"] = self.tc_port
         if hasattr(self,"atoms"):
             trajgrp.attrs["atoms"] = self.atoms
 

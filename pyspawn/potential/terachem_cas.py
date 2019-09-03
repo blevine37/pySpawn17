@@ -19,8 +19,14 @@ import errno
 #   and centroids are spawned.
 #other ancillary routines may be included as well
 
-### terachem_cas electronic structure ###
-def compute_elec_struct(self,zbackprop):
+def compute_elec_struct(self, zbackprop):
+    """Subroutine that calls electronic structure calculation in Terachem
+    through tcpb interface. This version is compatible with tcpb-0.5.0
+    When running multiple job on the same server we need to make sure we use
+    different ports for Terachem server. Every trajectory or centroid 
+    has a port variable, which is passed along to children. Needs to be provided 
+    at input in start file as a traj_param"""
+
     if not zbackprop:
         cbackprop = ""
     else:
@@ -38,7 +44,7 @@ def compute_elec_struct(self,zbackprop):
     exec("pos = self.get_" + cbackprop + "positions()")
     pos_list = pos.tolist()
         
-    TC = TCProtobufClient(host='localhost', port=54321)
+    TC = TCProtobufClient(host='localhost', port=self.tc_port)
 
     base_options = self.get_tc_options()
 
@@ -210,7 +216,7 @@ def compute_electronic_overlap(self,pos1,civec1,orbs1,pos2,civec2,orbs2):
     civecout2 = os.path.join(cwd,"civec.2")
     civec2.tofile(civecout2)
     
-    TC = TCProtobufClient(host='localhost', port=54321)
+    TC = TCProtobufClient(host='localhost', port=self.tc_port)
     options = self.get_tc_options()
     #TC.update_options(**base_options)
     TC.connect()
