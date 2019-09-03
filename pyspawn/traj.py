@@ -69,7 +69,7 @@ class traj(fmsobj):
         self.energies_qm = np.zeros(self.numstates)
         self.forces_i_qm = np.zeros(self.numdims)
         self.timederivcoups_qm = np.zeros(self.numstates)
-        # when running terachem jobs we need to have a different port for every 
+        # when running terachem jobs we need to have a different port for every
         # terachem server instance
         self.tc_port = 0
 
@@ -416,6 +416,7 @@ class traj(fmsobj):
 #         if self.label.type == 'unicode':
 #             self.set_label(str(self.label))
         return self.label
+
     def get_tc_port(self):
         return self.tc_port
 
@@ -443,7 +444,7 @@ class traj(fmsobj):
 
     def init_spawn_traj(self, parent, istate, label):
         """Initializing a child and making on its new istate
-        with a new label and making sure we copy appropriate 
+        with a new label and making sure we copy appropriate
         parameters from parent"""
 
         self.set_numstates(parent.get_numstates())
@@ -771,11 +772,14 @@ class traj(fmsobj):
 #        eval(tmp)
 
     def propagate_step(self, zbackprop=False):
+        """Performs classical propagation for one step"""
+
         if not zbackprop:
             cbackprop = ""
         else:
             cbackprop = "backprop_"
-        if abs(eval("self.get_" + cbackprop + "time()") - self.get_firsttime()) < 1.0e-6:
+        if abs(eval("self.get_" + cbackprop + "time()")
+               - self.get_firsttime()) < 1.0e-6:
             self.prop_first_step(zbackprop=zbackprop)
         else:
             self.prop_not_first_step(zbackprop=zbackprop)
@@ -807,6 +811,8 @@ class traj(fmsobj):
             self.h5_output(zbackprop)
 
     def consider_spawning(self):
+        """Here we decide if trajectory is spawning at the current time step"""
+
         tdc = self.get_timederivcoups()
         lasttdc = self.get_spawnlastcoup()
         spawnt = self.get_spawntimes()
@@ -815,27 +821,25 @@ class traj(fmsobj):
         z = self.get_z_spawn_now()
 
         for jstate in range(self.numstates):
-#             print "consider1 ", jstate, self.get_istate()
             if (jstate != self.get_istate()):
-#                 print "consider2 ",spawnt[jstate]
                 if spawnt[jstate] > -1.0e-6:
-                    # check to see if a trajectory in a spawning region is ready to spawn
-#                     print "consider3 ",tdc[jstate], lasttdc[jstate]
+                    # check to see if a trajectory in a spawning region 
+                    # is ready to spawn (reached maximum coupling)
                     if abs(tdc[jstate]) < abs(lasttdc[jstate]):
 #                         print "Spawning to state ", jstate, " at time ", self.get_time()
                         # setting z_spawn_now indicates that
                         # this trajectory should spawn to jstate
                         z[jstate] = 1.0
                 else:
-                    # check to see if a trajectory is entering a spawning region
-#                     print "consider4 ",jstate, tdc, thresh
+                    # check to see if trajectory is entering a spawning region
                     if (abs(tdc[jstate]) > thresh) and (z_dont_spawn[jstate] < 0.5):
                         spawnt[jstate] = self.get_time() - self.get_timestep()
                         print "## trajectory " + self.get_label() +\
                             " entered spawning region for state ", jstate,\
                             " at time ", spawnt[jstate]
                     else:
-                        if (abs(tdc[jstate]) < (0.9*thresh)) and (z_dont_spawn[jstate] > 0.5):
+                        if (abs(tdc[jstate]) < (0.9*thresh))\
+                                and (z_dont_spawn[jstate] > 0.5):
                             z_dont_spawn[jstate] = 0.0
 
         self.set_z_spawn_now(z)
@@ -844,6 +848,8 @@ class traj(fmsobj):
         self.set_spawntimes(spawnt)
 
     def h5_output(self, zbackprop, zdont_half_step=False):
+        """Outputs data into h5 file"""
+
         if not zbackprop:
             cbackprop = ""
         else:
@@ -902,34 +908,36 @@ class traj(fmsobj):
         h5f.flush()
         h5f.close()
 
-    # create a new trajectory group in hdf5 output file
     def create_h5_traj(self, h5f, groupname):
+        """create a new trajectory group in hdf5 output file"""
+
         trajgrp = h5f.create_group(groupname)
         for key in self.h5_datasets:
             n = self.h5_datasets[key]
 #             print "key, n ", key, n
-            dset = trajgrp.create_dataset(key, (0, n), maxshape=(None, n),
-                                          dtype="float64")
+            trajgrp.create_dataset(key, (0, n), maxshape=(None, n),
+                                   dtype="float64")
         for key in self.h5_datasets_half_step:
             n = self.h5_datasets_half_step[key]
-            dset = trajgrp.create_dataset(key, (0, n), maxshape=(None, n),
-                                          dtype="float64")
+            trajgrp.create_dataset(key, (0, n), maxshape=(None, n),
+                                   dtype="float64")
         # add some metadata
         trajgrp.attrs["istate"] = self.istate
         trajgrp.attrs["masses"] = self.masses
         trajgrp.attrs["widths"] = self.widths
         trajgrp.attrs["tc_port"] = self.tc_port
-        if hasattr(self,"atoms"):
+        if hasattr(self, "atoms"):
             trajgrp.attrs["atoms"] = self.atoms
 
     def get_data_at_time_from_h5(self, t, dset_name):
+        """Pulls data at full time step from h5 file"""
+
         h5f = h5py.File("working.hdf5", "r")
         if "_a_" not in self.get_label():
             traj_or_cent = "traj_"
         else:
             traj_or_cent = "cent_"
         groupname = traj_or_cent + self.label
-        filename = "working.hdf5"
         trajgrp = h5f.get(groupname)
         dset_time = trajgrp["time"][:]
 #         print "size", dset_time.size
@@ -947,13 +955,14 @@ class traj(fmsobj):
         return data
 
     def get_all_qm_data_at_time_from_h5(self, t, suffix=""):
+        """Pulls qm data from h5 file at full time step"""
+
         h5f = h5py.File("working.hdf5", "r")
         if "_a_" not in self.get_label():
             traj_or_cent = "traj_"
         else:
             traj_or_cent = "cent_"
         groupname = traj_or_cent + self.label
-        filename = "working.hdf5"
         trajgrp = h5f.get(groupname)
         dset_time = trajgrp["time"][:]
 #         print "size", dset_time.size
@@ -973,14 +982,15 @@ class traj(fmsobj):
 #             print "dset[ipoint,:] ", dset[ipoint,:]
         h5f.close()
 
-    def get_all_qm_data_at_time_from_h5_half_step(self,t):
+    def get_all_qm_data_at_time_from_h5_half_step(self, t):
+        """Pulls data from h5 file at half time step"""
+
         h5f = h5py.File("working.hdf5", "r")
         if "_a_" not in self.get_label():
             traj_or_cent = "traj_"
         else:
             traj_or_cent = "cent_"
         groupname = traj_or_cent + self.label
-        filename = "working.hdf5"
         trajgrp = h5f.get(groupname)
         dset_time = trajgrp["time_half_step"][:]
 #         print "size", dset_time.size
@@ -1001,6 +1011,9 @@ class traj(fmsobj):
         h5f.close()
 
     def compute_tdc(self, Win):
+        """Computes derivative coupling matrix elements
+        using NPI"""
+
         W = Win.copy()
         if W[0, 0] > 1.0 and W[0, 0] < 1.01:
             W[0, 0] = 1.0
@@ -1052,6 +1065,10 @@ class traj(fmsobj):
         return tdc
 
     def initial_wigner(self, iseed, temp=0.0):
+        """Wigner distribution of positions and momenta
+        Works at finite temperature if a temp parameter is passed
+        If temp is not provided temp = 0 is assumed"""
+
         print "## randomly selecting Wigner initial conditions at T=", temp
         ndims = self.get_numdims()
 
@@ -1091,6 +1108,7 @@ class traj(fmsobj):
         # seed random number generator
         np.random.seed(iseed)
         alphax = np.sqrt(evals[0:ndims-6]) / 2.0
+
         # finite temperature distribution
         if temp > 1e-05:
             beta = 1 / (temp * 0.000003166790852)
