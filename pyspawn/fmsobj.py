@@ -1,15 +1,16 @@
-# A class from which all fms classes should be derived.
-# Includes methods for output of classes to json format.
-# The ability to read/dump data from/to json is essential to the
-# restartability that we intend.
-# nested python dictionaries serve as an intermediate between json
-# and the native python class
 import types
 import numpy as np
 import json
 
+
 class fmsobj(object):
-    # Convert fmsobj structure to python dict structure
+    """A class from which all fms classes should be derived.
+    Includes methods for output of classes to json format.
+    The ability to read/dump data from/to json is essential to the
+    restartability that we intend.
+    nested python dictionaries serve as an intermediate between json
+    and the native python class"""
+
     def to_dict(self):
         """Convert fmsobj structure to python dict structure"""
 
@@ -90,14 +91,16 @@ class fmsobj(object):
                                                            dtype=np.complex128)
         self.__dict__.update(tempdict)
 
-    # Write fmsobj structure to disk in json format
     def write_to_file(self,outfilename):
+        """Write fmsobj structure to disk in json format"""
+
         tempdict = self.to_dict()
         with open(outfilename,'w') as outputfile:
             json.dump(tempdict,outputfile,sort_keys=True, indent=4, separators=(',', ': '))
 
-    # Read fmsobj structure from json file
     def read_from_file(self,infilename):
+        """Read fmsobj structure from json file"""
+
         with open(infilename,'r') as inputfile:
             tempdict = json.load(inputfile)
 
@@ -111,7 +114,8 @@ class fmsobj(object):
             
         self.from_dict(**tempdict)
 
-    def set_parameters(self,params):
+    def set_parameters(self, params):
+
         print "### Setting " + self.__class__.__name__ + " parameters"
         for key in params:
             print key + " = " + str(params[key]) 

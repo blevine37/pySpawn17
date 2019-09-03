@@ -4,8 +4,7 @@ import math
 
 
 class fafile(object):
-    """
-    A class from which all fms classes should be derived.
+    """A class from which all fms classes should be derived.
     Includes methods for output of classes to json format.
     The ability to read/dump data from/to json is essential to the
     restartability that we intend.
