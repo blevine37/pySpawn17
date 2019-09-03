@@ -3,6 +3,9 @@ import numpy as np
 import pyspawn        
 import pyspawn.general
 
+# terachemserver port 
+port = 54322
+
 # random number seed
 seed=87061
 
@@ -58,6 +61,8 @@ tc_options = {
 
 # trajectory parameters
 traj_params = {
+    # terachem port
+    "tc_port": port,
     # initial time
     "time": t0,
     # time step
