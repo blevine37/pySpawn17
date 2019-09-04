@@ -17,8 +17,7 @@ def prop_first_step(self, zbackprop):
     else:
         cbackprop = "backprop_"
         dt = -1.0 * self.get_timestep()
-    x_t = getattr(self, "get_" + cbackprop + "positions")()
-#     exec("x_t = self.get_" + cbackprop + "positions()")
+    exec("x_t = self.get_" + cbackprop + "positions()")
     self.compute_elec_struct(zbackprop)
     exec("f_t = self.get_" + cbackprop + "forces_i()")
     exec("p_t = self.get_" + cbackprop + "momenta()")
