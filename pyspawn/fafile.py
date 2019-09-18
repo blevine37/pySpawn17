@@ -16,6 +16,7 @@ class fafile(object):
         self.h5file = h5py.File(h5filename, "r")
         self.labels = self.h5file["sim"].attrs["labels"]
         self.istates = self.h5file["sim"].attrs["istates"]
+        self.numstates = self.h5file['traj_00'].attrs["numstates"]
         self.retrieve_num_traj_qm()
         self.fill_quantum_times()
         self.fill_qm_amplitudes()
@@ -66,6 +67,9 @@ class fafile(object):
 
     def retrieve_num_traj_qm(self):
         self.ntraj = self.h5file["sim/num_traj_qm"][()].flatten()
+
+    def get_numstates(self):
+        self.datasets['numstates'] = self.numstates
 
     def fill_quantum_times(self):
         times = self.h5file["sim/quantum_time"][()]

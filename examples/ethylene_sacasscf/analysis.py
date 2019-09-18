@@ -100,12 +100,14 @@ an = pyspawn.fafile("sim.hdf5")
 an.fill_electronic_state_populations(column_filename="N.dat")
 an.fill_labels()
 an.fill_istates()
+an.get_numstates()
 
 times = an.datasets["quantum_times"]
 el_pop = an.datasets["electronic_state_populations"]
 istates = an.datasets["istates"]
 labels = an.datasets["labels"]
 ntraj = len(an.datasets["labels"])
+nstates = an.datasets['numstates']
 
 an.fill_nuclear_bf_populations()
 
@@ -121,8 +123,6 @@ mull_pop = an.datasets["mulliken_populations"]
 
 # list all datasets
 an.list_datasets()
-
-nstates = 2
 
 colors = ["r", "g", "b", "m", "y"]
 linestyles = ("-", "--", "-.", ":", "")

@@ -926,6 +926,7 @@ class traj(fmsobj):
         trajgrp.attrs["masses"] = self.masses
         trajgrp.attrs["widths"] = self.widths
         trajgrp.attrs["tc_port"] = self.tc_port
+        trajgrp.attrs["numstates"] = self.numstates
         if hasattr(self, "atoms"):
             trajgrp.attrs["atoms"] = self.atoms
 
