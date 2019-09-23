@@ -4,11 +4,17 @@ import pyspawn
 # choose TeraChem potential
 pyspawn.import_methods.into_hessian(pyspawn.potential.terachem_cas)
 
-# create a Hessian object
-hess = pyspawn.hessian()
+# terachemserver port 
+port = 54321
 
 # number of dimensions (3 * number of atoms)
 ndims = 18
+
+# number of electronic states
+numstates = 2
+
+# create a Hessian object
+hess = pyspawn.hessian(ndims, numstates)
 
 # select the ground state
 istate = 0
@@ -51,6 +57,7 @@ tc_options = {
 
 # build a dictionary containing all options
 hess_options = {
+    "tc_port": port,
     'istate': istate,
     'positions': pos,
     'tc_options':tc_options,
