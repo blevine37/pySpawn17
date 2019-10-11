@@ -165,6 +165,20 @@ class fafile(object):
 
         return
 
+    def fill_trajectory_populations(self, column_file_prefix=None):
+        """Prints out state populations for every trajectory"""
+
+        for key in self.labels:
+
+            pop = self.get_traj_data_from_h5(key, "populations")
+            dset_pop = key + "_pop"
+            self.datasets[dset_pop] = pop
+
+            if column_file_prefix is not None:
+                column_filename = column_file_prefix + "_" + key + ".dat"
+                self.write_columnar_data_file(key + "_time", [dset_pop],
+                                              column_filename)
+
     def fill_nuclear_bf_populations(self, column_filename=None):
         """Printing the population on each nuclear bf along with the total
         electronic population calculated over all TBFs"""
