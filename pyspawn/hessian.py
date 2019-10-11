@@ -44,25 +44,31 @@ class hessian(traj):
 
         for idim in range(mindim, ndims):
             pos = self.get_positions()
+
+            # shifting positions by +dr
             pos[idim] += dr
             self.set_positions(pos)
             self.compute_elec_struct(False)
+            # forces at r + dr
             gp = -1.0 * self.get_forces_i()
 
+            # shifting positions by -dr
             pos[idim] -= 2.0 * dr
             self.set_positions(pos)
             self.compute_elec_struct(False)
+            # forces at r - dr
             gm = -1.0 * self.get_forces_i()
 
             pos[idim] += dr
             self.set_positions(pos)
 
+            # numerical second derivative
             de2dr2 = (gp - gm) / (2.0 * dr)
 
-            h5f = h5py.File(filename, "a")
-            mindim = -1
-            dsetname = "hessian"
-            dset = h5f.get(dsetname)
+#             h5f = h5py.File(filename, "a")
+#             mindim = -1
+#             dsetname = "hessian"
+#             dset = h5f.get(dsetname)
 
             h5f = h5py.File(filename, "a")
             mindim = -1
