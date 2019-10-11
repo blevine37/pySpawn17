@@ -14,24 +14,29 @@ class hessian(traj):
         filename = "hessian.hdf5"
 
         if not os.path.isfile(filename):
+            # if file doesn't exist writing positions and
+            # filling hessian with -1000
             h5f = h5py.File(filename, "a")
+            # writing geometries
             dsetname = "geometry"
             dset = h5f.create_dataset(dsetname, (1, ndims))
             pos = self.get_positions().reshape(1, ndims)
             dset[:, :] = pos
-
+            # filling hessian
             dsetname = "hessian"
             dset = h5f.create_dataset(dsetname, (ndims, ndims))
             dset[:, :] = -1000.0 * np.ones((ndims, ndims))
             mindim = 0
 
         else:
+            # if file exists overwriting it?
             h5f = h5py.File(filename, "a")
             mindim = -1
             dsetname = "geometry"
             dset = h5f.get(dsetname)
             pos = dset[:, :].flatten()
             self.set_positions(pos)
+
             dsetname = "hessian"
             dset = h5f.get(dsetname)
             for idim in range(ndims):
@@ -58,18 +63,14 @@ class hessian(traj):
             self.compute_elec_struct(False)
             # forces at r - dr
             gm = -1.0 * self.get_forces_i()
-
+            # setting positions to original
             pos[idim] += dr
             self.set_positions(pos)
 
             # numerical second derivative
             de2dr2 = (gp - gm) / (2.0 * dr)
 
-#             h5f = h5py.File(filename, "a")
-#             mindim = -1
-#             dsetname = "hessian"
-#             dset = h5f.get(dsetname)
-
+            # writing hessian into file
             h5f = h5py.File(filename, "a")
             mindim = -1
             dsetname = "hessian"
