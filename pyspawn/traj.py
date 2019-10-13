@@ -25,17 +25,17 @@ class traj(fmsobj):
         self.h5_datasets_half_step = dict()
 
         self.timestep = 0.0
-#         self.propagator = "vv"
+        #         self.propagator = "vv"
         self.numstates = numstates
-#         self.software = "pyspawn"
-#         self.method = "cone"
+        #         self.software = "pyspawn"
+        #         self.method = "cone"
         self.length_wf = self.numstates
         self.wf = np.zeros((self.numstates, self.length_wf))
         self.prev_wf = np.zeros((self.numstates, self.length_wf))
         self.energies = np.zeros(self.numstates)
         self.forces = np.zeros((self.numstates, self.numdims))
         self.timederivcoups = np.zeros(self.numstates)
-        self.S_elec_flat = np.zeros(self.numstates*self.numstates)
+        self.S_elec_flat = np.zeros(self.numstates * self.numstates)
 
         self.backprop_time = 0.0
         self.backprop_time_half_step = 0.0
@@ -115,11 +115,11 @@ class traj(fmsobj):
     def get_firsttime(self):
         return self.firsttime
 
-#     def get_propagator(self):
-#         return self.propagator
+    #     def get_propagator(self):
+    #         return self.propagator
 
-#     def set_propagator(self, prop):
-#         self.propagator = prop
+    #     def set_propagator(self, prop):
+    #         self.propagator = prop
 
     def get_mintime(self):
         return self.mintime
@@ -133,7 +133,7 @@ class traj(fmsobj):
         self.momenta = np.zeros(self.numdims)
         self.widths = np.zeros(self.numdims)
         self.masses = np.zeros(self.numdims)
-#         self.last_es_positions = np.zeros(self.numdims)
+        #         self.last_es_positions = np.zeros(self.numdims)
         self.forces = np.zeros((self.numstates, self.numdims))
 
         self.backprop_positions = np.zeros(self.numdims)
@@ -146,8 +146,8 @@ class traj(fmsobj):
         self.momenta_t = np.zeros(self.numdims)
         self.momenta_tmdt = np.zeros(self.numdims)
         self.momenta_tpdt = np.zeros(self.numdims)
-#         self.prev_positions = np.zeros(self.numdims)
-#         self.prev_forces = np.zeros((self.numstates,self.numdims))
+        #         self.prev_positions = np.zeros(self.numdims)
+        #         self.prev_forces = np.zeros((self.numstates,self.numdims))
         self.positions_qm = np.zeros(self.numdims)
         self.momenta_qm = np.zeros(self.numdims)
         self.forces_i_qm = np.zeros(self.numdims)
@@ -171,8 +171,9 @@ class traj(fmsobj):
         self.energies_tpdt = np.zeros(self.numstates)
         self.energies_t = np.zeros(self.numstates)
         self.energies_tmdt = np.zeros(self.numstates)
-#         self.prev_energies = np.zeros(self.numstates)
-#         self.prev_forces = np.zeros((self.numstates,self.numdims))
+
+    #         self.prev_energies = np.zeros(self.numstates)
+    #         self.prev_forces = np.zeros((self.numstates,self.numdims))
 
     def set_istate(self, ist):
         self.istate = ist
@@ -201,24 +202,24 @@ class traj(fmsobj):
     def incr_numchildren(self):
         self.set_numchildren(self.get_numchildren() + 1)
 
-#     def set_software(self,sw):
-#         self.software = sw
-#
-#     def set_method(self,meth):
-#         self.method = meth
-#
-#     def get_software(self):
-#         return self.software
-#
-#     def get_method(self):
-#         return self.method
+    #     def set_software(self,sw):
+    #         self.software = sw
+    #
+    #     def set_method(self,meth):
+    #         self.method = meth
+    #
+    #     def get_software(self):
+    #         return self.software
+    #
+    #     def get_method(self):
+    #         return self.method
 
     def set_positions(self, pos):
         if pos.shape == self.positions.shape:
             self.positions = pos.copy()
         else:
             print "Error in set_positions"
-            sys.exit
+            sys.exit()
 
     def get_positions(self):
         return self.positions.copy()
@@ -228,7 +229,7 @@ class traj(fmsobj):
             self.positions_qm = pos.copy()
         else:
             print "Error in set_positions_qm"
-            sys.exit
+            sys.exit()
 
     def get_positions_qm(self):
         return self.positions_qm.copy()
@@ -238,7 +239,7 @@ class traj(fmsobj):
             self.positions_t = pos.copy()
         else:
             print "Error in set_positions_t"
-            sys.exit
+            sys.exit()
 
     def get_positions_t(self):
         return self.positions_t.copy()
@@ -248,7 +249,7 @@ class traj(fmsobj):
             self.positions_tmdt = pos.copy()
         else:
             print "Error in set_positions_tmdt"
-            sys.exit
+            sys.exit()
 
     def get_positions_tmdt(self):
         return self.positions_tmdt.copy()
@@ -258,7 +259,7 @@ class traj(fmsobj):
             self.positions_tpdt = pos.copy()
         else:
             print "Error in set_positions_tpdt"
-            sys.exit
+            sys.exit()
 
     def get_positions_tpdt(self):
         return self.positions_tpdt.copy()
@@ -268,7 +269,7 @@ class traj(fmsobj):
             self.momenta_qm = mom.copy()
         else:
             print "Error in set_momenta"
-            sys.exit
+            sys.exit()
 
     def get_momenta_qm(self):
         return self.momenta_qm.copy()
@@ -278,7 +279,7 @@ class traj(fmsobj):
             self.forces_i_qm = f.copy()
         else:
             print "Error in set_forces_i_qm"
-            sys.exit
+            sys.exit()
 
     def get_forces_i_qm(self):
         return self.forces_i_qm.copy()
@@ -288,7 +289,7 @@ class traj(fmsobj):
             self.momenta = mom.copy()
         else:
             print "Error in set_momenta"
-            sys.exit
+            sys.exit()
 
     def get_momenta(self):
         return self.momenta.copy()
@@ -298,7 +299,7 @@ class traj(fmsobj):
             self.momenta_t = mom.copy()
         else:
             print "Error in set_momenta_t"
-            sys.exit
+            sys.exit()
 
     def get_momenta_t(self):
         return self.momenta_t.copy()
@@ -308,7 +309,7 @@ class traj(fmsobj):
             self.momenta_tmdt = mom.copy()
         else:
             print "Error in set_momenta_tmdt"
-            sys.exit
+            sys.exit()
 
     def get_momenta_tmdt(self):
         return self.momenta_tmdt.copy()
@@ -318,7 +319,7 @@ class traj(fmsobj):
             self.momenta_tpdt = mom.copy()
         else:
             print "Error in set_momenta_tpdt"
-            sys.exit
+            sys.exit()
 
     def get_momenta_tpdt(self):
         return self.momenta_tpdt.copy()
@@ -328,7 +329,7 @@ class traj(fmsobj):
             self.energies_qm = e.copy()
         else:
             print "Error in set_energies_qm"
-            sys.exit
+            sys.exit()
 
     def get_energies_qm(self):
         return self.energies_qm.copy()
@@ -338,7 +339,7 @@ class traj(fmsobj):
             self.energies_t = e.copy()
         else:
             print "Error in set_energies_t"
-            sys.exit
+            sys.exit()
 
     def get_energies_t(self):
         return self.energies_t.copy()
@@ -348,7 +349,7 @@ class traj(fmsobj):
             self.energies_tmdt = e.copy()
         else:
             print "Error in set_energies_tmdt"
-            sys.exit
+            sys.exit()
 
     def get_energies_tmdt(self):
         return self.energies_tmdt.copy()
@@ -358,7 +359,7 @@ class traj(fmsobj):
             self.energies_tpdt = e.copy()
         else:
             print "Error in set_energies_tpdt"
-            sys.exit
+            sys.exit()
 
     def get_energies_tpdt(self):
         return self.energies_tpdt.copy()
@@ -368,7 +369,7 @@ class traj(fmsobj):
             self.backprop_positions = pos.copy()
         else:
             print "Error in set_backprop_positions"
-            sys.exit
+            sys.exit()
 
     def get_backprop_positions(self):
         return self.backprop_positions.copy()
@@ -378,7 +379,7 @@ class traj(fmsobj):
             self.backprop_momenta = mom.copy()
         else:
             print "Error in set_backprop_momenta"
-            sys.exit
+            sys.exit()
 
     def get_backprop_momenta(self):
         return self.backprop_momenta.copy()
@@ -388,7 +389,7 @@ class traj(fmsobj):
             self.widths = wid.copy()
         else:
             print "Error in set_widths"
-            sys.exit
+            sys.exit()
 
     def get_widths(self):
         return self.widths.copy()
@@ -398,7 +399,7 @@ class traj(fmsobj):
             self.masses = m.copy()
         else:
             print "Error in set_masses"
-            sys.exit
+            sys.exit()
 
     def get_masses(self):
         return self.masses.copy()
@@ -413,8 +414,8 @@ class traj(fmsobj):
         self.label = lab
 
     def get_label(self):
-#         if self.label.type == 'unicode':
-#             self.set_label(str(self.label))
+        #         if self.label.type == 'unicode':
+        #             self.set_label(str(self.label))
         return self.label
 
     def get_tc_port(self):
@@ -492,7 +493,7 @@ class traj(fmsobj):
             self.set_backprop_electronic_phases(parent.get_electronic_phases())
 
         self.set_timestep(parent.get_timestep())
-#         self.set_propagator(parent.get_propagator())
+        #         self.set_propagator(parent.get_propagator())
 
         z_dont = np.zeros(parent.get_numstates())
         z_dont[parent.get_istate()] = 1.0
@@ -555,14 +556,14 @@ class traj(fmsobj):
         t_parent from the child's momentum"""
 
         v_child = self.get_energies()[self.get_istate()]
-#         print "rescale v_child ", v_child
-#         print "rescale v_parent ", v_parent
+        #         print "rescale v_child ", v_child
+        #         print "rescale v_parent ", v_parent
         p_parent = self.get_momenta()
         m = self.get_masses()
         t_parent = 0.0
         for idim in range(self.get_numdims()):
             t_parent += 0.5 * p_parent[idim] * p_parent[idim] / m[idim]
-#         print "rescale t_parent ", t_parent
+        #         print "rescale t_parent ", t_parent
         factor = ((v_parent + t_parent - v_child) / t_parent)
         if factor < 0.0:
             print "# Aborting spawn because child does not have"
@@ -581,7 +582,7 @@ class traj(fmsobj):
             self.forces = f.copy()
         else:
             print "Error in set_forces"
-            sys.exit
+            sys.exit()
 
     def get_forces(self):
         return self.forces.copy()
@@ -595,7 +596,7 @@ class traj(fmsobj):
             self.backprop_forces = f.copy()
         else:
             print "Error in set_forces"
-            sys.exit
+            sys.exit()
 
     def get_backprop_forces(self):
         return self.backprop_forces.copy()
@@ -609,7 +610,7 @@ class traj(fmsobj):
             self.energies = e.copy()
         else:
             print "Error in set_forces"
-            sys.exit
+            sys.exit()
 
     def get_energies(self):
         return self.energies.copy()
@@ -619,7 +620,7 @@ class traj(fmsobj):
             self.backprop_energies = e.copy()
         else:
             print "Error in set_forces"
-            sys.exit
+            sys.exit()
 
     def get_backprop_energies(self):
         return self.backprop_energies.copy()
@@ -629,7 +630,7 @@ class traj(fmsobj):
             self.wf = wf.copy()
         else:
             print "Error in set_wf"
-            sys.exit
+            sys.exit()
 
     def get_wf(self):
         return self.wf.copy()
@@ -639,7 +640,7 @@ class traj(fmsobj):
             self.prev_wf = wf.copy()
         else:
             print "Error in set_prev_wf"
-            sys.exit
+            sys.exit()
 
     def get_prev_wf(self):
         return self.prev_wf.copy()
@@ -649,7 +650,7 @@ class traj(fmsobj):
             self.backprop_wf = wf.copy()
         else:
             print "Error in set_backprop_wf"
-            sys.exit
+            sys.exit()
 
     def get_backprop_wf(self):
         return self.backprop_wf.copy()
@@ -659,7 +660,7 @@ class traj(fmsobj):
             self.backprop_prev_wf = wf.copy()
         else:
             print "Error in set_backprop_prev_wf"
-            sys.exit
+            sys.exit()
 
     def get_backprop_prev_wf(self):
         return self.backprop_prev_wf.copy()
@@ -669,7 +670,7 @@ class traj(fmsobj):
             self.spawntimes = st.copy()
         else:
             print "Error in set_spawntimes"
-            sys.exit
+            sys.exit()
 
     def get_spawntimes(self):
         return self.spawntimes.copy()
@@ -679,7 +680,7 @@ class traj(fmsobj):
             self.timederivcoups = t.copy()
         else:
             print "Error in set_spawntimes"
-            sys.exit
+            sys.exit()
 
     def get_timederivcoups(self):
         return self.timederivcoups.copy()
@@ -691,7 +692,7 @@ class traj(fmsobj):
             self.backprop_timederivcoups = -1.0 * t.copy()
         else:
             print "Error in set_spawntimes"
-            sys.exit
+            sys.exit()
 
     def get_backprop_timederivcoups(self):
         return self.backprop_timederivcoups.copy()
@@ -713,7 +714,7 @@ class traj(fmsobj):
             self.timederivcoups_qm = t.copy()
         else:
             print "Error in set_spawntimes"
-            sys.exit
+            sys.exit()
 
     def get_timederivcoups_qm(self):
         return self.timederivcoups_qm.copy()
@@ -723,7 +724,7 @@ class traj(fmsobj):
             self.spawnlastcoup = tdc.copy()
         else:
             print "Error in set_spawnlastcoup"
-            sys.exit
+            sys.exit()
 
     def get_spawnlastcoup(self):
         return self.spawnlastcoup.copy()
@@ -733,7 +734,7 @@ class traj(fmsobj):
             self.z_spawn_now = z.copy()
         else:
             print "Error in set_z_spawn_now"
-            sys.exit
+            sys.exit()
 
     def get_z_spawn_now(self):
         return self.z_spawn_now.copy()
@@ -743,7 +744,7 @@ class traj(fmsobj):
             self.z_dont_spawn = z.copy()
         else:
             print "Error in set_z_dont_spawn"
-            sys.exit
+            sys.exit()
 
     def get_z_dont_spawn(self):
         return self.z_dont_spawn.copy()
@@ -766,10 +767,10 @@ class traj(fmsobj):
     def get_z_compute_me_backprop(self):
         return self.z_compute_me_backprop
 
-#    def compute_elec_struct(self, zbackprop):
-#        tmp = "self.compute_elec_struct_" + self.get_software() + "_"\
-#            + self.get_method() + "(zbackprop)"
-#        eval(tmp)
+    #    def compute_elec_struct(self, zbackprop):
+    #        tmp = "self.compute_elec_struct_" + self.get_software() + "_"\
+    #            + self.get_method() + "(zbackprop)"
+    #        eval(tmp)
 
     def propagate_step(self, zbackprop=False):
         """Performs classical propagation for one step"""
@@ -799,8 +800,8 @@ class traj(fmsobj):
             sign = 1.0
         t = eval("self.get_" + cbackprop + "time()")
         t += sign * dt
-        exec("self.set_" + cbackprop + "time(t)")
-        exec("self.set_" + cbackprop + "time_half_step(t + sign * -0.5 * dt)")
+        exec ("self.set_" + cbackprop + "time(t)")
+        exec ("self.set_" + cbackprop + "time_half_step(t + sign * -0.5 * dt)")
         # if it is this trajectories first timestep (forward or backward)
         self.compute_elec_struct(zbackprop)
         # only output on forward propagation
@@ -821,12 +822,12 @@ class traj(fmsobj):
         z = self.get_z_spawn_now()
 
         for jstate in range(self.numstates):
-            if (jstate != self.get_istate()):
+            if jstate != self.get_istate():
                 if spawnt[jstate] > -1.0e-6:
                     # check to see if a trajectory in a spawning region 
                     # is ready to spawn (reached maximum coupling)
                     if abs(tdc[jstate]) < abs(lasttdc[jstate]):
-#                         print "Spawning to state ", jstate, " at time ", self.get_time()
+                        # print "Spawning to state ", jstate, " at time ", self.get_time()
                         # setting z_spawn_now indicates that
                         # this trajectory should spawn to jstate
                         z[jstate] = 1.0
@@ -834,11 +835,11 @@ class traj(fmsobj):
                     # check to see if trajectory is entering a spawning region
                     if (abs(tdc[jstate]) > thresh) and (z_dont_spawn[jstate] < 0.5):
                         spawnt[jstate] = self.get_time() - self.get_timestep()
-                        print "## trajectory " + self.get_label() +\
-                            " entered spawning region for state ", jstate,\
+                        print "## trajectory " + self.get_label() + \
+                              " entered spawning region for state ", jstate, \
                             " at time ", spawnt[jstate]
                     else:
-                        if (abs(tdc[jstate]) < (0.9*thresh))\
+                        if (abs(tdc[jstate]) < (0.9 * thresh)) \
                                 and (z_dont_spawn[jstate] > 0.5):
                             z_dont_spawn[jstate] = 0.0
 
@@ -861,23 +862,23 @@ class traj(fmsobj):
         if len(self.h5_datasets) == 0:
             self.init_h5_datasets()
         filename = "working.hdf5"
-#         extensions = [3,2,1,0]
-#         for i in extensions :
-#             if i==0:
-#                 ext = ""
-#             else:
-#                 ext = str(i) + "."
-#             filename = "sim." + ext + "hdf5"
-#             if os.path.isfile(filename):
-#                 if (i == extensions[0]):
-#                     os.remove(filename)
-#                 else:
-#                     ext = str(i+1) + "."
-#                     filename2 = "sim." + ext + "hdf5"
-#                     if (i == extensions[-1]):
-#                         shutil.copy2(filename, filename2)
-#                     else:
-#                         shutil.move(filename, filename2)
+        #         extensions = [3,2,1,0]
+        #         for i in extensions :
+        #             if i==0:
+        #                 ext = ""
+        #             else:
+        #                 ext = str(i) + "."
+        #             filename = "sim." + ext + "hdf5"
+        #             if os.path.isfile(filename):
+        #                 if (i == extensions[0]):
+        #                     os.remove(filename)
+        #                 else:
+        #                     ext = str(i+1) + "."
+        #                     filename2 = "sim." + ext + "hdf5"
+        #                     if (i == extensions[-1]):
+        #                         shutil.copy2(filename, filename2)
+        #                     else:
+        #                         shutil.move(filename, filename2)
         h5f = h5py.File(filename, "a")
         groupname = traj_or_cent + self.label
         if groupname not in h5f.keys():
@@ -888,19 +889,19 @@ class traj(fmsobj):
             all_datasets.update(self.h5_datasets_half_step)
         for key in all_datasets:
             n = all_datasets[key]
-#             print "key =", key
+            #             print "key =", key
             dset = trajgrp.get(key)
             l = dset.len()
-            dset.resize(l+1, axis=0)
+            dset.resize(l + 1, axis=0)
             if not zbackprop:
                 ipos = l
             else:
                 ipos = 0
-                dset[1:(l+1), 0:n] = dset[0:(l), 0:n]
+                dset[1:(l + 1), 0:n] = dset[0:l, 0:n]
             getcom = "self.get_" + cbackprop + key + "()"
-#             print "getcom =", getcom
+            #             print "getcom =", getcom
             tmp = eval(getcom)
-#             print "ipos =", ipos
+            #             print "ipos =", ipos
             if n != 1:
                 dset[ipos, 0:n] = tmp[0:n]
             else:
@@ -914,7 +915,7 @@ class traj(fmsobj):
         trajgrp = h5f.create_group(groupname)
         for key in self.h5_datasets:
             n = self.h5_datasets[key]
-#             print "key, n ", key, n
+            #             print "key, n ", key, n
             trajgrp.create_dataset(key, (0, n), maxshape=(None, n),
                                    dtype="float64")
         for key in self.h5_datasets_half_step:
@@ -941,17 +942,17 @@ class traj(fmsobj):
         groupname = traj_or_cent + self.label
         trajgrp = h5f.get(groupname)
         dset_time = trajgrp["time"][:]
-#         print "size", dset_time.size
+        #         print "size", dset_time.size
         ipoint = -1
         for i in range(len(dset_time)):
-            if (dset_time[i] < t+1.0e-6) and (dset_time[i] > t-1.0e-6):
+            if (dset_time[i] < t + 1.0e-6) and (dset_time[i] > t - 1.0e-6):
                 ipoint = i
-#                 print "dset_time[i] ", dset_time[i]
-#                 print "i ", i
+        #                 print "dset_time[i] ", dset_time[i]
+        #                 print "i ", i
         dset = trajgrp[dset_name][:]
         data = np.zeros(len(dset[ipoint, :]))
         data = dset[ipoint, :]
-#         print "dset[ipoint,:] ", dset[ipoint,:]
+        #         print "dset[ipoint,:] ", dset[ipoint,:]
         h5f.close()
         return data
 
@@ -966,21 +967,21 @@ class traj(fmsobj):
         groupname = traj_or_cent + self.label
         trajgrp = h5f.get(groupname)
         dset_time = trajgrp["time"][:]
-#         print "size", dset_time.size
+        #         print "size", dset_time.size
         ipoint = -1
         for i in range(len(dset_time)):
-            if (dset_time[i] < t+1.0e-6) and (dset_time[i] > t-1.0e-6):
+            if (dset_time[i] < t + 1.0e-6) and (dset_time[i] > t - 1.0e-6):
                 ipoint = i
-#                 print "dset_time[i] ", dset_time[i]
-#                 print "i ", i
+        #                 print "dset_time[i] ", dset_time[i]
+        #                 print "i ", i
         for dset_name in self.h5_datasets:
             dset = trajgrp[dset_name][:]
             data = np.zeros(len(dset[ipoint, :]))
-            data = dset[ipoint,:]
+            data = dset[ipoint, :]
             comm = "self." + dset_name + "_qm" + suffix + " = data"
-            exec(comm)
-#             print "comm ", comm
-#             print "dset[ipoint,:] ", dset[ipoint,:]
+            exec (comm)
+        #             print "comm ", comm
+        #             print "dset[ipoint,:] ", dset[ipoint,:]
         h5f.close()
 
     def get_all_qm_data_at_time_from_h5_half_step(self, t):
@@ -994,21 +995,21 @@ class traj(fmsobj):
         groupname = traj_or_cent + self.label
         trajgrp = h5f.get(groupname)
         dset_time = trajgrp["time_half_step"][:]
-#         print "size", dset_time.size
+        #         print "size", dset_time.size
         ipoint = -1
         for i in range(len(dset_time)):
-            if (dset_time[i] < t+1.0e-6) and (dset_time[i] > t-1.0e-6):
+            if (dset_time[i] < t + 1.0e-6) and (dset_time[i] > t - 1.0e-6):
                 ipoint = i
-#                 print "dset_time[i] ", dset_time[i]
-#                 print "i ", i
+        #                 print "dset_time[i] ", dset_time[i]
+        #                 print "i ", i
         for dset_name in self.h5_datasets_half_step:
             dset = trajgrp[dset_name][:]
             data = np.zeros(len(dset[ipoint, :]))
             data = dset[ipoint, :]
             comm = "self." + dset_name + "_qm = data"
-            exec(comm)
-            #print "comm ", comm
-            #print "dset[ipoint,:] ", dset[ipoint,:]        
+            exec (comm)
+            # print "comm ", comm
+            # print "dset[ipoint,:] ", dset[ipoint,:]
         h5f.close()
 
     def compute_tdc(self, Win):
@@ -1016,23 +1017,23 @@ class traj(fmsobj):
         using NPI"""
 
         W = Win.copy()
-        if W[0, 0] > 1.0 and W[0, 0] < 1.01:
+        if 1.0 < W[0, 0] < 1.01:
             W[0, 0] = 1.0
-        if W[0, 0] < -1.0 and W[0, 0] > -1.01:
+        if -1.0 > W[0, 0] > -1.01:
             W[0, 0] = -1.0
-        if W[1, 1] > 1.0 and W[1, 1] < 1.01:
+        if 1.0 < W[1, 1] < 1.01:
             W[1, 1] = 1.0
-        if W[1, 1] < -1.0 and W[1, 1] > -1.01:
+        if -1.0 > W[1, 1] > -1.01:
             W[1, 1] = -1.0
-#         print "W", W
+        #         print "W", W
         Atmp = np.arccos(W[0, 0]) - np.arcsin(W[0, 1])
         Btmp = np.arccos(W[0, 0]) + np.arcsin(W[0, 1])
         Ctmp = np.arccos(W[1, 1]) - np.arcsin(W[1, 0])
         Dtmp = np.arccos(W[1, 1]) + np.arcsin(W[1, 0])
-        Wlj = np.sqrt(1 - W[0, 0]*W[0, 0] - W[1, 0]*W[1, 0])
+        Wlj = np.sqrt(1 - W[0, 0] * W[0, 0] - W[1, 0] * W[1, 0])
         if Wlj != Wlj:
             Wlj = 0.0
-#         print "ABDCtmp Wlj ", Atmp, Btmp, Ctmp, Dtmp, Wlj
+        #         print "ABDCtmp Wlj ", Atmp, Btmp, Ctmp, Dtmp, Wlj
         if np.absolute(Atmp) < 1.0e-6:
             A = -1.0
         else:
@@ -1055,14 +1056,14 @@ class traj(fmsobj):
             Wlk = -1.0 * (W[0, 1] * W[0, 0] + W[1, 1] * W[1, 0]) / Wlj
             sWlj = np.sin(Wlj)
             sWlk = np.sin(Wlk)
-            Etmp = np.sqrt((1 - Wlj*Wlj)*(1 - Wlk*Wlk))
-            denom = sWlj*sWlj - sWlk*sWlk
-            E = 2.0 * Wlj * (Wlj*Wlk*sWlj + (Etmp - 1.0) * sWlk) / denom
-#         print "ABCDE", A, B, C, D, E
+            Etmp = np.sqrt((1 - Wlj * Wlj) * (1 - Wlk * Wlk))
+            denom = sWlj * sWlj - sWlk * sWlk
+            E = 2.0 * Wlj * (Wlj * Wlk * sWlj + (Etmp - 1.0) * sWlk) / denom
+        #         print "ABCDE", A, B, C, D, E
         h = self.get_timestep()
         tdc = 0.5 / h * (np.arccos(W[0, 0]) * (A + B)
                          + np.arcsin(W[1, 0]) * (C + D) + E)
-#         print "tdc", tdc
+        #         print "tdc", tdc
         return tdc
 
     def initial_wigner(self, iseed, temp=0.0):
@@ -1108,18 +1109,18 @@ class traj(fmsobj):
 
         # seed random number generator
         np.random.seed(iseed)
-        alphax = np.sqrt(evals[0:ndims-6]) / 2.0
+        alphax = np.sqrt(evals[0:ndims - 6]) / 2.0
 
         # finite temperature distribution
         if temp > 1e-05:
             beta = 1 / (temp * 0.000003166790852)
             print "beta = ", beta
-            alphax = alphax * np.tanh(np.sqrt(evals[0:ndims-6]) * beta / 2)
+            alphax = alphax * np.tanh(np.sqrt(evals[0:ndims - 6]) * beta / 2)
         sigx = np.sqrt(1.0 / (4.0 * alphax))
         sigp = np.sqrt(alphax)
 
-        dtheta = 2.0 * np.pi * np.random.rand(ndims-6)
-        dr = np.sqrt(np.random.rand(ndims-6))
+        dtheta = 2.0 * np.pi * np.random.rand(ndims - 6)
+        dr = np.sqrt(np.random.rand(ndims - 6))
 
         dx1 = dr * np.sin(dtheta)
         dx2 = dr * np.cos(dtheta)
@@ -1141,8 +1142,8 @@ class traj(fmsobj):
         self.set_positions(pos)
         self.set_momenta(mom)
 
-        zpe = np.sum(alphax[0:ndims-6])
+        zpe = np.sum(alphax[0:ndims - 6])
         ke = 0.5 * np.sum(mom * mom / m)
-#         print np.sqrt(np.tanh(evals[0:ndims-6]/(2*0.0031668)))
+        #         print np.sqrt(np.tanh(evals[0:ndims-6]/(2*0.0031668)))
         print "# ZPE = ", zpe
         print "# kinetic energy = ", ke
