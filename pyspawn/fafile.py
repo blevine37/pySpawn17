@@ -1,6 +1,7 @@
-import numpy as np
-import h5py
 import math
+
+import h5py
+import numpy as np
 
 
 class fafile(object):
@@ -31,7 +32,7 @@ class fafile(object):
         return self.num_traj
 
     def get_max_state(self):
-        return (np.amax(self.istates)+1)
+        return np.amax(self.istates) + 1
 
     def compute_expec(self, Op, c, zreal=True):
         expec = np.matmul(c.conjugate(), np.matmul(Op, c))
@@ -126,15 +127,11 @@ class fafile(object):
         of = open(filename, "w")
         t = self.datasets[times][:, 0]
         for i in range(len(t)):
-#             number = np.format_float_scientific(t[i], unique=False,
-#                                                 precision=8)
             number = t[i]
             of.write(str(number) + " ")
             for iset in range(len(dsets)):
                 dat = self.datasets[dsets[iset]][i, :]
                 for j in range(len(dat)):
-#                    number = np.format_float_scientific(dat[j], unique=False,
-#                                                        precision=8)
                     number = dat[j]
                     of.write(str(number) + " ")
             of.write("\n")
@@ -188,7 +185,7 @@ class fafile(object):
 
         ntimes = len(times)
         Nstate = np.zeros((ntimes, ntraj+1))
-        norm = np.zeros((ntimes))
+        norm = np.zeros(ntimes)
 
         for i in range(ntimes):
             nt = self.ntraj[i]
@@ -470,7 +467,7 @@ class fafile(object):
 
             if column_file_prefix is not None:
                 column_filename = column_file_prefix + "_" + key + ".dat"
-                self.write_columnar_data_file(key+"_time",
+                self.write_columnar_data_file(key + "_time",
                                               [dset_diheds], column_filename)
 
     def fill_trajectory_twists(self, twists, column_file_prefix):
@@ -479,7 +476,6 @@ class fafile(object):
         for key in self.labels:
             ntimes = self.get_traj_num_times(key)
             pos = self.get_traj_data_from_h5(key, "positions")
-            npos = pos.size / ntimes
             ntwists = twists.size / 6
 
             twi = np.zeros((ntimes, ntwists))
