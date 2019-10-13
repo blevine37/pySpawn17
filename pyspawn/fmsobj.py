@@ -14,7 +14,7 @@ class fmsobj(object):
     def to_dict(self):
         """Convert fmsobj structure to python dict structure"""
 
-        tempdict = (self.__dict__).copy()
+        tempdict = self.__dict__.copy()
         for key in tempdict:
             # numpy objects
             if type(tempdict[key]).__module__ == np.__name__:
@@ -22,19 +22,19 @@ class fmsobj(object):
                 for i in range(len(tempdict[key])):
                     # complex elements of 1d arrays are encoded here
                     if isinstance(tempdict[key][i], complex):
-                        tempdict[key][i] = "^complex("\
-                            + str(tempdict[key][i].real)\
-                            + "," + str(tempdict[key][i].imag) + ")"
+                        tempdict[key][i] = "^complex(" \
+                                           + str(tempdict[key][i].real) \
+                                           + "," + str(tempdict[key][i].imag) + ")"
                     else:
                         # and complex 2d arrays here
                         if isinstance(tempdict[key][i], types.ListType):
                             for j in range(len(tempdict[key][i])):
                                 if isinstance(tempdict[key][i][j], complex):
-                                    tempdict[key][i][j] = "^complex(" +\
-                                        str(tempdict[key][i][j].real) + ","\
-                                        + str(tempdict[key][i][j].imag) + ")"
+                                    tempdict[key][i][j] = "^complex(" + \
+                                                          str(tempdict[key][i][j].real) + "," \
+                                                          + str(tempdict[key][i][j].imag) + ")"
             # fms objects here
-            if (type(tempdict[key]).__module__)[0:7] == __name__[0:7]:
+            if type(tempdict[key]).__module__[0:7] == __name__[0:7]:
                 fmsobjlabel = type(tempdict[key]).__module__
                 tempdict[key] = tempdict[key].to_dict()
                 (tempdict[key])["fmsobjlabel"] = fmsobjlabel
@@ -43,7 +43,7 @@ class fmsobj(object):
                 tempdict2 = (tempdict[key]).copy()
                 tempdict[key] = tempdict2
                 for key2 in tempdict2:
-                    if (type(tempdict2[key2]).__module__)[0:7]\
+                    if type(tempdict2[key2]).__module__[0:7] \
                             == __name__[0:7]:
                         fmsobjlabel = type(tempdict2[key2]).__module__
                         tempdict2[key2] = tempdict2[key2].to_dict()
@@ -85,44 +85,43 @@ class fmsobj(object):
                             if (tempdict[key])[0][0][0] == "^":
                                 for i in range(len(tempdict[key])):
                                     for j in range(len(tempdict[key][i])):
-                                        tempdict[key][i][j]\
+                                        tempdict[key][i][j] \
                                             = eval(tempdict[key][i][j][1:])
                                 tempdict[key] = np.asarray(tempdict[key],
                                                            dtype=np.complex128)
         self.__dict__.update(tempdict)
 
-    def write_to_file(self,outfilename):
+    def write_to_file(self, outfilename):
         """Write fmsobj structure to disk in json format"""
 
         tempdict = self.to_dict()
-        with open(outfilename,'w') as outputfile:
-            json.dump(tempdict,outputfile,sort_keys=True, indent=4, separators=(',', ': '))
+        with open(outfilename, 'w') as outputfile:
+            json.dump(tempdict, outputfile, sort_keys=True, indent=4, separators=(',', ': '))
 
-    def read_from_file(self,infilename):
+    def read_from_file(self, infilename):
         """Read fmsobj structure from json file"""
 
-        with open(infilename,'r') as inputfile:
+        with open(infilename, 'r') as inputfile:
             tempdict = json.load(inputfile)
 
         # replace unicode keys (as read by json) with python strings
         # unicode causes problems other places in the code
         for key in tempdict:
-            if isinstance(tempdict[key],types.DictType):
+            if isinstance(tempdict[key], types.DictType):
                 for key2 in tempdict[key]:
                     if isinstance(key2, types.UnicodeType):
                         tempdict[key][str(key2)] = tempdict[key].pop(key2)
-            
+
         self.from_dict(**tempdict)
 
     def set_parameters(self, params):
 
         print "### Setting " + self.__class__.__name__ + " parameters"
         for key in params:
-            print key + " = " + str(params[key]) 
+            print key + " = " + str(params[key])
             method = "set_" + key
-            if hasattr(self,method):
-                exec("self.set_" + key + "(params[key])")
+            if hasattr(self, method):
+                exec ("self.set_" + key + "(params[key])")
             else:
                 print "### Parameter " + key + " not found in " + self.__class__.__name__ + ", exiting"
                 quit()
-                
