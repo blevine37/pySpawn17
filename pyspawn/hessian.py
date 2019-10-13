@@ -1,7 +1,9 @@
-import numpy as np
-from pyspawn.traj import traj
-import h5py
 import os
+
+import h5py
+import numpy as np
+
+from pyspawn.traj import traj
 
 
 class hessian(traj):
