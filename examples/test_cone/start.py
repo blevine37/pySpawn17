@@ -6,10 +6,10 @@ import pyspawn.general
 # Velocity Verlet classical propagator
 clas_prop = "vv"
 
-# adapative 2nd-order Runge-Kutta quantum propagator
+# adaptive 2nd-order Runge-Kutta quantum propagator
 qm_prop = "fulldiag"
 
-# adiabtic NPI quantum Hamiltonian
+# adiabatic NPI quantum Hamiltonian
 qm_ham = "adiabatic"
 
 # use TeraChem CASSCF or CASCI to compute potentials
@@ -38,7 +38,7 @@ traj_params = {
     "timestep": ts,
     # final simulation time
     "maxtime": tfinal,
-    # coupling threshhold
+    # coupling threshold
     "spawnthresh": (0.5 * np.pi) / ts / 20.0,
     # initial electronic state (indexed such that 0 is the ground state)
     "istate": 1,
@@ -50,7 +50,7 @@ traj_params = {
     "positions": np.asarray([0.45, 0.0]),
     # inition momenta
     "momenta": np.asarray([-20.0, 0.0]),
-    }
+}
 
 sim_params = {
     # initial time
@@ -66,10 +66,10 @@ sim_params = {
 }
 
 # import routines needed for propagation
-exec("pyspawn.import_methods.into_simulation(pyspawn.qm_integrator." + qm_prop + ")")
-exec("pyspawn.import_methods.into_simulation(pyspawn.qm_hamiltonian." + qm_ham + ")")
-exec("pyspawn.import_methods.into_traj(pyspawn.potential." + potential + ")")
-exec("pyspawn.import_methods.into_traj(pyspawn.classical_integrator." + clas_prop + ")")
+exec ("pyspawn.import_methods.into_simulation(pyspawn.qm_integrator." + qm_prop + ")")
+exec ("pyspawn.import_methods.into_simulation(pyspawn.qm_hamiltonian." + qm_ham + ")")
+exec ("pyspawn.import_methods.into_traj(pyspawn.potential." + potential + ")")
+exec ("pyspawn.import_methods.into_traj(pyspawn.classical_integrator." + clas_prop + ")")
 
 # check for the existence of files from a past run
 pyspawn.general.check_files()
@@ -87,10 +87,3 @@ sim.set_parameters(sim_params)
 
 # begin propagation
 sim.propagate()
-
-
-
-
-
-
-
