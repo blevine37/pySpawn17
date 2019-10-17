@@ -28,7 +28,7 @@ def process_geometry(geom_file='geometry.xyz'):
                 if len(line_list) > 0:
                     assert len(line_list) == 4, 'wrong xyz file format'
                     coord = [float(num) for num in line_list[1:4]]
-                    coords.append(coord)
+                    for x in coord: coords.append(x)
                     atom_names.append(line_list[0])
 
     # converting coordinates into 1D numpy array
