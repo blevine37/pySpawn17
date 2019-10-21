@@ -4,7 +4,7 @@ import pyspawn
 import pyspawn.general
 
 # terachemserver port 
-port = 54321
+port = 54322
 
 # random number seed
 seed=87062
@@ -28,13 +28,13 @@ t0 = 0.0
 ts = 10.0
 
 # final simulation time
-tfinal = 8000.0
+tfinal = 2500.0
 
 # number of dimensions                                                                                           
 numdims = 18
 
 # number of electronic states                                                                                                                    
-numstates = 3
+numstates = 2
 
 # TeraChem job options                                                                                    
 tc_options = {
@@ -52,7 +52,7 @@ tc_options = {
     "casscf":        "yes",
     "closed":       7,
     "active":       2,
-    "cassinglets":  3,
+    "cassinglets":  numstates,
     "castargetmult": 1,
     "cas_energy_states": [0, 1],
     "cas_energy_mults": [1, 1],
