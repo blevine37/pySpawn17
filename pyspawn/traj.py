@@ -1107,6 +1107,17 @@ class traj(fmsobj):
         print '# eigenvalues of the mass-weighted hessian are (a.u.)'
         print evals
 
+        # Checking if frequencies make sense
+        freq_cm = np.sqrt(evals[0:ndims - 6])*219474.63
+        n_high_freq = 0
+        print 'Frequencies in cm-1:'
+        for freq in freq_cm:
+            if freq > 5000: n_high_freq += 1
+            print freq
+            assert not np.isnan(freq), "NaN encountered in frequencies! Exiting"
+
+        if n_high_freq > 0: print("Number of frequencies > 5000cm-1:", n_high_freq)
+
         # seed random number generator
         np.random.seed(iseed)
         alphax = np.sqrt(evals[0:ndims - 6]) / 2.0
