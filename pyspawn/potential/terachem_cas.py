@@ -96,7 +96,8 @@ def compute_elec_struct(self, zbackprop):
 #     print results
 
     e = np.zeros(nstates)
-    e[:] = results['energy'][:]
+    e = results['energy']
+#    e[:] = results['energy'][:]
 
     results = TC.compute_job_sync("gradient", pos_list, "bohr", **options)
 #     print results
