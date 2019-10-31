@@ -4,7 +4,7 @@
 import numpy as np
 import pyspawn         
 
-pyspawn.import_methods.into_simulation(pyspawn.qm_integrator.full_diag)
+pyspawn.import_methods.into_simulation(pyspawn.qm_integrator.fulldiag)
 pyspawn.import_methods.into_simulation(pyspawn.qm_hamiltonian.adiabatic)
 pyspawn.import_methods.into_traj(pyspawn.potential.terachem_cas)
 pyspawn.import_methods.into_traj(pyspawn.classical_integrator.vv)
