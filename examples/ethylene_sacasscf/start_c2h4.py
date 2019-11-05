@@ -1,10 +1,31 @@
 # this script starts a new AIMS calculation.  Ethylene, SA2-CASSCF(2/2).
 import numpy as np
-import pyspawn        
+import pyspawn
 import pyspawn.general
+import pyspawn.process_geometry as pg
+import pyspawn.dictionaries as dicts
+import sys
 
-# terachemserver port 
-port = 54322
+# terachemserver port
+if sys.argv[1]:
+    port = int(sys.argv[1])
+else:
+    "Please provide a port number as a command line argument"
+    sys.exit()
+
+# Processing geometry.xyz file (positions are in hessian.hdf5 so we don't need them)
+natoms, atoms, _, comment = pg.process_geometry('geometry.xyz')
+
+# Getting atomic masses from the dictionary and converting to atomic units
+# If specific isotopes are needed masses array can be set manually
+mass_dict = dicts.get_atomic_masses()
+masses = np.asarray([mass_dict[atom]*1822.0 for atom in atoms for i in range(3)])
+
+widths_dict = {'C': 30.0, 'H': 6.0, 'N': 22.0}
+widths = np.asarray([widths_dict[atom] for atom in atoms for i in range(3)])
+
+# finite wigner temperature
+wigner_temp = 0
 
 # random number seed
 seed=87062
@@ -28,10 +49,10 @@ t0 = 0.0
 ts = 10.0
 
 # final simulation time
-tfinal = 2500.0
+tfinal = 5000.0
 
 # number of dimensions                                                                                           
-numdims = 18
+numdims = natoms*3
 
 # number of electronic states                                                                                                                    
 numstates = 2
@@ -40,7 +61,7 @@ numstates = 2
 tc_options = {
     "method":       'hf',
     "basis":        '6-31g',
-    "atoms":        ["C", "C", "H", "H", "H", "H"],
+    "atoms":        atoms,
     "charge":       0,
     "spinmult":     1,
     "closed_shell": True,
@@ -48,7 +69,7 @@ tc_options = {
 
     "precision":    "double",
     "threall":      1.0e-20,
-
+    "convthre":     1.0e-08,
     "casscf":        "yes",
     "closed":       7,
     "active":       2,
@@ -73,21 +94,11 @@ traj_params = {
     # initial electronic state (indexed such that 0 is the ground state)
     "istate": 1,
     # Gaussian widths
-    "widths": np.asarray([30.0, 30.0, 30.0,
-                        30.0, 30.0, 30.0,
-                        6.0, 6.0, 6.0,
-                        6.0, 6.0, 6.0,
-                        6.0, 6.0, 6.0,
-                        6.0, 6.0, 6.0]),
+    "widths": widths,
     # atom labels
     "atoms": tc_options["atoms"],
     # nuclear masses (in a.u)    
-    "masses": np.asarray([21864.0, 21864.0, 21864.0,
-                    21864.0, 21864.0, 21864.0,
-                    1822.0, 1822.0, 1822.0,
-                    1822.0, 1822.0, 1822.0,
-                    1822.0, 1822.0, 1822.0,
-                    1822.0, 1822.0, 1822.0]),
+    "masses": masses,
     # terachem options (above)
     "tc_options": tc_options
     }
@@ -130,10 +141,4 @@ sim.set_parameters(sim_params)
 
 # begin propagation
 sim.propagate()
-
-
-
-
-
-
 
