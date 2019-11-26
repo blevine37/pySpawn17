@@ -860,7 +860,7 @@ class simulation(fmsobj):
 
         print "## creating new sim.json"
         # we keep copies of the last 3 json files just to be safe
-        extensions = [3, 2, 1, 0]
+        extensions = [1, 0]
         for i in extensions:
             if i == 0:
                 ext = ""
