@@ -299,6 +299,10 @@ class simulation(fmsobj):
 #             if (self.queue[0] == "END"):
             if (self.get_quantum_time() + 1.0e-6 > self.get_max_quantum_time()):
                 print "### propagate DONE, simulation ended gracefully!"
+                print "Removing working.hdf5, sim.1.hdf5 and sim.1.json files"
+                os.remove('working.hdf5')
+                os.remove('sim.1.hdf5')
+                os.remove('sim.1.json')
                 return
 
             # end simulation if walltime has expired
