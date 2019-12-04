@@ -9,12 +9,8 @@ import pyspawn.fms_analysis
 from fafile import fafile
 import pyspawn.import_methods
 import pyspawn.general
-
 import pyspawn.qm_integrator
-
 import pyspawn.qm_hamiltonian
-
 import pyspawn.potential
-
 import pyspawn.classical_integrator
-
+import pyspawn.plotting
