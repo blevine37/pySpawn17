@@ -6,7 +6,7 @@ import h5py
 import glob
 
 
-def plot_total_energies(time, toten, keys, istates, colors, markers, linestyles):
+def plot_total_energies(time, toten, all_keys, keys_to_plot, istates, colors, markers, linestyles):
     """Plots total classical energies for each trajectory and saves it to png file.
     This plot is very useful to check if energy is conserved.
     Color is represented by the istate of a trajectory
@@ -16,17 +16,21 @@ def plot_total_energies(time, toten, keys, istates, colors, markers, linestyles)
     ax = plt.figure("Total Energies")
     min_energy = min(toten["00"])
     max_energy = max(toten["00"])
-    for index, key in enumerate(keys):
-        if len(keys) > 1:
-            plt.plot(time[key], toten[key], label=key, color=colors[int(istates[index])],
+    for index, key in enumerate(all_keys):
+        # since we have an array istates that corresponds to keys array
+        # we need to make sure that when we need to plot only some of the trajectories we
+        # don't confuse the istates
+        if key in keys_to_plot:
+            if len(all_keys) > 1:
+                plt.plot(time[key], toten[key], label=key, color=colors[int(istates[index])],
                      linestyle=linestyles[index], marker=markers[index])
-        else:
-            plt.plot(time[key], toten[key], label=key, color=colors[int(istates)],
+            else:
+                plt.plot(time[key], toten[key], label=key, color=colors[int(istates)],
                      linestyle=linestyles[index], marker=markers[index])
-        if min(toten[key]) < min_energy:
-            min_energy = min(toten[key])
-        if max(toten[key]) > max_energy:
-            max_energy = max(toten[key])
+            if min(toten[key]) < min_energy:
+                min_energy = min(toten[key])
+            if max(toten[key]) > max_energy:
+                max_energy = max(toten[key])
 
     plt.xlabel('Time, au')
     plt.ylabel('Total Energy, au')
@@ -55,23 +59,24 @@ def plot_total_pop(time, el_pop, nstates, colors):
     g5.savefig("Total_El_pop.png", dpi=300)
 
 
-def plot_e_gap(time, poten, keys, state1, state2, istates, colors, linestyles, markers):
+def plot_e_gap(time, poten, all_keys, keys_to_plot, state1, state2, istates, colors, linestyles, markers):
     """Plots gaps between the specified states for all trajectories
     istates order needs to be fixed!
     """
 
     g2 = plt.figure("Energy gap")
 
-    for index, key in enumerate(keys):
-        if len(keys) > 1:
-            plt.plot(time[key], poten[key][:, state2] - poten[key][:, state1], linestyle=linestyles[index],
-                     marker=markers[index], color=colors[int(istates[index])],
-                     label=key + ": " + r'$S_{}$'.format(state2) + "-"
-                           + r'$S_{}$'.format(state1))
-        else:
-            plt.plot(time[key], poten[key][:, state2] - poten[key][:, state1], linestyle=linestyles[index],
-                     marker=markers[index], color=colors[int(istates)],
-                     label=key + ": " + r'$S_{}$'.format(state2) + "-"
+    for index, key in enumerate(all_keys):
+        if key in keys_to_plot:
+            if len(all_keys) > 1:
+                plt.plot(time[key], poten[key][:, state2] - poten[key][:, state1], linestyle=linestyles[index],
+                         marker=markers[index], color=colors[int(istates[index])],
+                         label=key + ": " + r'$S_{}$'.format(state2) + "-"
+                               + r'$S_{}$'.format(state1))
+            else:
+                plt.plot(time[key], poten[key][:, state2] - poten[key][:, state1], linestyle=linestyles[index],
+                         marker=markers[index], color=colors[int(istates)],
+                         label=key + ": " + r'$S_{}$'.format(state2) + "-"
                            + r'$S_{}$'.format(state1))
     plt.xlabel('Time, au')
     plt.title('Energy gaps, au')
