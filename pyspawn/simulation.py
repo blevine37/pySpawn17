@@ -46,6 +46,9 @@ class simulation(fmsobj):
         # maps trajectories to matrix element indices
         self.traj_map = dict()
 
+        # dictionary with istates for each trajectory, needed for analysis
+        self.istates_dict = dict()
+
         # quantum amplitudes
         self.qm_amplitudes = np.zeros(0, dtype=np.complex128)
 

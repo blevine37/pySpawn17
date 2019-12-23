@@ -116,6 +116,9 @@ an.fill_trajectory_energies(column_file_prefix="E")
 # write file with time derivative couplings for each trajectory
 an.fill_trajectory_tdcs(column_file_prefix="tdc")
 
+# creates a dictionary where keys are trajectory values and labels are istates
+an.create_istate_dict()
+
 # compute Mulliken population of each trajectory
 an.fill_mulliken_populations(column_filename="mull.dat")
 mull_pop = an.datasets["mulliken_populations"]

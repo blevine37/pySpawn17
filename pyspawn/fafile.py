@@ -2,6 +2,7 @@ import math
 
 import h5py
 import numpy as np
+from typing import Dict, Any
 
 
 class fafile(object):
@@ -49,6 +50,13 @@ class fafile(object):
         if zreal:
             expec = expec.real
         return expec
+
+    def create_istate_dict(self):
+
+        istates_dict = dict()
+        for key in self.labels:
+            istates_dict[key] = self.h5file['traj_' + key].attrs["istate"]
+        self.datasets["istates_dict"] = istates_dict
 
     def fill_labels(self):
 
