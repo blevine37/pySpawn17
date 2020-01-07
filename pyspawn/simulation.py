@@ -846,10 +846,13 @@ class simulation(fmsobj):
             # if the overlap is too high, don't spawn!
             if np.absolute(overlap) > self.olapmax:
                 z_add_traj = False
-
-            # let the user know what happened
-            if not z_add_traj:
                 print "# aborting spawn due to large overlap with existing trajectory"
+
+            # if the overlap is too low, we don't want to spawn either
+            if np.absolute(overlap) < 0.05:
+                z_add_traj = False
+                print "# aborting spawn due to small (<0.05) overlap with existing trajectory"
+
         return z_add_traj
 
     def restart_from_file(self, json_file, h5_file):
