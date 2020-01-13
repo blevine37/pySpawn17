@@ -789,10 +789,8 @@ class simulation(fmsobj):
                     # even though it is a warning sign, it is inevitable in many cases
                     # so here we calculate nuclear overlap to make sure there is going to
                     # be population transfer as a result of adding newtraj
-                    parent_child_nuc_olap = cg.overlap_nuc(key, newtraj, positions_i="positions",
-                                                        positions_j="positions", momenta_i="momenta",
-                                                        momenta_j="momenta")
-                    if parent_child_nuc_olap < 0.05:
+                    parent_child_nuc_olap = cg.overlap_nuc(self.traj[key], newtraj)
+                    if np.abs(parent_child_nuc_olap) < 0.05:
                         z_add_traj_olap = False
                     else:
                         z_add_traj_olap = True
