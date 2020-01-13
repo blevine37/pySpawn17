@@ -928,6 +928,7 @@ class traj(fmsobj):
         trajgrp.attrs["widths"] = self.widths
         trajgrp.attrs["tc_port"] = self.tc_port
         trajgrp.attrs["numstates"] = self.numstates
+        traj.attrs["spawnthresh"] = self.spawnthresh
         if hasattr(self, "atoms"):
             trajgrp.attrs["atoms"] = self.atoms
 
