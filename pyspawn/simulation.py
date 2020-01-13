@@ -775,18 +775,32 @@ class simulation(fmsobj):
                     # create label that indicates parentage
                     # for example:
                     # a trajectory labeled 00b1b5 means that the initial
-                    # trajectory "00" spawned a trajecory "1" (its
+                    # trajectory "00" spawned a trajectory "1" (its
                     # second child) which then spawned another (it's 6th child)
                     label = str(self.traj[key].get_label() + "b"
                                 + str(self.traj[key].get_numchildren()))
 
-                    # create and initiate new trajectpory structure
+                    # create and initiate new trajectory structure
                     newtraj = traj(self.traj[key].numdims, self.traj[key].numstates)
                     newtraj.init_spawn_traj(self.traj[key], jstate, label)
 
+                    # checking if overlap between parent and child is not too small
+                    # sometimes NAC coupling jumps at points of electronic wf discontinuity
+                    # even though it is a warning sign, it is inevitable in many cases
+                    # so here we calculate nuclear overlap to make sure there is going to
+                    # be population transfer as a result of adding newtraj
+                    parent_child_nuc_olap = cg.overlap_nuc(key, newtraj, positions_i="positions",
+                                                        positions_j="positions", momenta_i="momenta",
+                                                        momenta_j="momenta")
+                    if parent_child_nuc_olap < 0.05:
+                        z_add_traj_olap = False
+                    else:
+                        z_add_traj_olap = True
+
                     # checking to see if overlap with existing trajectories
                     # is too high.  If so, we abort spawn
-                    z_add_traj_olap = self.check_overlap(newtraj)
+                    if z_add_traj_olap:
+                        z_add_traj_olap = self.check_overlap(newtraj)
 
                     # rescaling velocity.  We'll abort if there is not
                     # enough energy (aka a "frustrated spawn")
@@ -847,11 +861,6 @@ class simulation(fmsobj):
             if np.absolute(overlap) > self.olapmax:
                 z_add_traj = False
                 print "# aborting spawn due to large overlap with existing trajectory"
-
-            # if the overlap is too low, we don't want to spawn either
-            if np.absolute(overlap) < 0.05:
-                z_add_traj = False
-                print "# aborting spawn due to small (<0.05) overlap with existing trajectory"
 
         return z_add_traj
 
