@@ -877,7 +877,7 @@ class simulation(fmsobj):
 
         print "## creating new sim.json"
         # we keep copies of the last 3 json files just to be safe
-        extensions = [1, 0]
+        extensions = [2, 1, 0]
         for i in extensions:
             if i == 0:
                 ext = ""
@@ -898,7 +898,7 @@ class simulation(fmsobj):
         # now we write the current json file
         self.write_to_file("sim.json")
         print "## synchronizing sim.hdf5"
-        extensions = [3, 2, 1, 0]
+        extensions = [2, 1, 0]
         for i in extensions:
             if i == 0:
                 ext = ""
