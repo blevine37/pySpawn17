@@ -22,7 +22,7 @@ t0 = 0.0
 ts = 0.1
 
 # final simulation time
-tfinal = 80.0
+tfinal = 200.0
 
 # number of dimensions
 numdims = 2
@@ -47,9 +47,9 @@ traj_params = {
     # nuclear masses (in a.u)
     "masses": np.asarray([1822.0, 1822.0]),
     # initial positions
-    "positions": np.asarray([0.45, 0.0]),
+    "positions": np.asarray([0.45, 0.1]),
     # inition momenta
-    "momenta": np.asarray([-20.0, 0.0]),
+    "momenta": np.asarray([-5.0, 0.0]),
 }
 
 sim_params = {
@@ -76,8 +76,8 @@ pyspawn.general.check_files()
 
 # set up first trajectory
 traj1 = pyspawn.traj(numdims, numstates)
-traj1.set_numstates(numstates)
-traj1.set_numdims(numdims)
+# traj1.set_numstates(numstates)
+# traj1.set_numdims(numdims)
 traj1.set_parameters(traj_params)
 
 # set up simulation
