@@ -112,9 +112,9 @@ def plot_tdc(time, tdc, keys, numstates, istates_dict, spawnthresh, colors, line
     plt.savefig("all_tdc.png", dpi=300)
 
 
-def plot_bonds(time, keys, bonds_array):
+def plot_bonds(time, keys, bonds_array, colors):
 
-    plt.figure("Dihedral Angles")
+    plt.figure("Bonds")
 
     for index_key, key in enumerate(keys):
         for n in range(np.shape(bonds_array)[0]):
