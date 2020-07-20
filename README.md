@@ -15,7 +15,7 @@
 pySpawn17
 =========
 
-version 0.0
+version 1.0
 
 created by
 Benjamin G. Levine
@@ -27,12 +27,9 @@ A trim but extensible full multiple spawning software package, written in python
 Citation
 ========
 
-If you use this code, we ask that you cite as follows:
+If you use this code, we ask that you cite the paper at the follows DOI:
 
-"pySpawn17 is a nonadiabatic molecular dynamics software package written by B. G. Levine"
-
-This citation will eventually be updated.
-
+10.1021/acs.jctc.0c00575
 
 License
 =======
