@@ -789,13 +789,11 @@ class simulation(fmsobj):
                     # even though it is a warning sign, it is inevitable in many cases
                     # so here we calculate nuclear overlap to make sure there is going to
                     # be population transfer as a result of adding newtraj
-                    # uncomment below lines to set threshold overlap between parent and child
-                    # below which the new traj will not spawn (commented by A.Mehmood)
-                    # parent_child_nuc_olap = cg.overlap_nuc(self.traj[key], newtraj)                                       
-                    # if np.abs(parent_child_nuc_olap) < 0.05:
-                    #    z_add_traj_olap = False
-                    # else:
-                    z_add_traj_olap = True
+                    parent_child_nuc_olap = cg.overlap_nuc(self.traj[key], newtraj)
+                    if np.abs(parent_child_nuc_olap) < 0.05:
+                        z_add_traj_olap = False
+                    else:
+                        z_add_traj_olap = True
 
                     # checking to see if overlap with existing trajectories
                     # is too high.  If so, we abort spawn
