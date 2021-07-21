@@ -40,11 +40,11 @@ def compute_elec_struct(self,zbackprop):
         
     TC = TCProtobufClient(host='localhost', port=54321)
 
-    base_options = self.get_tc_options()
+    options = self.get_tc_options()
 
-    base_options["castarget"] = istate
+#    options["castarget"] = istate
 
-    TC.update_options(**base_options)
+#    TC.update_options(**base_options)
 
     TC.connect()
 
@@ -58,7 +58,7 @@ def compute_elec_struct(self,zbackprop):
 
     # here we call TC once for energies and once for the gradient
     # will eventually be replaced by a more efficient interface
-    options = {}
+    #options = {}
     results = TC.compute_job_sync("energy", pos_list, "bohr", **options)
     #print results
 
