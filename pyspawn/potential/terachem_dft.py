@@ -17,9 +17,8 @@ import errno
 #3) potential_specific_traj_copy, which copies data that is potential specific 
 #   from one traj data structure to another.  This is used when new trajectories
 #   and centroids are spawned.
-#other ancillary routines may be included as well
+#   other ancillary routines may be included as well
 
-### terachem_cas electronic structure ###
 def compute_elec_struct(self,zbackprop):
     if not zbackprop:
         cbackprop = ""
@@ -38,9 +37,11 @@ def compute_elec_struct(self,zbackprop):
     exec("pos = self.get_" + cbackprop + "positions()")
     pos_list = pos.tolist()
         
-    TC = TCProtobufClient(host='localhost', port=54321)
+    TC = TCProtobufClient(host='localhost', port=self.tc_port)
+    
+    base_options = self.get_tc_options()
 
-    options = self.get_tc_options()
+    options = base_options
 
 #    options["castarget"] = istate
 
@@ -58,7 +59,7 @@ def compute_elec_struct(self,zbackprop):
 
     # here we call TC once for energies and once for the gradient
     # will eventually be replaced by a more efficient interface
-    #options = {}
+    # options = {}
     results = TC.compute_job_sync("energy", pos_list, "bohr", **options)
     #print results
 
