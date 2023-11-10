@@ -588,3 +588,31 @@ class fafile(object):
                 column_filename = column_file_prefix + "_" + key + ".dat"
                 self.write_columnar_data_file(key + "_time_half_step",
                                               [dset_tdc], column_filename)
+
+# Adedd by AMehmood
+    def fill_trajectory_temperature(self, column_file_prefix=None):
+        """Creates datasets with Temperature (K) of each trajectory
+        and prints into text file"""
+
+        for key in self.labels:
+            ntimes = self.get_traj_num_times(key)
+            mom = self.get_traj_data_from_h5(key, "momenta")
+            istate = self.get_traj_attr_from_h5(key, 'istate')
+            m = self.get_traj_attr_from_h5(key, 'masses')
+
+            kinen = np.zeros((ntimes, 1))
+            tempt = np.zeros((ntimes, 1))
+
+            for itime in range(ntimes):
+                p = mom[itime, :]
+                kinen[itime, 0] = 0.5 * np.sum(p * p / m)
+                tempt[itime, 0] = 2.0e0*(kinen[itime, 0]/len(m))/3.166811563E-6
+
+            dset_tempt = key + "_temperature"
+
+            self.datasets[dset_tempt] = tempt
+
+            if column_file_prefix is not None:
+                column_filename = column_file_prefix + "_" + key + ".dat"
+                self.write_columnar_data_file(key + "_time",
+                                              [dset_tempt], column_filename)
