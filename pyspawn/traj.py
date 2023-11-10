@@ -520,6 +520,9 @@ class traj(fmsobj):
 
         # copying port for terachem jobs
         self.set_tc_port(parent.tc_port)
+        # Added by A. Mehmood
+        self.set_sim_temp(parent.get_sim_temp())
+        self.set_lan_damp(parent.get_lan_damp())
 
     def init_centroid(self, existing, child, label):
         ts = child.get_timestep()
@@ -565,6 +568,9 @@ class traj(fmsobj):
 
         # copying port for tc job
         self.set_tc_port(existing.tc_port)
+        # Added by A. Mehmood
+        self.set_sim_temp(child.get_sim_temp())
+        self.set_lan_damp(child.get_lan_damp())
 
     def rescale_momentum(self, v_parent):
         """ Computing kinetic energy of parent.  Remember that, at this point,
