@@ -72,6 +72,8 @@ class traj(fmsobj):
         # when running terachem jobs we need to have a different port for every
         # terachem server instance
         self.tc_port = 0
+        self.sim_temp = 0.0
+        self.lan_damp = 0.0
 
     def set_time(self, t):
         self.time = t
@@ -213,7 +215,21 @@ class traj(fmsobj):
     #
     #     def get_method(self):
     #         return self.method
+    
+    ## Satrt Added by A. Mehmood
+    def set_sim_temp(self, temper):
+        self.sim_temp = temper
 
+    def get_sim_temp(self):
+        return self.sim_temp
+
+    def set_lan_damp(self, Landamp):
+        self.lan_damp = Landamp
+
+    def get_lan_damp(self):
+        return self.lan_damp
+    ## End Added by A. Mehmood
+    
     def set_positions(self, pos):
         if pos.shape == self.positions.shape:
             self.positions = pos.copy()
