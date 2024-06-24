@@ -475,6 +475,7 @@ class simulation(fmsobj):
                             positions_j="positions_qm",
                             momenta_i="momenta_qm",
                             momenta_j="momenta_qm")
+        #print("S is: ", self.S)
 
     def build_Sdot(self):
         """Build the right-acting time derivative operator"""
@@ -511,21 +512,27 @@ class simulation(fmsobj):
         print "# building kinetic energy matrix"
         self.build_T()
         ntraj = self.get_num_traj_qm()
-        shift = self.get_qm_energy_shift() * np.identity(ntraj)
+       # #shift = self.get_qm_energy_shift() * np.identity(ntraj)
         print "# summing Hamiltonian"
-        self.H = self.T + self.V + self.tau + shift
+        self.H = self.T + self.V + self.tau #+ shift
+        #print('T is: ', self.T)
+        #print('V is:', self.V)
+        #print('tau is: ', self.tau)
+        #print('shift is: ', shift)
+        #print("H is: ", self.H)
 
     def build_V(self):
         """Build the potential energy matrix, V
         This routine assumes that S is already built"""
 
+        shift = self.get_qm_energy_shift()
         ntraj = self.get_num_traj_qm()
         self.V = np.zeros((ntraj, ntraj), dtype=np.complex128)
         for key in self.traj:
             i = self.traj_map[key]
             istate = self.traj[key].get_istate()
             if i < ntraj:
-                self.V[i, i] = self.traj[key].get_energies_qm()[istate]
+                self.V[i, i] = self.traj[key].get_energies_qm()[istate] + shift
         for key in self.centroids:
             keyi, keyj = str.split(key, "_a_")
             i = self.traj_map[keyi]
@@ -534,7 +541,7 @@ class simulation(fmsobj):
                 istate = self.centroids[key].get_istate()
                 jstate = self.centroids[key].get_jstate()
                 if istate == jstate:
-                    E = self.centroids[key].get_energies_qm()[istate]
+                    E = self.centroids[key].get_energies_qm()[istate] + shift
                     self.V[i, j] = self.S[i, j] * E
                     self.V[j, i] = self.S[j, i] * E
 

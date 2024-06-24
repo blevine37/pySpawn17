@@ -491,6 +491,13 @@ class traj(fmsobj):
         if hasattr(parent, 'electronic_phases'):
             self.set_electronic_phases(parent.get_electronic_phases())
             self.set_backprop_electronic_phases(parent.get_electronic_phases())
+        if hasattr(parent, 'wfn'):
+            self.set_wfn(parent.get_wfn())
+            self.set_backprop_wfn(parent.get_wfn())
+        if hasattr(parent, 'inporbs'):
+            self.set_inporbs(parent.get_inporbs())
+            self.set_backprop_inporbs(parent.get_inporbs())
+        
 
         self.set_timestep(parent.get_timestep())
         #         self.set_propagator(parent.get_propagator())
@@ -543,7 +550,12 @@ class traj(fmsobj):
         if hasattr(child, 'electronic_phases'):
             self.set_electronic_phases(child.get_electronic_phases())
             self.set_backprop_electronic_phases(child.get_electronic_phases())
-
+        if hasattr(child, 'wfn'):
+            self.set_wfn(child.get_wfn())
+            self.set_backprop_wfn(child.get_wfn())
+        if hasattr(child, 'inporbs'):
+            self.set_inporbs(child.get_inporbs())
+            self.set_backprop_inporbs(child.get_inporbs())
         self.set_timestep(ts)
         self.potential_specific_traj_copy(existing)
 
@@ -887,6 +899,9 @@ class traj(fmsobj):
         all_datasets = self.h5_datasets.copy()
         if not zdont_half_step:
             all_datasets.update(self.h5_datasets_half_step)
+        #for key, values in all_datasets.items():
+            #print(key, values) 
+        
         for key in all_datasets:
             n = all_datasets[key]
             #             print "key =", key
@@ -1018,15 +1033,14 @@ class traj(fmsobj):
         using NPI"""
 
         W = Win.copy()
-        if 1.0 < W[0, 0] < 1.01:
-            W[0, 0] = 1.0
-        if -1.0 > W[0, 0] > -1.01:
-            W[0, 0] = -1.0
-        if 1.0 < W[1, 1] < 1.01:
-            W[1, 1] = 1.0
-        if -1.0 > W[1, 1] > -1.01:
-            W[1, 1] = -1.0
-        #         print "W", W
+        if 1.0 < W[0, 0] < 1.01: 
+            W[0, 0] = 1.0 
+        if -1.0 > W[0, 0] > -1.01: 
+            W[0, 0] = -1.0 
+        if 1.0 < W[1, 1] < 1.01: 
+            W[1, 1] = 1.0 
+        if -1.0 > W[1, 1] > -1.01: 
+            W[1, 1] = -1.0 
         Atmp = np.arccos(W[0, 0]) - np.arcsin(W[0, 1])
         Btmp = np.arccos(W[0, 0]) + np.arcsin(W[0, 1])
         Ctmp = np.arccos(W[1, 1]) - np.arcsin(W[1, 0])
@@ -1034,7 +1048,6 @@ class traj(fmsobj):
         Wlj = np.sqrt(1 - W[0, 0] * W[0, 0] - W[1, 0] * W[1, 0])
         if Wlj != Wlj:
             Wlj = 0.0
-        #         print "ABDCtmp Wlj ", Atmp, Btmp, Ctmp, Dtmp, Wlj
         if np.absolute(Atmp) < 1.0e-6:
             A = -1.0
         else:
@@ -1060,11 +1073,9 @@ class traj(fmsobj):
             Etmp = np.sqrt((1 - Wlj * Wlj) * (1 - Wlk * Wlk))
             denom = sWlj * sWlj - sWlk * sWlk
             E = 2.0 * Wlj * (Wlj * Wlk * sWlj + (Etmp - 1.0) * sWlk) / denom
-        #         print "ABCDE", A, B, C, D, E
         h = self.get_timestep()
         tdc = 0.5 / h * (np.arccos(W[0, 0]) * (A + B)
                          + np.arcsin(W[1, 0]) * (C + D) + E)
-        #         print "tdc", tdc
         return tdc
 
     def initial_wigner(self, iseed, temp=0.0):
@@ -1158,4 +1169,129 @@ class traj(fmsobj):
         ke = 0.5 * np.sum(mom * mom / m)
         #         print np.sqrt(np.tanh(evals[0:ndims-6]/(2*0.0031668)))
         print "# ZPE = ", zpe
+        print "# kinetic energy = ", ke
+    
+    def read_initial_conds(self):
+        ###NOT FINISHED
+        """Get already sampled position and momenta from initial condition filesd"""
+
+        print "## reading initial conditions from file:"
+        ndims = self.get_numdims()
+        m = self.get_masses()
+        sqrtm = np.sqrt(m)
+
+        #h5f = h5py.File('hessian.hdf5', 'r')
+        with open('geometry.xyz', 'r') as file:
+            geom= file.readlines()
+
+        geom = geom[2:]
+        pos = []
+        for i in range(len(geom)):
+            atom = geom[i].split()
+            pos.append(float(atom[1]))
+            pos.append(float(atom[2]))
+            pos.append(float(atom[3]))
+        pos=np.array(pos)
+
+        with open('velocities.xyz', 'r') as file:
+            lines = file.readlines()
+
+        vel = []
+
+        for atom in lines:
+            vel.extend([float(x) for x in atom.split()])
+        
+        #mom = []
+        #for i in range(len(vel)):
+        #    atom = vel[i].split()
+        #    mom.append(float(atom[0])*m[i])
+        #    mom.append(float(atom[1])*m[i])
+        #    mom.append(float(atom[2])*m[i])
+        #mom=np.array(mom)
+        #pos = h5f['geometry'][:].flatten()
+
+        #h = h5f['hessian'][:]
+
+
+        # build mass weighted hessian
+        #h_mw = np.zeros_like(h)
+
+        #for idim in range(ndims):
+        #    h_mw[idim, :] = h[idim, :] / sqrtm
+
+        #for idim in range(ndims):
+        #    h_mw[:, idim] = h_mw[:, idim] / sqrtm
+
+        # symmetrize mass weighted hessian
+        #h_mw = 0.5 * (h_mw + h_mw.T)
+
+        # diagonalize mass weighted hessian
+        #evals, modes = np.linalg.eig(h_mw)
+
+        # sort eigenvectors
+        #idx = evals.argsort()[::-1]
+        #evals = evals[idx]
+        #modes = modes[:, idx]
+
+        #print '# eigenvalues of the mass-weighted hessian are (a.u.)'
+        #print evals
+
+        ## Checking if frequencies make sense
+        #freq_cm = np.sqrt(evals[0:ndims - 6])*219474.63
+        #n_high_freq = 0
+        #print 'Frequencies in cm-1:'
+        #for freq in freq_cm:
+        #    if freq > 5000: n_high_freq += 1
+        #    print freq
+        #    assert not np.isnan(freq), "NaN encountered in frequencies! Exiting"
+
+        #if n_high_freq > 0: print("Number of frequencies > 5000cm-1:", n_high_freq)
+
+        # seed random number generator
+        #np.random.seed(iseed)
+        #alphax = np.sqrt(evals[0:ndims - 6]) / 2.0
+#
+#        # finite temperature distribution
+#        if temp > 1e-05:
+#            beta = 1 / (temp * 0.000003166790852)
+#            print "beta = ", beta
+#            alphax = alphax * np.tanh(np.sqrt(evals[0:ndims - 6]) * beta / 2)
+#        sigx = np.sqrt(1.0 / (4.0 * alphax))
+#        sigp = np.sqrt(alphax)
+#
+#        dtheta = 2.0 * np.pi * np.random.rand(ndims - 6)
+#        dr = np.sqrt(np.random.rand(ndims - 6))
+#
+#        dx1 = dr * np.sin(dtheta)
+#        dx2 = dr * np.cos(dtheta)
+#
+#        rsq = dx1 * dx1 + dx2 * dx2
+#
+#        fac = np.sqrt(-2.0 * np.log(rsq) / rsq)
+#
+#        x1 = dx1 * fac
+#        x2 = dx2 * fac
+#
+#        posvec = np.append(sigx * x1, np.zeros(6))
+#        momvec = np.append(sigp * x2, np.zeros(6))
+#
+#        deltaq = np.matmul(modes, posvec) / sqrtm
+#        pos += deltaq
+#        mom = np.matmul(modes, momvec) * sqrtm
+
+        
+        self.set_positions(pos)
+        m = self.get_masses()
+        print("M ", m)
+        print("V ", vel)
+        veloc =np.array(vel)
+        mom = veloc * m
+        self.set_momenta(mom)
+        print('geom: ', pos)
+        print('mom: ', mom)
+
+#        zpe = np.sum(alphax[0:ndims - 6])
+        ke = 0.5 * np.sum(mom * mom / m)
+        #         print np.sqrt(np.tanh(evals[0:ndims-6]/(2*0.0031668)))
+#        print "# ZPE = ", zpe
         print "# kinetic energy = ", ke
