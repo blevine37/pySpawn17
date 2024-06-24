@@ -52,7 +52,7 @@ This code is currently under development.  Example jobs are provided.  Documenta
 Interfaces
 ==========
 
-At present only an interface for (a development version of) TeraChem is provided, but pySpawn is designed to be readily interfaced with other codes.
+At present only an interface for (a development version of) TeraChem and one for OpenMolcas are provided, but pySpawn is designed to be readily interfaced with other codes.
 
 Contact
 =======
