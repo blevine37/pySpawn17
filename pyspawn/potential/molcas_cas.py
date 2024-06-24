@@ -90,7 +90,7 @@ def compute_elec_struct(self, zbackprop):
 
     input_molcas = Input(project,options["atoms"],pos_list,options["basis"],options["charge"],
             options["spinmult"],options["nactel"],options["inactive"],options["actorb"],
-            nstates, cbackprop,castarget=options["castarget"], method=options['method'],pt2=options["pt2"])
+            nstates, cbackprop,castarget=options["castarget"], method=options['method'],pt2=options["pt2"],imaginary=options["imaginary"],ipea=options["ipea"])
     
     input_molcas.write_gateway()
     input_molcas.write_seward()
