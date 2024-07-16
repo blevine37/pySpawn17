@@ -19,7 +19,7 @@ version 1.0
 
 created by
 Benjamin G. Levine
-Michigan State University
+Stony Brook University
 
 A trim but extensible full multiple spawning software package, written in python and distributed under the MIT License.
 
