@@ -47,7 +47,7 @@ This is an ab initio multiple spawning code written in python.  It is designed t
 -  Interface to OpenMolcas
 -  An analysis module for processing of simulation data.
 
-This code is currently under development.  Example jobs are provided.  Documentation is present, but a work in progress.  DGAS is being implemented.  A release is forthcoming after these issues are addressed and the code is more rigorously tested.
+This code is currently under development.  Example jobs are provided.  Documentation is present, but a work in progress.
 
 Interfaces
 ==========
@@ -57,7 +57,7 @@ At present only an interface for (a development version of) TeraChem and one for
 Contact
 =======
 
-pySpawn is developed and maintained primarily by Benjamin G. Levine, levine@chemistry.msu.edu.
+pySpawn is developed and maintained primarily by Benjamin G. Levine, ben.levine@stonybrook.edu.
 
 
 
