@@ -29,7 +29,12 @@ Citation
 
 If you use this code, we ask that you cite the paper at the follows DOI:
 
-10.1021/acs.jctc.0c00575
+https://doi.org/10.1021/acs.jctc.0c00575
+
+If you use the OpenMolcas interface, please also cite the paper at the following DOI:
+
+https://doi.org/10.1021/acs.jctc.4c00855
+
 
 License
 =======
@@ -52,7 +57,7 @@ This code is currently under development.  Example jobs are provided.  Documenta
 Interfaces
 ==========
 
-At present only an interface for (a development version of) TeraChem and one for OpenMolcas are provided, but pySpawn is designed to be readily interfaced with other codes.
+At present only two interfaces are provided: one for (a development version of) TeraChem and one for OpenMolcas.
 
 Contact
 =======
