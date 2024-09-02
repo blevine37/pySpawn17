@@ -27,11 +27,11 @@ A trim but extensible full multiple spawning software package, written in python
 Citation
 ========
 
-If you use this code, we ask that you cite the paper at the follows DOI:
+If you use pySpawn, we ask that you cite the paper at the following DOI:
 
 https://doi.org/10.1021/acs.jctc.0c00575
 
-If you use the OpenMolcas interface, please also cite the paper at the following DOI:
+If you use the OpenMolcas interface, please cite both the paper above and the paper at the following DOI:
 
 https://doi.org/10.1021/acs.jctc.4c00855
 
