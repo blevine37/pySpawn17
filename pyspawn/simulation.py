@@ -65,6 +65,17 @@ class simulation(fmsobj):
         # maximium walltime in seconds
         self.max_walltime = -1.0
 
+        # Stochastic-Selection AIMS controls (Added by A. Mehmood 10/02/2025)
+        self.ssa_enabled = False             # master switch
+        self.ssa_epsilon = 0.0               # |H_kl| threshold (a.u.) for connectivity
+        self.ssa_seed = None                 # Random seed
+        self.ssa_suspend_during_spawn = True # suspend selection while spawning
+        self.ssa_spawn_delay_steps = 0       # wait this many quantum steps after each spawn
+        self.ssa_min_tbf_to_start = 1        # minimum No. of TBFs before SSAIMS may act
+        self.ssa_has_started = False         # once started, stays started        
+        self.ssa_prev_ntraj = None           # internal trackers for the gates
+        self.ssa_steps_since_spawn = 1e9     # large so first call isn't blocked unless a spawn occurs
+
     def from_dict(self, **tempdict):
         """Convert dict to simulation data structure"""
 
@@ -405,6 +416,9 @@ class simulation(fmsobj):
                 print "## propagating quantum amplitudes at time",\
                     self.get_quantum_time(), " (first step)"
                 self.qm_propagate_step(zoutput_first_step=True)
+
+                        # SSAIMS stochastic selection (if enabled)
+            self.ssaims_step()
 
             print "## outputing quantum information to hdf5"
             self.h5_output()
@@ -975,9 +989,87 @@ class simulation(fmsobj):
             tmp = eval(getcom)
             if type(tmp).__module__ == np.__name__:
                 tmp = np.ndarray.flatten(tmp)
-                dset[ipos, 0:n] = tmp[0:n]
+                if l > 0:   # Start: Added by A. Mehmood to avoid basis shrinks after SSAIMS
+                    row_width = dset.shape[1]
+                else:
+                    row_width = n
+                if tmp.size < row_width:
+                    row = np.zeros(row_width, dtype=dset.dtype)
+                    row[:tmp.size] = tmp
+                    dset[ipos, 0:row_width] = row
+                else:
+                    dset[ipos, 0:row_width] = tmp[0:row_width]   # End: Added by A. Mehmood                
             else:
                 dset[ipos, 0] = tmp
+        # ensure sim attrs up-to-date each write
+        
+        # Added by A.Mehmood: We need the procedure below to keep record of pruned trajs in sim dataset.
+        # Save history of labels and corrsponding state per-step mapping so analysis can reconstruct information
+        try:
+            grp = h5f.get(groupname)
+
+            # The row we just wrote is the last one (time is an append-only dataset)
+            # If quantum_time is missing for some reason, fall back to 0.
+            try:
+                row_idx = int(grp["quantum_time"].shape[0]) - 1
+                if row_idx < 0:
+                    row_idx = 0
+            except Exception:
+                row_idx = 0
+
+            # Build current label order (index -> label) for current("THIS") step
+            n_now = int(self.get_num_traj_qm()) if hasattr(self, "get_num_traj_qm") else 0
+            inv_map = [None]*n_now      # index -> label
+            # self.traj_map: label -> current index
+            for lab, idx in self.traj_map.items():
+                if idx is not None and 0 <= idx < n_now:
+                    inv_map[idx] = lab
+            labels_list = [ (l if l is not None else "") for l in inv_map ]
+
+            # Build current istates aligned with inv_map
+            ist_list = []
+            for l in labels_list:
+                if l == "":
+                    ist_list.append("-1")
+                else:
+                    try:
+                        ist_list.append(str(int(self.traj[l].get_istate())))
+                    except Exception:
+                        try:
+                            ist_list.append(str(int(self.centroids[l].get_istate())))
+                        except Exception:
+                            ist_list.append("-1")
+
+            # Store as comma-separated strings
+            labels_csv = ",".join(labels_list)
+            istates_csv = ",".join(ist_list)
+
+            # Create variable-length string datasets once and store label history to per time even if SSAIMS kill it
+            if "labels_this_step" not in grp:
+                vlen_str = h5py.special_dtype(vlen=bytes)
+                grp.create_dataset("labels_this_step", shape=(0,), maxshape=(None,), dtype=vlen_str)
+            # Create variable-length string datasets once and store TBS state history to per time even if SSAIMS kill it
+            if "istates_this_step" not in grp:
+                vlen_str = h5py.special_dtype(vlen=bytes)
+                grp.create_dataset("istates_this_step", shape=(0,), maxshape=(None,), dtype=vlen_str)
+
+            # Append at row_idx
+            ds_lbl = grp["labels_this_step"]
+            if ds_lbl.shape[0] <= row_idx:
+                ds_lbl.resize((row_idx+1,))
+            ds_lbl[row_idx] = labels_csv
+
+            ds_ist = grp["istates_this_step"]
+            if ds_ist.shape[0] <= row_idx:
+                ds_ist.resize((row_idx+1,))
+            ds_ist[row_idx] = istates_csv
+        except Exception as history:
+            try:
+                print "### WARNING: failed to write per-step mapping/history", history
+            except Exception:
+                pass
+
+        self.create_new_h5_map(grp)
         h5f.flush()
         h5f.close()
 
@@ -1029,3 +1121,484 @@ class simulation(fmsobj):
         self.h5_types["Sdot"] = "complex128"
         self.h5_types["Sinv"] = "complex128"
         self.h5_types["num_traj_qm"] = "int32"
+
+    ###-----Start SSAIMS Implementation (A. Mehmood 10/01/2025)-----### 
+    def enable_ssaims(self, epsilon=1.0e-4, ss_seed=None, suspend_during_spawn=True,
+                    spawn_delay_steps=10, min_tbf_to_start=2, verbose=False):
+        """Read user's provided parameters and/or set defaults."""
+        self.ssa_enabled = True
+        self.ssa_epsilon = float(epsilon)
+        self.ssa_seed = ss_seed
+        self.ssa_suspend_during_spawn = bool(suspend_during_spawn)    
+        # start gates
+        self.ssa_spawn_delay_steps = int(spawn_delay_steps)
+        self.ssa_min_tbf_to_start  = int(min_tbf_to_start)
+        self.ssa_verbose = bool(verbose)
+        # JSON-safe RNG state
+        self.ssa_rand_calls = 0
+        # reset latches/trackers on enable
+        self.ssa_has_started = False
+        self.ssa_prev_ntraj = None
+        self.ssa_steps_since_spawn = 1e9  # large so first check won't be blocked unless a spawn is detected
+        self.ssa_age_in_basis = {}
+        try:
+            print "SSAIMS RNG seed =", self.ssa_seed
+        except Exception:
+            pass
+
+    def disable_ssaims(self):
+        """Disable SSAIMS (stochastic selection)."""
+        self.ssa_enabled = False
+
+    def ssa_spawn_in_progress(self):
+        """Return True if any trajectory is currently preparing/performing a spawn."""      
+        for key in self.traj:
+            z = self.traj[key].get_z_spawn_now()
+            spawnt = self.traj[key].get_spawntimes()
+            # If any state is flagged to spawn or has a positive spawntime, suspend
+            try:
+                if (z is not None and (z > 0.5).any()) or (spawnt is not None and (spawnt > 0.0).any()):
+                    return True
+            except Exception:
+                pass
+        return False
+
+    def ssaims_step(self):
+        """
+        Perform one SSAIMS selection step at the current quantum time.
+        """
+        
+        if not getattr(self, "ssa_enabled", False):
+            return
+
+        if getattr(self, "ssa_suspend_during_spawn", True) and self.ssa_spawn_in_progress():
+            # Avoid selection during spawning windows (as recommended by SSAIMS paper)
+            try:
+                print "### SSAIMS suspended: spawning in progress (no selection applied)"
+            except Exception:
+                pass
+            return
+
+        # Ensure we have at least 2 active TBFs
+        self.compute_num_traj_qm()
+        ntraj = self.get_num_traj_qm()
+        if ntraj <= 1:
+            try:
+                print "### SSAIMS inactive: single TBF (no selection applied)"
+            except Exception:
+                pass
+            return
+
+        # Detect basis spawn to reset delay counter
+        if self.ssa_prev_ntraj is None:
+            self.ssa_prev_ntraj = ntraj
+        else:
+            if ntraj > self.ssa_prev_ntraj:
+                self.ssa_steps_since_spawn = 0
+                try:
+                    print "### SSAIMS: spawn detected, resetting delay counter"
+                except Exception:
+                    pass
+            self.ssa_prev_ntraj = ntraj            
+        # Count the cooldown steps since last spawn
+        self.ssa_steps_since_spawn += 1
+
+        # Condition minimum TBFs
+        if ntraj < self.ssa_min_tbf_to_start:
+            try:
+                print "### SSAIMS inactive: min-TBF criteria not met (ntraj=%d < min_tbf_to_start=%d)" % (
+                ntraj, self.ssa_min_tbf_to_start)
+            except Exception:
+                pass
+            return
+
+        # Latch on first activation. once SSAIMS starts, keep it started
+        if not self.ssa_has_started:
+            self.ssa_has_started = True
+
+        # Make sure QM matrices are available at the current quantum time
+        self.get_qm_data_from_h5()
+        self.build_S()
+        self.build_H()
+
+        H = self.get_H()
+        S = self.get_S()
+        eps = float(self.ssa_epsilon)
+
+        # split TBFs into mature and immature and set age ciunter for immature to avoid killing 
+        try:
+            t_qm = self.get_quantum_time()
+        except Exception:
+            t_qm = None
+            
+        # Build reverse mapping index -> label for all active TBFs
+        idx_to_label = [None]*ntraj
+        for lab, idx in self.traj_map.items():
+            if idx < ntraj:
+                idx_to_label[idx] = lab
+    
+        active_indices = []
+        active_labels  = []
+        if t_qm is not None:
+            for i in range(ntraj):
+                lab = idx_to_label[i]
+                if lab is None:
+                    continue
+                try:
+                    # newborns not yet in the QM basis
+                    if (self.traj[lab].get_mintime() - 1.0e-6) <= t_qm:
+                        active_indices.append(i)
+                        active_labels.append(lab)
+                except Exception:
+                    # if we cannot read mintime, consider it active to be safe
+                    active_indices.append(i)
+                    active_labels.append(lab)
+    
+        # Initialize/increment ages for currently active labels
+        if not hasattr(self, "ssa_age_in_basis") or (self.ssa_age_in_basis is None):
+            self.ssa_age_in_basis = {}
+        for lab in active_labels:
+            if lab not in self.ssa_age_in_basis:
+                self.ssa_age_in_basis[lab] = 0
+            else:
+                # incease age by one time step
+                self.ssa_age_in_basis[lab] += 1
+
+        for lab, age in self.ssa_age_in_basis.items():
+            if age < self.ssa_spawn_delay_steps:
+                try:
+                    print "### SSAIMS inactive: cooldown time not reached for %s (age=%d < delay_steps=%d)" % (
+                        lab, age, self.ssa_spawn_delay_steps)
+                except Exception:
+                    pass
+   
+        # Partition active block into immature (< spawn_delay_steps) and mature (>= spawn_delay_steps)
+        immature_labels  = []
+        immature_indices = []
+        mature_indices   = []
+        delay_steps = int(getattr(self, "ssa_spawn_delay_steps", 0))
+        if delay_steps > 0:
+            for i, lab in zip(active_indices, active_labels):
+                age = int(self.ssa_age_in_basis.get(lab, 0))
+                if age < delay_steps:
+                    immature_labels.append(lab)
+                    immature_indices.append(i)
+                else:
+                    mature_indices.append(i)
+        else:
+            # If no per-TBF delay requested; everything is mature
+            mature_indices = list(active_indices)
+
+        # If there are fewer than 2 mature TBFs, selection is useless.
+        if len(mature_indices) <= 1:
+            return    
+        
+        # Build adjacency only over the mature subset. Let immature to age >= spawn_delay_steps
+        m = len(mature_indices)        
+        adj = [[False]*m for _ in range(m)]
+        for a in range(m):
+            adj[a][a] = True
+        for a in range(m):
+            i = mature_indices[a]
+            for b in range(a+1, m):
+                j = mature_indices[b]
+                if abs(H[i, j]) >= eps:
+                    adj[a][b] = True
+                    adj[b][a] = True
+
+        # Find connected components via BFS (the badass procedure, love it)
+        visited = [False]*m
+        components_local = []
+        for i in range(m):
+            if not visited[i]:
+                queue = [i]
+                visited[i] = True
+                comp = []
+                while queue:
+                    u = queue.pop(0)
+                    comp.append(u)
+                    for v in range(m):
+                        if adj[u][v] and not visited[v]:
+                            visited[v] = True
+                            queue.append(v)
+                components_local.append(sorted(comp))
+
+        if len(components_local) <= 1:
+            # fully coupled or single TBF -> nothing to select  
+            try:
+                print "### SSAIMS inactive: fully coupled (no selection applied)"
+            except Exception:
+                pass
+            return
+
+        # Coherent populations P_alpha on mature components only
+        c = self.get_qm_amplitudes()
+        Ps = []
+        comps_global = []
+        for comp_loc in components_local:
+            comp_glob = [mature_indices[a] for a in comp_loc]
+            comps_global.append(comp_glob)
+            idx = np.ix_(comp_glob, comp_glob)
+            S_sub = S[idx]
+            c_sub = c[comp_glob]
+            P = np.dot(c_sub.conjugate(), np.dot(S_sub, c_sub))
+            try:
+                P_val = float(np.real(P))
+            except Exception:
+                P_val = 0.0
+            if P_val < 0.0 and abs(P_val) < 1.0e-14:
+                P_val = 0.0
+            Ps.append(P_val)
+    
+        totalP = sum(Ps)
+    
+        # Fallback for coherence ~0: use sum |c|^2 on mature comps only
+        if totalP <= 1.0e-16:
+            Ps = []
+            for comp_glob in comps_global:
+                P_val = float(np.sum(np.abs(c[comp_glob])**2))
+                Ps.append(P_val)
+            totalP = sum(Ps)
+    
+        # If still zero, keep largest mature component by size
+        if totalP <= 1.0e-16:
+            sizes = [len(comp) for comp in comps_global]
+            keep_idx = int(np.argmax(sizes))
+            keep_comp_mature = comps_global[keep_idx]
+        else:
+            # Stochastic selection proportional to P_alpha (on mature comps)
+            rnd = self.ssa_next_uniform()
+            acc = 0.0
+            keep_idx = 0
+            for k, Pk in enumerate(Ps):
+                acc += Pk/totalP
+                if rnd <= acc:
+                    keep_idx = k
+                    break
+            keep_comp_mature = comps_global[keep_idx]
+    
+        # Final keep set = selected mature component  U  all immature indices
+        keep_all = sorted(set(keep_comp_mature).union(set(immature_indices)))
+    
+        # Safety: avoid empty keep set (shouldn't happen, but just in case)
+        if len(keep_all) == 0:
+            keep_all = list(active_indices)
+                
+        ### Start Verbose part. Developed for debugging, but kept if user wants.
+        if getattr(self, 'ssa_verbose', False):
+            try:    
+                # |H| stats (off-diagonal only) over the *active* QM block
+                Habs = np.abs(H.copy())
+                for i in range(ntraj):
+                    Habs[i, i] = 0.0
+                above = (Habs >= float(self.ssa_epsilon))
+                num_edges = int(np.sum(above) // 2)
+                maxH = float(np.max(Habs)) if ntraj > 0 else 0.0
+                minHnz = float(np.min(Habs[Habs > 0])) if (Habs > 0).any() else 0.0
+        
+                # component sizes (report the *mature* component sizes only that are just built)
+                comp_sizes = [len(cmp) for cmp in comps_global]
+                totalP_dbg = float(sum(Ps)) if len(Ps) > 0 else 0.0
+                probs = [ (p/totalP_dbg if totalP_dbg > 0.0 else 0.0) for p in Ps ]
+        
+                # labels by active index
+                labels_by_idx = [None]*ntraj
+                for lab, idx in self.traj_map.items():
+                    if idx < ntraj:
+                        labels_by_idx[idx] = lab
+        
+                # What we're keeping (report the mature-chosen block AND the union keep_all)
+                keep_set_mature = set(keep_comp_mature) if 'keep_comp_mature' in locals() else set()
+                keep_set_all    = set(keep_all) if 'keep_all' in locals() else keep_set_mature
+        
+                # Which labels are being removed (indices in active block but not in keep_all)
+                to_remove = [labels_by_idx[i] for i in range(ntraj)
+                            if (i not in keep_set_all) and (labels_by_idx[i] is not None)]
+        
+                # Try to get current quantum time
+                try:
+                    tqm = self.get_quantum_time()
+                    print "### SSAIMS VERBOSE @ t_qm =", tqm
+                except Exception:
+                    print "### SSAIMS VERBOSE"
+        
+                print "    epsilon (|H_kl| threshold): %.3e" % self.ssa_epsilon
+                print "    ntraj(before): %d" % ntraj
+                print "    edges(|H|>=eps): %d   max|H|: %.3e   min_nonzero|H|: %.3e" % (num_edges, maxH, minHnz)
+                print "    components(mature): %d   sizes: %s" % (len(comps_global), comp_sizes)
+                print "    Ps (mature): [%s]   totalP(mature): %.6f" % (', '.join(['%.6f' % p for p in Ps]),totalP_dbg)
+        
+                # If drew rnd earlier, show it and the cumulative distribution
+                if 'rnd' in locals():
+                    try:
+                        print "    rnd: %.6f   cumulative probs: [%s]" % (rnd,', '.join(['%.6f' % x for x in np.cumsum(probs)]))
+                    except Exception:
+                        pass
+        
+                # If computed P_keep for the mature choice, show it; otherwise show the final kept norm
+                if 'keep_idx' in locals() and 0 <= keep_idx < len(Ps):
+                    P_keep_mature = Ps[keep_idx]
+                else:
+                    P_keep_mature = None
+        
+                print "    keep_idx(mature):", (keep_idx if 'keep_idx' in locals() else None), \
+                    "   keep_size(mature):", (len(keep_comp_mature) if 'keep_comp_mature' in locals() else None), \
+                    "   P_keep(mature):", (P_keep_mature if P_keep_mature is not None else 'n/a')
+                print "    keep_size(final):", (len(keep_all) if 'keep_all' in locals() else len(keep_set_mature))
+                print "    removing_labels:", to_remove        
+                # Spawn status
+                try:
+                    sp = self.ssa_spawn_in_progress() if hasattr(self, 'ssa_spawn_in_progress') else self.ssa_spawn_in_progress()
+                except Exception:
+                    sp = None
+                print "    spawn_in_progress:", sp
+        
+            except Exception as e:
+                try:
+                    print "### SSAIMS VERBOSE print failed:", e
+                except Exception:
+                    pass               
+        ### End Verbose part
+            
+        ### Start prune and rebuild coefficients in new TBFs order ###
+        
+        # Convert the keep set to LABELS (After so many attempts, the working solution)
+        # Procedure: Prune by indices and Re-map by labels, then renomalize in current basis
+        
+        # Build the keep labels list from indices
+        keep_labels = []
+        for i in keep_all:
+            if 0 <= i < ntraj and idx_to_label[i] is not None:
+                keep_labels.append(idx_to_label[i])
+        
+        # Remember old mapping and old amplitudes
+        old_traj_map = dict(self.traj_map)
+        c_old = c.copy()
+        
+        # Prune by indices (please) (not by P.I.T.A labels)
+        self.ssa_prune_to_indices(set(keep_all))
+        
+        # Guard: if we somehow ended up with zero TBFs, restore by indices
+        if self.get_num_traj_qm() == 0 or len(self.traj_map) == 0:
+            restore_indices = [i for i in active_indices if 0 <= i < ntraj]
+            if restore_indices:
+                self.ssa_prune_to_indices(set(restore_indices))
+        
+        # Rebuild c in the new basis order using labels
+        new_n = int(self.get_num_traj_qm())
+        c_now = np.zeros(new_n, dtype=np.complex128)
+        
+        # Only map the labels we intended to keep
+        for lab in keep_labels:
+            new_i = self.traj_map.get(lab, None)        # index after prune
+            old_i = old_traj_map.get(lab, None)         # index before prune
+            if new_i is not None and old_i is not None and 0 <= old_i < len(c_old) and 0 <= new_i < new_n:
+                c_now[new_i] = c_old[old_i]
+        
+        # Safety: if everything is still ~0 (e.g., label mismatch), fall back to intersection
+        if float(np.sum(np.abs(c_now)**2)) < 1e-30:
+            for lab, new_i in self.traj_map.items():        # labels that kept after SSAIMS
+                old_i = old_traj_map.get(lab, None)
+                if old_i is not None and 0 <= old_i < len(c_old) and 0 <= new_i < new_n:
+                    c_now[new_i] = c_old[old_i]
+                
+        # Rebuild S for the pruned basis and renormalize so c* S c = 1
+        self.build_S()
+        S_now = self.get_S()
+        P_now = np.dot(c_now.conjugate(), np.dot(S_now, c_now))
+        try:
+            P_now_val = float(np.real(P_now))
+        except Exception:
+            P_now_val = 0.0
+        
+        if P_now_val > 1.0e-16:
+            c_now = c_now / np.sqrt(P_now_val)
+        else:
+            # last-resort |c|^2 norm
+            norm2 = float(np.sum(np.abs(c_now)**2))
+            if norm2 > 1.0e-16:
+                c_now = c_now / np.sqrt(norm2)     
+       
+        self.set_qm_amplitudes(c_now)
+        self.set_num_traj_qm(new_n)
+        
+        # Refresh index->state map to match current basis
+        self.istates_dict = {}
+        for lab, idx in self.traj_map.items():      # label -> current index
+            try:
+                st = int(self.traj[lab].get_istate())
+            except Exception:
+                try:
+                    st = int(self.centroids[lab].get_istate())
+                except Exception:
+                    st = -1
+            self.istates_dict[idx] = st
+        
+        # Rebuild all QM matrices so the write matches the pruned basis
+        self.build_S()
+        try: self.build_Sdot()
+        except Exception: pass
+        try: self.invert_S()
+        except Exception: pass
+        try:
+            self.build_H()
+            self.build_Heff()
+        except Exception:
+            pass
+    ### End prune and rebuild coefficients in new TBFs order ###            
+       
+    def ssa_next_uniform(self):
+        """
+        JSON cannot save RandonState i.e. RNG array generated using random seed.
+        This is JSON-safe RNG procedure which return next U(0,1) using (ssa_seed, ssa_rand_calls).
+        No RandomState is stored on self, so restart JSON stays clean and do not show error.
+        """
+
+        if getattr(self, 'ssa_seed', None) is None:           
+            return np.random.rand()            # No users seed provided then use global RNG
+
+        k = int(getattr(self, 'ssa_rand_calls', 0))
+        ssa_rng = np.random.RandomState(self.ssa_seed)        
+        val = ssa_rng.random_sample(k + 1)[-1] # Jump ahead to (k+1)-th draw and take it
+        self.ssa_rand_calls = k + 1
+        return val
+
+    def ssa_prune_to_indices(self, keep_indices):
+        """
+        Remove trajectories/centroids not in 'keep_indices' after SSAIM procedure and rebuild traj_map.  
+        """
+        
+        ntraj = self.get_num_traj_qm()
+        labels = [None]*ntraj
+        for key in self.traj_map:
+            idx = self.traj_map[key]
+            if idx < ntraj:
+                labels[idx] = key
+
+        keep_labels = set([labels[i] for i in sorted(list(keep_indices)) if i < ntraj and labels[i] is not None])
+
+        # Prune trajectories
+        new_traj = {}
+        for key in self.traj:
+            if key in keep_labels:
+                new_traj[key] = self.traj[key]
+        self.traj = new_traj
+
+        # Prune centroids where one endpoint is missing
+        to_delete = []
+        for cent in self.centroids:
+            key1, key2 = str.split(cent, "_a_")
+            if (key1 not in self.traj) or (key2 not in self.traj):
+                to_delete.append(cent)
+        for cent in to_delete:
+            del self.centroids[cent]
+
+        # Rebuild traj_map with contiguous indices ordered by mintime
+        sorted_keys = sorted(self.traj.keys(), key=lambda k: self.traj[k].get_mintime())
+        self.traj_map = {}
+        for i, key in enumerate(sorted_keys):
+            self.traj_map[key] = i
+
+        self.set_num_traj_qm(len(sorted_keys))
+
+    ###-----End SSAIMS Implementation-----###

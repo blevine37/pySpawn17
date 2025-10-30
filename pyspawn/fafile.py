@@ -16,6 +16,7 @@ class fafile(object):
     def __init__(self, h5filename):
         self.datasets = {}
         self.h5file = h5py.File(h5filename, "r")
+        self.read_step_mapping()
         self.labels = self.h5file["sim"].attrs["labels"]
         self.istates = self.h5file["sim"].attrs["istates"]
         self.numstates = self.h5file['traj_00'].attrs["numstates"]
@@ -32,8 +33,10 @@ class fafile(object):
     def get_num_traj(self):
         return self.num_traj
 
-    def get_max_state(self):
-        return np.amax(self.istates) + 1
+    def get_max_state(self):        
+        if hasattr(self, "states_sorted") and self.states_sorted:
+            return int(max(self.states_sorted)) + 1
+        return int(np.amax(self.istates)) + 1
 
     def compute_expec(self, Op, c, zreal=True):
         expec = np.matmul(c.conjugate(), np.matmul(Op, c))
@@ -59,12 +62,34 @@ class fafile(object):
         self.datasets["istates_dict"] = istates_dict
 
     def fill_labels(self):
-
-        self.datasets["labels"] = self.labels
+        """
+        Fill a static list of all trajectory labels present in the file.
+        Robust to SSAIMS (pruning) because we read labels from traj_* groups,
+        not from sim.attrs['labels'] (which may only reflect the final basis).
+        """
+        labs = self.all_traj_labels()
+        self.datasets["labels"] = labs
 
     def fill_istates(self):
+        """
+        Fill a list of per-trajectory initial electronic states aligned to self.datasets['labels'].
+        Reads from each traj_* group's 'istate' attribute (SSAIMS-safe).
+        """
+        if "labels" not in self.datasets:
+            self.fill_labels()
+        labels = self.datasets.get("labels", [])
+        
+        istates = []
+        for lab in labels:
+            ist = -1
+            try:
+                g = self.h5file["traj_" + lab]
+                ist = int(g.attrs.get("istate", -1))
+            except Exception:
+                pass
+            istates.append(ist)        
+        self.datasets["istates"] = istates
 
-        self.datasets["istates"] = self.istates
 
     def fill_qm_amplitudes(self):
         c = self.h5file["sim/qm_amplitudes"][()]
@@ -145,31 +170,97 @@ class fafile(object):
             of.write("\n")
         of.close()
 
+    def decode_bytes_array(self, arr):
+        """Reads and decode labels history"""
+        out = []
+        for x in arr:
+            try:
+                out.append(x.decode("utf-8"))
+            except Exception:
+                out.append(x)
+        return out
+    
+    def row_mats_from_flat(self, S_flat_row, n):
+        """Reshape the row-flattened S into an n*n matrix."""
+        n2 = n * n
+        return S_flat_row[:n2].reshape((n, n))
+
+    def all_traj_labels(self):
+        """Return trajectory labels by scanning traj_* groups"""
+        labs = []
+        for k in self.h5file.keys():
+            if k.startswith("traj_"):
+                labs.append(k[len("traj_"):])  # drop "traj_" prefix
+        labs.sort()
+        return labs
+
     def fill_mulliken_populations(self, column_filename=None):
-        """Calculates Mulliken populations"""
-
-        times = self.datasets["quantum_times"][:, 0]
+        """
+        SSAIMS-aware Mulliken populations, aligned by global label order.
+        Output shape: (ntimes, L) where L = len(all_labels), each column j is Mulliken
+        population of label all_labels[j] at each time. Inactive labels get 0 at that time.
+        """
+        all_labels = self.all_traj_labels()
+        L = len(all_labels)
+        self.datasets["labels"] = list(all_labels)
+    
+        grp_sim = self.h5file["sim"]
+        times = grp_sim["quantum_time"][()][:, 0]
         ntimes = len(times)
-        ntraj = self.get_num_traj()
+        qampls = grp_sim["qm_amplitudes"][()]
+        Sflat  = grp_sim["S"][()]
+        ntraj_each = grp_sim["num_traj_qm"][()].flatten().astype(int)
+    
+        rows_labels = self.labels_this_step_rows()
+        mull = np.zeros((ntimes, L), dtype=float)
+        col_of = {}
+        for j, lab in enumerate(all_labels):
+            col_of[lab] = j
+    
+        for i in range(ntimes):
+            nt = int(ntraj_each[i])
+            if nt <= 0:
+                continue
+    
+            c_t = qampls[i][:nt]
+            S_t = self.row_mats_from_flat(Sflat[i], nt)    
+            if rows_labels is not None and i < len(rows_labels):
+                labs_i = rows_labels[i]
+                if len(labs_i) != nt:
+                    labs_i = list(labs_i[:nt]) + ([""] * max(0, nt - len(labs_i)))
+            else:
+                labs_i = all_labels[:nt]
+    
+            for a in range(nt):
+                acc = 0.0 + 0.0j
+                ca_conj = np.conjugate(c_t[a])
+                for b in range(nt):
+                    acc += 0.5 * (ca_conj * (S_t[a, b] * c_t[b]) +
+                                np.conjugate(c_t[b]) * (S_t[b, a] * c_t[a]))
+                mval = float(np.real(acc))
+                if mval < 0.0 and abs(mval) < 1.0e-12:
+                    mval = 0.0
+    
+                lab = labs_i[a]
+                j = col_of.get(lab, None)
+                if j is not None:
+                    mull[i, j] = mval
 
-        mull = np.zeros((ntimes, ntraj))
-
-        for itime in range(ntimes):
-            nt = self.ntraj[itime]
-            c_t = self.get_amplitude_vector(itime)
-            S_t = self.get_overlap_matrix(itime)
-            for i in range(nt):
-                for j in range(nt):
-                    tmp = 0.5 * np.real(c_t[i] * np.conj(c_t[j]) * S_t[i, j])
-                    mull[itime, i] += tmp
-                    mull[itime, j] += tmp
+        self.datasets["quantum_times"] = times.reshape(-1, 1) if times.ndim == 1 else times
         self.datasets["mulliken_populations"] = mull
+    
         if column_filename is not None:
-            self.write_columnar_data_file(
-                "quantum_times", ["mulliken_populations"], column_filename)
-
-        return
-
+            with open(column_filename, "w") as fout:
+                fout.write("# time")
+                for lab in all_labels:
+                    fout.write("   Mull(%s)" % lab)
+                fout.write("\n")
+                for i in range(ntimes):
+                    fout.write("%.10f" % times[i])
+                    for j in range(L):
+                        fout.write("   %.10f" % mull[i, j])
+                    fout.write("\n")
+        
     def fill_trajectory_populations(self, column_file_prefix=None):
         """Prints out state populations for every trajectory"""
 
@@ -184,126 +275,247 @@ class fafile(object):
                 self.write_columnar_data_file(key + "_time", [dset_pop],
                                               column_filename)
 
-    def fill_nuclear_bf_populations(self, column_filename=None):
-        """Printing the population on each nuclear bf along with the total
-        electronic population calculated over all TBFs"""
+    def labels_this_step_rows(self):
+        """
+        Return a list-of-lists of labels active at each time step, or None if dataset absent.
+        Uses sim/labels_this_step (CSV strings) if present.
+        """
+        if "sim" not in self.h5file:
+            return None
+        grp = self.h5file["sim"]
+        if "labels_this_step" not in grp:
+            return None
+        rows = []
+        ds = grp["labels_this_step"][()]
+        for entry in ds:
+            s = self.decode_bytes(entry)
+            s = str(s) if not isinstance(s, (str, unicode)) else s
+            if s.strip() == "":
+                rows.append([])
+            else:
+                rows.append([x.strip() for x in s.split(",") if x.strip() != ""])
+        return rows
 
-        ntraj = self.num_traj
-        times = self.datasets["quantum_times"][:, 0]
+    def decode_bytes(self, b): 
+        try:
+            return b.decode("utf-8")
+        except Exception:
+            return b
 
-        ntimes = len(times)
-        Nstate = np.zeros((ntimes, ntraj+1))
-        norm = np.zeros(ntimes)
-
+    def fill_nuclear_bf_populations(self, column_filename=None): 
+        """ 
+        Build nuclear basis-function populations aligned by *global label order*.
+        Returns N with shape (ntimes, 1 + L), where L = len(all_labels).
+        - Column 0: total norm  c^* S c  (real)
+        - Column j>0: population of label all_labels[j-1] at each time. If that label
+            is inactive at a time, the column has 0 for that time.
+        """   
+        all_labels = self.all_traj_labels()
+        L = len(all_labels)
+        self.datasets["labels"] = list(all_labels)
+    
+        grp_sim = self.h5file["sim"]
+        qtimes = grp_sim["quantum_time"][()][:, 0]
+        ntimes = len(qtimes)   
+        qampls = grp_sim["qm_amplitudes"][()]
+        Sflat  = grp_sim["S"][()]
+        ntraj_each = grp_sim["num_traj_qm"][()].flatten().astype(int)    
+        rows_labels = self.labels_this_step_rows()       
+        Nlab = np.zeros((ntimes, 1 + L), dtype=float)
+    
+        col_of_label = {}
+        for j, lab in enumerate(all_labels):
+            col_of_label[lab] = 1 + j
+    
         for i in range(ntimes):
-            nt = self.ntraj[i]
-            c_t = self.get_amplitude_vector(i)
-            S_t = self.get_overlap_matrix(i)
-            norm[i] = np.real(np.dot(np.transpose(np.conjugate(c_t)),
-                                     np.dot(S_t, c_t)))
-            Nstate[i, 0] = norm[i]
+            nt = int(ntraj_each[i])
+            if nt <= 0:
+                continue
+    
+            c_t = qampls[i][:nt]
+            S_t = self.row_mats_from_flat(Sflat[i], nt)
+            nvec = np.zeros(nt, dtype=float)
+            for a in range(nt):
+                acc = 0.0 + 0.0j
+                ca_conj = np.conjugate(c_t[a])
+                for b in range(nt):
+                    acc += 0.5 * (ca_conj * (S_t[a, b] * c_t[b]) + np.conjugate(c_t[b]) * (S_t[b, a] * c_t[a]))
+                nval = float(np.real(acc))
+                if nval < 0.0 and abs(nval) < 1.0e-12:
+                    nval = 0.0
+                nvec[a] = nval
+    
+            Ptot = float(np.real(np.dot(c_t.conjugate(), np.dot(S_t, c_t))))
+            if Ptot < 0.0 and abs(Ptot) < 1.0e-12:
+                Ptot = 0.0
+            Nlab[i, 0] = Ptot
+    
+            if rows_labels is not None and i < len(rows_labels):
+                labs_i = rows_labels[i]
+                if len(labs_i) != nt:
+                    labs_i = list(labs_i[:nt]) + ([""] * max(0, nt - len(labs_i)))
+            else:
+                labs_i = all_labels[:nt]
+    
+            for a in range(nt):
+                lab = labs_i[a]
+                j = col_of_label.get(lab, None)
+                if j is not None:
+                    Nlab[i, j] = nvec[a]
 
-            for ist in range(nt):
-                pop_ist = 0.0
-                for ist2 in range(nt):
-                    pop_ist += np.real(
-                        0.5 * (np.dot(np.conjugate(c_t[ist]),
-                                      np.dot(S_t[ist, ist2],
-                                             c_t[ist2]))
-                               + np.dot(np.conjugate(c_t[ist2]),
-                                        np.dot(S_t[ist2, ist],
-                                               c_t[ist]))))
-                Nstate[i, ist+1] = pop_ist
-
-        self.datasets["nuclear_bf_populations"] = Nstate
-        if column_filename is not None:
-            self.write_columnar_data_file("quantum_times", Nstate,
-                                          column_filename)
-
-        return
-
+        self.datasets["quantum_times"] = qtimes
+        self.datasets["nuclear_bf_populations"] = Nlab
+    
     def fill_expec_mulliken(self, dset_name, column_filename=None):
-        """Calculates Mulliken populations?"""
-
+        """
+        Mulliken-weighted expectation of a per-trajectory dataset (e.g., 'positions', 'momenta', etc).
+        Output: dset_expec = 'expec_mull_' + dset_name  with shape (ntimes, ncol)
+        where ncol = dataset's per-time column count for a trajectory (e.g., 3N for positions).
+        """
         times = self.datasets["quantum_times"][:, 0]
         ntimes = len(times)
-        ntraj = self.get_num_traj()
-
-        ncol = self.datasets[self.labels[0] + "_" + dset_name].shape[1]
-
+    
+        if "labels" not in self.datasets:
+            self.fill_labels()
         if "mulliken_populations" not in self.datasets:
             self.fill_mulliken_populations()
+        labels = self.datasets["labels"]
         mull = self.datasets["mulliken_populations"]
+    
+        ncol = None
+        first_lab_with = None
+        for lab in labels:
+            gname = "traj_" + lab
+            if gname in self.h5file and dset_name in self.h5file[gname]:
+                shape = self.h5file[gname][dset_name].shape
+                if len(shape) == 2:
+                    ncol = int(shape[1])
+                else:
+                    ncol = 1
+                first_lab_with = lab
+                break
+        if ncol is None:
+            return
+    
+        X = np.zeros((ntimes, ncol), dtype=float)
+        denom = np.sum(mull, axis=1)
+        for itraj, lab in enumerate(labels):
+            try:
+                g = self.h5file["traj_" + lab]
+                if dset_name not in g:
+                    continue
+                xk = g[dset_name][()]
+                tk = g["time"][()][:, 0]
+   
+                if tk.size == 0:
+                    continue
+                firsttime = tk[0]
+                lasttime = tk[-1]
+    
+                ifirsttime = None
+                tol = 1.0e-6
+                for it in range(ntimes):
+                    dt = times[it] - firsttime
+                    if (-tol < dt) and (dt < tol):
+                        ifirsttime = it
+                        break
+                if ifirsttime is None:
+                    diffs = np.abs(times - firsttime)
+                    ifirsttime = int(np.argmin(diffs))
+                ilasttime = int(tk.size)
 
-        x = np.zeros((ntimes, ncol))
+                if ifirsttime + ilasttime > ntimes:
+                    ilasttime = ntimes - ifirsttime
+                if ilasttime <= 0:
+                    continue
+                    
+                w = mull[ifirsttime:ifirsttime + ilasttime, itraj]
 
-        denom = mull.sum(axis=1)
-
-        for itraj in range(ntraj):
-            key = self.labels[itraj]
-            dset_x = key + "_" + dset_name
-            xk = self.datasets[dset_x]
-
-            dset_t = key + "_time"
-            trajtimes = self.datasets[dset_t][:, 0]
-            firsttime = trajtimes[0]
-            lasttime = times[-1]
-            ntrajtimes = self.datasets[dset_t].size
-
-            for itime in range(ntimes):
-                if ((times[itime]-1e-6) < firsttime)\
-                        and ((times[itime]+1e-6) > firsttime):
-                    ifirsttime = itime
-
-            for itime in range(ntrajtimes):
-                if ((trajtimes[itime]-1e-6) < lasttime)\
-                        and ((trajtimes[itime] + 1e-6) > lasttime):
-                    ilasttime = itime+1
-
-            for icol in range(ncol):
-                x[ifirsttime:ifirsttime + ilasttime, icol] +=\
-                    xk[0:ilasttime, icol]\
-                    * mull[ifirsttime:ifirsttime+ilasttime, itraj]
-
-        for icol in range(ncol):
-            x[:, icol] = x[:, icol] / denom
-
+                if xk.ndim == 1:
+                    X[ifirsttime:ifirsttime + ilasttime, 0] += xk[:ilasttime] * w
+                else:
+                    X[ifirsttime:ifirsttime + ilasttime, :] += (xk[:ilasttime, :] * w.reshape(-1, 1))
+    
+            except Exception:
+                pass
+                
+        for i in range(ntimes):
+            d = denom[i]
+            if d > 1.0e-16:
+                X[i, :] = X[i, :] / d
+    
         dset_expec = "expec_mull_" + dset_name
-
-        self.datasets[dset_expec] = x
-
+        self.datasets[dset_expec] = X
+    
         if column_filename is not None:
-            self.write_columnar_data_file("quantum_times",
-                                          [dset_expec],
-                                          column_filename)
-
+            self.write_columnar_data_file("quantum_times", [dset_expec], column_filename)
+           
     def fill_electronic_state_populations(self, column_filename=None):
-        """Calculates population on each electronic state"""
-
+        """
+        Calculates population on each electronic state.
+        Uses per-time labels/istates if present, else falls back to legacy attrs.
+        Writes dataset: "electronic_state_populations" with shape (ntimes, maxstates+1)
+        where last column is total norm c^*Sc.
+        """
         times = self.datasets["quantum_times"][:, 0]
         ntimes = len(times)
+        ntraj_row = self.h5file["sim/num_traj_qm"][()].flatten()
+        qampls = self.h5file["sim/qm_amplitudes"][()]
+        S_flat = self.h5file["sim/S"][()]
+    
         maxstates = self.get_max_state()
-        Nstate = np.zeros((ntimes, maxstates+1))
+        Nstate = np.zeros((ntimes, maxstates+1), dtype=float)
+    
+        labels_rows = getattr(self, "labels_rows", None)
+        istates_rows = getattr(self, "istates_rows", None)
+    
         for i in range(ntimes):
-            c_t = self.get_amplitude_vector(i)
-            S_t = self.get_overlap_matrix(i)
-            for ist in range(maxstates):
-                Nstate[i, ist] = self.compute_expec_istate_not_normalized(
-                    S_t, c_t, ist)
-            Nstate[i, maxstates] = self.compute_expec(S_t, c_t)
+            nt = int(ntraj_row[i])
+            if nt <= 0:
+                continue
+                
+            c_t = qampls[i][:nt]
+            S_t = self.row_mats_from_flat(S_flat[i], nt)
+    
+            row_states = None
+            if istates_rows and i < len(istates_rows):
+                row_states = istates_rows[i]
+            if (row_states is None) or (len(row_states) != nt):
+                row_states = [int(x) for x in self.istates[:nt]]
+    
+            for I in range(maxstates):
+                idxI = [k for k, s in enumerate(row_states) if int(s) == I]
+                if not idxI:
+                    Nstate[i, I] = 0.0
+                    continue
+                S_II = S_t[np.ix_(idxI, idxI)]
+                c_I  = c_t[idxI]
+                P_I  = np.dot(c_I.conjugate(), np.dot(S_II, c_I))
+                P_I  = float(np.real(P_I))
+                if P_I < 0.0 and abs(P_I) < 1e-12:
+                    P_I = 0.0
+                Nstate[i, I] = P_I
+    
+            Ptot = np.dot(c_t.conjugate(), np.dot(S_t, c_t))
+            Ptot = float(np.real(Ptot))
+            if Ptot < 0.0 and abs(Ptot) < 1e-12:
+                Ptot = 0.0
+            Nstate[i, maxstates] = Ptot
+    
         self.datasets["electronic_state_populations"] = Nstate
-
+    
         if column_filename is not None:
             self.write_columnar_data_file("quantum_times",
-                                          ["electronic_state_populations"],
-                                          column_filename)
-
-        return
+                                        ["electronic_state_populations"],
+                                        column_filename)        
 
     def write_xyzs(self):
         """Prints out geometries into .xyz file"""
-
-        for key in self.labels:
+        
+        if "labels" not in self.datasets:
+            self.fill_labels()
+        labels = self.datasets.get("labels", [])
+        for key in labels:
             times = self.get_traj_dataset(key, "time")[:, 0]
             ntimes = self.get_traj_num_times(key)
             pos = self.get_traj_data_from_h5(key, "positions")
@@ -326,45 +538,96 @@ class fafile(object):
             of.close()
 
     def fill_trajectory_energies(self, column_file_prefix=None):
-        """Creates datasets with energies for each trajectory and optionally
-        prints into text file"""
+        """
+        Creates datasets with energies for each trajectory and optionally
+        prints into text file. SSAIMS-safe: includes all traj_* groups even if pruned.
+        """
+        traj_keys = self.all_traj_labels()
+        for key in traj_keys:
+            try:
+                grp = self.h5file["traj_" + key]
+                time = grp["time"][()]
+                mom  = grp["momenta"][()]
+                ener = grp["energies"][()]
+                try:
+                    masses = grp.attrs["masses"]
+                except Exception:
+                    masses = None
+    
+                try:
+                    istate = int(grp.attrs["istate"])
+                except Exception:
+                    istate = 0
+    
+                T = len(time)
+                if mom.shape[0] < T:
+                    T = mom.shape[0]
+                if ener.shape[0] < T:
+                    T = ener.shape[0]
+    
+                time = time[:T]
+                mom  = mom[:T, :]
+                ener = ener[:T, :]
+    
+                kinen = np.zeros((T, 1), dtype=float)
+                toten = np.zeros((T, 1), dtype=float)
+    
+                if masses is None:
+                    has_masses = False
+                else:
+                    masses = np.asarray(masses, dtype=float)
+                    has_masses = (masses.size == mom.shape[1])
+    
+                for it in range(T):
+                    if has_masses:
+                        p = mom[it, :]
+                        kinen[it, 0] = 0.5 * np.sum((p * p) / masses)
+                    else:
+                        kinen[it, 0] = 0.0
+                    if istate < ener.shape[1]:
+                        toten[it, 0] = kinen[it, 0] + ener[it, istate]
+                    else:
+                        toten[it, 0] = kinen[it, 0] + ener[it, 0]
 
-        for key in self.labels:
-            ntimes = self.get_traj_num_times(key)
-            mom = self.get_traj_data_from_h5(key, "momenta")
-            poten = self.get_traj_data_from_h5(key, "energies")
-
-            istate = self.get_traj_attr_from_h5(key, 'istate')
-
-            m = self.get_traj_attr_from_h5(key, 'masses')
-
-            kinen = np.zeros((ntimes, 1))
-            toten = np.zeros((ntimes, 1))
-
-            for itime in range(ntimes):
-                p = mom[itime, :]
-                kinen[itime, 0] = 0.5 * np.sum(p * p / m)
-                toten[itime, 0] = kinen[itime, 0] + poten[itime, istate]
-
-            dset_poten = key + "_poten"
-            dset_toten = key + "_toten"
-            dset_kinen = key + "_kinen"
-
-            self.datasets[dset_poten] = poten
-            self.datasets[dset_toten] = toten
-            self.datasets[dset_kinen] = kinen
-
-            if column_file_prefix is not None:
-                column_filename = column_file_prefix + "_" + key + ".dat"
-                self.write_columnar_data_file(key + "_time",
-                                              [dset_poten, dset_kinen,
-                                               dset_toten], column_filename)
-
+                dset_poten = key + "_poten"
+                dset_kinen = key + "_kinen"
+                dset_toten = key + "_toten"
+                dset_time  = key + "_time"
+    
+                self.datasets[dset_poten] = ener
+                self.datasets[dset_kinen] = kinen
+                self.datasets[dset_toten] = toten
+                self.datasets[dset_time]  = time
+    
+                if column_file_prefix is not None:
+                    column_filename = column_file_prefix + "_" + key + ".dat"
+                    cols = np.zeros((T, 4), dtype=float)
+                    cols[:, 0] = time[:, 0]
+                    cols[:, 1] = ener[:, istate] if istate < ener.shape[1] else ener[:, 0]
+                    cols[:, 2] = kinen[:, 0]
+                    cols[:, 3] = toten[:, 0]
+                    with open(column_filename, "w") as fout:
+                        fout.write("# time  poten(istate=%d)  kinen  toten\n" % istate)
+                        for it in range(T):
+                            fout.write("%.10f  %.10f  %.10f  %.10f\n" % (cols[it,0], cols[it,1], cols[it,2], cols[it,3]))
+    
+            except Exception as e:
+                try:
+                    print "Skipping trajectory %s due to error: %s" % (key, str(e))
+                except Exception:
+                    pass
+                                                                                                   
     def fill_trajectory_bonds(self, bonds, column_file_prefix):
-        """Calculates bond distances and writes it into datasets key_bonds
-        and column_file_prefix file"""
+        """
+        Calculates bond distances and writes it into datasets key_bonds
+        and column_file_prefix file
+        """
+        
+        if "labels" not in self.datasets:
+            self.fill_labels()
+        labels = self.datasets.get("labels", [])
 
-        for key in self.labels:
+        for key in labels:
             ntimes = self.get_traj_num_times(key)
             pos = self.get_traj_data_from_h5(key, "positions")
             nbonds = bonds.size / 2
@@ -392,7 +655,11 @@ class fafile(object):
     def fill_trajectory_angles(self, angles, column_file_prefix):
         """Calculates regular angles from 3 atom positions"""
 
-        for key in self.labels:
+        if "labels" not in self.datasets:
+            self.fill_labels()
+        labels = self.datasets.get("labels", [])
+
+        for key in labels:
             ntimes = self.get_traj_num_times(key)
             pos = self.get_traj_data_from_h5(key, "positions")
             nangles = angles.size / 3
@@ -432,8 +699,12 @@ class fafile(object):
 
     def fill_trajectory_diheds(self, diheds, column_file_prefix):
         """Calculates dihedral angles (4 atoms input)"""
+        
+        if "labels" not in self.datasets:
+            self.fill_labels()
+        labels = self.datasets.get("labels", [])
 
-        for key in self.labels:
+        for key in labels:
             ntimes = self.get_traj_num_times(key)
             pos = self.get_traj_data_from_h5(key, "positions")
             ndiheds = diheds.size / 4
@@ -481,7 +752,11 @@ class fafile(object):
     def fill_trajectory_twists(self, twists, column_file_prefix):
         """Calculates twisting angles (6 atoms input)"""
 
-        for key in self.labels:
+        if "labels" not in self.datasets:
+            self.fill_labels()
+        labels = self.datasets.get("labels", [])
+
+        for key in labels:
             ntimes = self.get_traj_num_times(key)
             pos = self.get_traj_data_from_h5(key, "positions")
             ntwists = twists.size / 6
@@ -532,7 +807,11 @@ class fafile(object):
     def fill_trajectory_pyramidalizations(self, pyrs, column_file_prefix):
         """Calculates pyramidalization angles"""
 
-        for key in self.labels:
+        if "labels" not in self.datasets:
+            self.fill_labels()
+        labels = self.datasets.get("labels", [])
+
+        for key in labels:
             ntimes = self.get_traj_num_times(key)
             pos = self.get_traj_data_from_h5(key, "positions")
             npyrs = pyrs.size / 4
@@ -577,14 +856,128 @@ class fafile(object):
                                               [dset_pyrs], column_filename)
 
     def fill_trajectory_tdcs(self, column_file_prefix=None):
-        """Prints time-derivative couplings"""
+        """
+        Collect time-derivative couplings for ALL traj_* groups and
+        write per-trajectory text files if requested.
+        """
+        if "labels" not in self.datasets:
+            labs = []
+            for k in self.h5file.keys():
+                if k.startswith("traj_"):
+                    labs.append(k[len("traj_"):])
+            labs.sort()
+            self.datasets["labels"] = labs
+    
+        labels = self.datasets.get("labels", [])
+    
+        for key in labels:
+            try:
+                tdc = self.get_traj_data_from_h5(key, "timederivcoups")
+                dset_tdc = key + "_tdc"
+    
+                try:
+                    ths = self.get_traj_data_from_h5(key, "time_half_step")
+                except Exception:
+                    ths = self.get_traj_data_from_h5(key, "time")
+                    
+                T_tdc = tdc.shape[0]
+                T_ths = ths.shape[0]
+                T_use = T_tdc if T_tdc < T_ths else T_ths
+    
+                if T_use <= 0:
+                    continue
 
-        for key in self.labels:
-            tdc = self.get_traj_data_from_h5(key, "timederivcoups")
-            dset_tdc = key + "_tdc"
-            self.datasets[dset_tdc] = tdc
+                if ths.ndim == 1:
+                    ths = ths.reshape((-1, 1))
+                ths_use = ths[:T_use, :]
+                tdc_use = tdc[:T_use, :]
+    
+                dset_time_hs = key + "_time_half_step"
+                self.datasets[dset_time_hs] = ths_use
+                self.datasets[dset_tdc]     = tdc_use
+    
+                if column_file_prefix is not None:
+                    column_filename = column_file_prefix + "_" + key + ".dat"
+                    self.write_columnar_data_file(dset_time_hs, [dset_tdc], column_filename)
+    
+            except Exception as e:
+                try:
+                    print "Skipping TDC for %s due to error: %s" % (key, str(e))
+                except Exception:
+                    pass
+    
+    def read_step_mapping(self):
+        """
+        Read per-step labels/istates if present (SSAIMS), else fall back to static sim attrs.
+        self.labels_rows   : list of lists of labels per time step
+        self.istates_rows  : list of lists of istates per time step
+        self.states_sorted : sorted unique set of states seen anywhere (int)
+        """
+        grp_sim = self.h5file["sim"]
+        qtimes = grp_sim["quantum_time"][()][:,0]
+        n_times = len(qtimes)
+    
+        self.labels_rows = []
+        self.istates_rows = []
+  
+        has_perstep = ("labels_this_step" in grp_sim) and ("istates_this_step" in grp_sim)
+        if has_perstep:
+            lbl_ds = grp_sim["labels_this_step"]
+            ist_ds = grp_sim["istates_this_step"]
+            T = min(n_times, lbl_ds.shape[0], ist_ds.shape[0])
+            for i in range(T):
+                try:
+                    lbl_csv = lbl_ds[i]
+                    if isinstance(lbl_csv, bytes):
+                        lbl_csv = lbl_csv.decode("utf-8")
+                    labels_i = lbl_csv.split(",") if lbl_csv else []
+                except Exception:
+                    labels_i = []
+                try:
+                    ist_csv = ist_ds[i]
+                    if isinstance(ist_csv, bytes):
+                        ist_csv = ist_csv.decode("utf-8")
+                    istates_i = [int(x) for x in ist_csv.split(",")] if ist_csv else []
+                except Exception:
+                    istates_i = []
+                if len(istates_i) != len(labels_i):
+                    if len(istates_i) < len(labels_i):
+                        istates_i += [-1]*(len(labels_i)-len(istates_i))
+                    else:
+                        istates_i = istates_i[:len(labels_i)]
+                self.labels_rows.append(labels_i)
+                self.istates_rows.append(istates_i)
+            for _ in range(T, n_times):
+                self.labels_rows.append([])
+                self.istates_rows.append([])
+        else:
+            labels0  = self.decode_bytes_array(grp_sim.attrs.get("labels", []))
+            istates0 = grp_sim.attrs.get("istates", np.array([], dtype=np.int32))
+            istates0 = [int(x) for x in istates0.tolist()] if hasattr(istates0, "tolist") else list(istates0)
+        
+            traj_labels = []
+            traj_states = []
+            for k in self.h5file.keys():
+                if k.startswith("traj_"):
+                    try:
+                        label = k.split("traj_")[1]
+                        istate = int(self.h5file[k].attrs.get("istate", -1))
+                        traj_labels.append(label)
+                        traj_states.append(istate)
+                    except Exception:
+                        continue
+        
+            merged_labels = list(dict.fromkeys(labels0 + traj_labels))
+            merged_istates = istates0 + [traj_states[traj_labels.index(l)] if l in traj_labels else -1 for l in merged_labels[len(istates0):]]
+        
+            for _ in range(n_times):
+                self.labels_rows.append(list(merged_labels))
+                self.istates_rows.append(list(merged_istates))
 
-            if column_file_prefix is not None:
-                column_filename = column_file_prefix + "_" + key + ".dat"
-                self.write_columnar_data_file(key + "_time_half_step",
-                                              [dset_tdc], column_filename)
+        st_set = set()
+        for row in self.istates_rows:
+            for s in row:
+                if s is not None and int(s) >= 0:
+                    st_set.add(int(s))
+        self.states_sorted = sorted(st_set)
+    

@@ -48,7 +48,8 @@ Features
 This is an ab initio multiple spawning code written in python.  It is designed to be rather minimalistic, but easily extensible.  Right now, it has the following features:
 
 -  Runs in the adiabatic representation with derivative couplings computed via NPI.
--  Interface to (a development version of) TeraChem via the tcpb interface.
+-  Interface to (a development version of) TeraChem via the tcpb interface. 
+-  SSAIMS — Stochastic-Selection AIMS (optional per-run)
 -  Interface to OpenMolcas
 -  An analysis module for processing of simulation data.
 
