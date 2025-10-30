@@ -44,6 +44,7 @@ This is an ab initio multiple spawning code written in python.  It is designed t
 
 -  Runs in the adiabatic representation with derivative couplings computed via NPI.
 -  Interface to (a development version of) TeraChem via the tcpb interface. 
+-  SSAIMS — Stochastic-Selection AIMS (optional per-run)
 -  An analysis module for processing of simulation data.
 
 This code is currently under development.  Example jobs are provided.  Documentation is present, but a work in progress.  DGAS is being implemented.  A release is forthcoming after these issues are addressed and the code is more rigorously tested.
