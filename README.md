@@ -19,7 +19,7 @@ version 1.0
 
 created by
 Benjamin G. Levine
-Michigan State University
+Stony Brook University
 
 A trim but extensible full multiple spawning software package, written in python and distributed under the MIT License.
 
@@ -27,9 +27,14 @@ A trim but extensible full multiple spawning software package, written in python
 Citation
 ========
 
-If you use this code, we ask that you cite the paper at the follows DOI:
+If you use pySpawn, we ask that you cite the paper at the following DOI:
 
-10.1021/acs.jctc.0c00575
+https://doi.org/10.1021/acs.jctc.0c00575
+
+If you use the OpenMolcas interface, please cite both the paper above and the paper at the following DOI:
+
+https://doi.org/10.1021/acs.jctc.4c00855
+
 
 License
 =======
@@ -45,19 +50,20 @@ This is an ab initio multiple spawning code written in python.  It is designed t
 -  Runs in the adiabatic representation with derivative couplings computed via NPI.
 -  Interface to (a development version of) TeraChem via the tcpb interface. 
 -  SSAIMS — Stochastic-Selection AIMS (optional per-run)
+-  Interface to OpenMolcas
 -  An analysis module for processing of simulation data.
 
-This code is currently under development.  Example jobs are provided.  Documentation is present, but a work in progress.  DGAS is being implemented.  A release is forthcoming after these issues are addressed and the code is more rigorously tested.
+This code is currently under development.  Example jobs are provided.  Documentation is present, but a work in progress.
 
 Interfaces
 ==========
 
-At present only an interface for (a development version of) TeraChem is provided, but pySpawn is designed to be readily interfaced with other codes.
+At present only two interfaces are provided: one for (a development version of) TeraChem and one for OpenMolcas.
 
 Contact
 =======
 
-pySpawn is developed and maintained primarily by Benjamin G. Levine, levine@chemistry.msu.edu.
+pySpawn is developed and maintained primarily by Benjamin G. Levine, ben.levine@stonybrook.edu.
 
 
 

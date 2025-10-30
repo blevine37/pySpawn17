@@ -1,0 +1,12 @@
+To run PySpawn with OpenMolcas interface:
+
+	- it is necessary to define two parameters in molcas_options in the submission script:
+
+    	"python3" : "$HOME/Software/miniconda3/bin/python"    ## location of python 3
+    	"project": 'ICX'				      ## variable definition for molcas job. scratch directory will be created as /tmp/ICX and input and output files will be named ICX.inp IXC.out etc. Each trajectory must have a different project name
+
+- an INPORB file containing the initial RasOrb has to be in the parent folder where the submission script is run. This file MUST be called like that.
+
+PySpawn will look for OpenMolcas installation under $MOLCAS, please define in your shell the path for the executable pymolcas accordingly.
+
+the QM calculations will be run in a directory that will be automatically created and called QMDIR and deleted at the end of the simulation
